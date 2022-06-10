@@ -6,77 +6,123 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 interface IVaultMulti {
 
     function initialize(
-        IERC721 _heldTokenCollection,
+        address[] memory _heldTokenCollection,
         uint256[] memory _heldTokenIds,
         uint256 _vaultVersion,
         uint256 slots,
         uint256 nonce,
-        address _creator,
         address _controller,
         address closePoolImplementation_
     ) external;
     
-    function adjustPayoutRatio(uint256 _creditPurchasePercentage) external;
+    function toggleEmissions(address _boostCollection, bool emissionStatus) external;
 
-    function startEmission() external;
+    function initiateFutureLp(address _user, uint256 _nonce) external;
+
+    function purchase(
+        address _caller,
+        address _buyer, 
+        uint256[] memory tickets, 
+        uint256[] memory amountPerTicket,
+        uint256 startEpoch,
+        uint256 finalEpoch,
+        uint256 nonce
+    ) external payable;
+
+    function sell(
+        address _user,
+        uint256 _nonce,
+        uint256 _payoutRatio
+    ) external;
 
     function purchase(
         address _caller,
         address _buyer, 
         uint256[] memory tickets, 
         uint256[] memory amountPerTicket, 
+        uint256 startEpoch,
         uint256 finalEpoch
     ) payable external;
 
-    function sell(address _user) external;
+    function offerGeneralBribe(
+        uint256 bribePerEpoch, 
+        uint256 startEpoch, 
+        uint256 endEpoch
+    ) external payable;
 
-    function createPendingOrder(
-        address _targetPositionHolder,
-        address _buyer,
-        uint256 ticket,
-        uint256 lockTime,
-        uint256 executorReward
-    ) payable external;
-
-    function offerGeneralInterest(uint256 startEpoch, uint256 endEpoch) payable external;
-
-    function offerConcentratedInterest(
+    function offerConcentratedBribe(
         uint256 startEpoch, 
         uint256 endEpoch, 
-        uint256[] memory concentratedTranches
-    ) payable external;
+        uint256[] memory tickets,
+        uint256[] memory bribePerTicket
+    ) external payable;
 
-    function restore(uint256[] memory id) external returns(bool);
+    function remove(address _nft, uint256 id) external;
 
-    function reserve(uint256 id, uint256 reservationLength) external;
+    function updateAvailFunds(address _nft, uint256 _id, uint256 _saleValue) external payable;
 
-    function closeNft(uint256 id) external;
+    function restore() external returns(bool);
 
-    function adjustTicketInfo(
-        address _user,
-        uint256 _finalNftVal,
-        uint256 _id
-    ) external returns(bool complete);
+    function reserve(address _nft, uint256 id, uint256 endEpoch) external payable;
+
+    function grantTransferPermission(
+        address recipient,
+        uint256 nonce
+    ) external returns(bool);
+
+    function transferFrom(
+        address from, 
+        address to, 
+        uint256 nonce, 
+        uint256[] memory _listOfTickets,
+        uint256[] memory _amountPerTicket
+    ) external returns(bool);
+
+    function closeNft(address _nft, uint256 _id) external;
 
     function closePool() external;
 
-    function updateRestorationNonce() external;
+    function adjustTicketInfo(
+        address _user,
+        uint256 _nonce,
+        uint256 _finalNftVal,
+        address _nft,
+        uint256 _id
+    ) external returns(bool complete);
 
-    function updateAvailFunds(uint256 _id, uint256 _saleValue) external;
+    function getEpoch(uint256 _time) external view returns(uint256);
 
-    function getNonce() view external returns(uint256);
+    function getNonce() external view returns(uint256);
 
-    function getAvailableCredits(address _user) view external returns(uint256);
+    function getHeldTokens() external view returns(
+        address[] memory tokens, 
+        uint256[] memory ids
+    );
 
-    function getNominalTokensPerEpoch(address _user, uint256 _epoch) view external returns(uint256);
+    function getAmountOfReservations(
+        uint256 _epoch
+    ) external view returns(uint256 amountOfReservations);
 
-    function getListOfTickets(address _user) view external returns(uint256[] memory);
+    function getReservationStatus(
+        address nft, 
+        uint256 id, 
+        uint256 epoch
+    ) external view returns(bool);
 
-    function getClosePoolContract() view external returns(address contractAddress);
+    function getCostToReserve(uint256 _endEpoch) external view returns(uint256);
 
-    function getPendingInfo(
+    function getPayoutPerRes(uint256 epoch) external view returns(uint256);
+
+    function getDecodedLPInfo(
         address _user, 
-        uint256 _ticket
-    ) view external returns(uint256 tokensOwnedPerTicket, uint256 currentBribe, bool ticketQueued, address buyer);
+        uint256 _nonce
+    ) external view returns(
+        uint256 multiplier,
+        uint256 unlockEpoch,
+        uint256 startEpoch,
+        uint256[10] memory tickets, 
+        uint256[10] memory amounts
+    );
 
+    
 }

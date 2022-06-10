@@ -6,7 +6,7 @@ import { AbacusController } from "./AbacusController.sol";
 import { IClosePoolMulti } from "./interfaces/IClosePoolMulti.sol";
 import { IVaultFactoryMulti } from "./interfaces/IVaultFactoryMulti.sol";
 import { IEpochVault } from "./interfaces/IEpochVault.sol";
-import { IVeAbc } from "./interfaces/IVeAbc.sol";
+import { IAllocator } from "./interfaces/IAllocator.sol";
 import { ICreditBonds } from "./interfaces/ICreditBond.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -20,193 +20,179 @@ import "hardhat/console.sol";
 
 /// @title Spot pool
 /// @author Gio Medici
-/// @notice Spot pool contract
+/// @notice Spot pools allow users to collateralize any combination of NFT collections and IDs
 contract VaultMulti is ReentrancyGuard, ReentrancyGuard2, Initializable {
-
-    ///TODO: add events
 
     /* ======== ADDRESS ======== */
 
     IVaultFactoryMulti factory;
 
-    /// @notice configure directory contract
     AbacusController controller;
 
-    /// @notice abc token address
     ABCToken abcToken;
 
-    /// @notice epoch vault address
     IEpochVault epochVault;
 
-    IVeAbc veAbc;
+    IAllocator alloc;
 
-    address public creator;
-
-    /// @notice closure contract
+    /// @notice Address of the deployed closure contract
     address public closePoolContract;
 
-    /// @notice implementation of closure contract of intialize
+    /// @notice Address of the chosen boost collection
+    address public boostCollection;
+
     address private _closePoolMultiImplementation;
 
     /* ======== LOCKED ERC721 ======== */
+    /// @notice List of NFT addresses linked to this pool
+    address[] public heldCollections;
 
-    /// @notice NFT address
-    IERC721 public heldCollection;
-
-    /// @notice NFT id
+    /// @notice List of NFT IDs linked to this pool (corresponds with 'heldCollections')
     uint256[] public heldTokenIds;
 
     /* ======== UINT ======== */
+    /// @notice Epoch during which the pool was closed
+    uint256 public poolClosureEpoch;
 
     uint256 MAPoolNonce;
 
+    /// @notice The amount of available NFT closures
     uint256 public reservationsAvailable;
 
+    /// @notice Total amount of slots to be collateralized
     uint256 public amountNft;
 
-    /// @notice pool start time
+    /// @notice Pool creation time
     uint256 public startTime;
 
-    /// @notice pool vault version
+    /// @notice Vault version (corresponds to the factory version that created this)
     uint8 public vaultVersion;
 
-    /// @notice time emissions will stop
-    uint64 public timeStopEmissions;
-
-    /// @notice total tokens locked in pool
-    uint256 public tokensLocked;
-
-    /// @notice checkpoint for which position that was last counted
-    uint256 positionCheckpoint;
-
-    /// @notice point value of position checkpoint that was last counted
-    uint256 positionPointCheckpoint;
-
-    /// @notice tracker for how many tokens have been accounted for during the post auction custodial functions 
-    uint256 tokensAccountedFor;
-
+    /// @notice Total amount of adjustments required (every time an NFT is 
+    /// closed this value increments)
     uint256 public adjustmentsRequired;
 
     /* ======== BOOLEANS ======== */
-
-    /// @notice signify whether the owner signed off on the pools emissions 
+    /// @notice Status of pool emissions
     bool public emissionsStarted;
 
-    /// @notice mark pool locked after closed
+    /// @notice Status of pool closure
     bool public poolClosed;
 
-    /// @notice mark that position premiums for all positions have been calculated
-    bool positionPremiumsCalculated;
-
     /* ======== MAPPINGS ======== */
+    /// @notice Unique tag for each position purchased by a user
+    /// [address] -> user
+    /// [uint256] -> nonce
+    mapping(address => uint256) public positionNonce;
 
-    mapping(uint256 => uint256) public epochOfClosure;
+    /// @notice The epoch during which a specific NFT was closed
+    /// [address] -> NFT Collection address
+    /// [uint256] -> NFT ID
+    /// [uint256] -> epoch that the NFT was closed on
+    mapping(address => mapping(uint256 => uint256)) public epochOfClosure;
 
-    mapping(address => uint256) public adjustmentsMade;
+    /// @notice Tracking the adjustments made by each user for each open nonce
+    /// [address] -> user
+    /// [uint256] -> nonce
+    /// [uint256] -> amount of adjustments made
+    mapping(address => mapping(uint256 => uint256)) public adjustmentsMade;
 
-    /// @notice track whether the user adjusted their payout ratio to move off the default value when selling
-    mapping(address => bool) public payoutRatioAdjusted;
-
-    /// @notice reward cap (based on how much ETH is in the pool with 100 EDC cap) for how much EDC is emitted per week
-    mapping(uint256 => uint256) public rewardCapPerEpoch;
-
-    /// @notice highest tranche per epoch
+    /// @notice Largest ticket in an epoch
+    /// [uint256] -> epoch
+    /// [uint256] -> max ticket 
     mapping(uint256 => uint256) public maxTicketPerEpoch;
 
-    /// @notice total amount of nominal tokens (token count post lock duration multiplier) per epoch 
-    mapping(uint256 => uint256) public totalNominalTokensPerEpoch;
-
-    /// @notice how many tokens have been purchased in a ticket range
-    mapping(uint256 => uint256) public ticketsPurchased;
-
+    /// @notice Amount of reservations made during an epoch
+    /// [uint256] -> epoch
+    /// [uint256] -> amount of reservations
     mapping(uint256 => uint256) public reservations;
 
-    mapping(uint256 => mapping(uint256 => uint256)) public totalNominalPerTicketPerEpoch;
+    /// @notice Amount of tokens purchased within a ticket
+    /// [uint256] -> epoch
+    /// [uint256] -> ticket
+    /// [uint256] -> tokens purchased
+    mapping(uint256 => mapping(uint256 => uint256)) public ticketsPurchased;
 
-    //TODO: consider removing
-    mapping(uint256 => uint256) public unlockSizePerEpoch;
+    /// @notice Nonces to close for each user during an epoch
+    /// [address] -> user
+    /// [uint256] -> epoch
+    /// [uint256[]] -> list of nonces to close
+    mapping(address => mapping(uint256 => uint256[])) public noncesToClosePerEpoch;
 
-    mapping(uint256 => address[]) public addressesToClosePerEpoch;
-
+    /// @notice Payout size for each reservation during an epoch
+    /// [uint256] -> epoch
+    /// [uint256] -> payout size
     mapping(uint256 => uint256) public payoutPerRes;
 
+    /// @notice Total available funds in the pool during an epoch
+    /// [uint256] -> epoch
+    /// [uint256] -> available funds
     mapping(uint256 => uint256) public totAvailFunds;
 
-    /// @notice used as a checkpoint for a users point of closure
-    mapping(address => uint256) closureCheckpoint;
+    /// @notice Track a traders profile for each epoch
+    /// [address] -> user
+    /// [uint256] -> epoch
+    mapping(address => mapping(uint256 => Buyer)) public traderProfile;
 
-    /// @notice map each pool buyer
-    mapping(address => Buyer) public traderProfile;
+    /// @notice Track status of reservations made by an NFT during an epoch 
+    /// [uint256] -> epoch
+    /// [address] -> NFT Collection address
+    /// [uint256] -> NFT ID
+    /// [bool] -> status of whether a reservation was made
+    mapping(uint256 => mapping(address => mapping(uint256 => bool))) public reservationMade;
 
-    /// @notice map lingering pending order to holder 
-    mapping(address => mapping(uint256 => PendingOrder)) public pendingOrder;
-
-    mapping(uint256 => mapping(uint256 => bool)) public reservationMade;
-
+    /// @notice Track general bribe size during an epoch (paid out to all tickets on 
+    /// risk adjusted basis)
+    /// [uint256] -> epoch 
+    /// [uint256] -> amount of bribes offered
     mapping(uint256 => uint256) public generalBribe;
 
+    mapping(address => mapping(uint256 => uint256)) public generalBribeOffered;
+
+    /// @notice Track whether an address has been added to 'addressesToClosePerEpoch'
+    mapping(address => mapping(uint256 => bool)) public addedToEpoch;
+
+    /// @notice Track concentrated bribes offered to specific tickets during an epoch
+    /// [uint256] -> epoch
+    /// [uint256] -> ticket
+    /// [uint256] -> bribe amount
     mapping(uint256 => mapping(uint256 => uint256)) public concentratedBribe;
+
+    mapping(address => mapping(uint256 => mapping(uint256 => uint256))) public concentratedBribeOffered;
+
+    /// @notice Track an addresses allowance status to trade another addresses position
+    /// [address] allower
+    /// [address] allowee
+    /// [uint256] nonce
+    /// [bool] allowance status
+    mapping(address => mapping(address => mapping(uint256 => bool))) allowanceTracker;
     
     /* ======== STRUCTS ======== */
-
-    /// @notice user Buyer profile
-    /** 
-    @dev (1) creditPurchasePercentage -> what percentage of available credits would you like to purchase during sale
-         (2) ticketsOpen -> how many tickets do you have open
-         (3) startTime -> when did you originally lock you tokens
-         (4) timeUnlock -> when tokens unlock
-         (5) tokensLocked -> how many pool tokens are locked
-         (6) finalCreditCount -> final amount of credits that'll be owned at unlock time
-         (7) startEpoch -> the first epoch that a users funds are locked in
-         (8) finalEpoch -> the final epoch that a users funds are locked in
-         (9) listOfTickets -> list of a users tickets
-         (10) ticketsOwned -> amount of tokens per ticket
-         (11) nominalPerTicket -> nominal amount of tokens owned per ticket
-         (12) nominalTokensPerEpoch -> nominal amount of tokens per epoch
-    */
+    /// @notice Holds core metrics for each trader
+    /// [multiplier] -> the multiplier applied to a users credit intake when closing a position
+    /// [startEpoch] -> epoch that the position was opened
+    /// [unlockEpoch] -> epoch that the position can be closed
+    /// [comListOfTickets] -> compressed (using bit shifts) value containing the list of tranches
+    /// [comAmountPerTicket] -> compressed (using bit shifts) value containing the list of amounts
+    /// of tokens purchased in each tranche
+    /// [ethLocked] -> total amount of eth locked in the position
     struct Buyer {
-        uint16 creditPurchasePercentage;
-        uint16 ticketsOpen;
+        uint32 multiplier;
         uint32 startEpoch;
-        uint32 finalEpoch;
-        uint64 startTime;
-        uint64 timeUnlock;
-        uint128 tokensLocked;
+        uint32 unlockEpoch;
+        uint256 comListOfTickets;
+        uint256 comAmountPerTicket;
         uint256 ethLocked;
-        uint256 finalCreditCount;
-        uint256[] listOfTickets;
-        mapping(uint256 => uint256) ticketsOwned;
-        mapping(uint256 => uint256) nominalPerTicket;
-        mapping(uint256 => uint256) nominalTokensPerEpoch;
-    }
-
-    /// @notice represents a pending order that a user submits to buy the locked positions upon opening
-    /** 
-    @dev (1) ticketQueued -> if a pending order is queued
-         (2) lockTime -> length of lockup if order executed 
-         (3) executorReward -> reward offered to caller that fills the position
-         (4) ticket -> list of tickets for targeted execution
-         (5) amount -> list of amounts for targeted execution
-         (6) buyer -> buyer who owns the pending order being executed
-    */
-    struct PendingOrder {
-        bool ticketQueued;
-        uint64 finalEpoch;
-        uint256 executorReward;
-        uint256[] ticket;
-        uint256[] amount;
-        address buyer;
     }
 
     /* ======== CONSTRUCTOR ======== */
     
     function initialize(
-        IERC721 _heldTokenCollection,
+        address[] memory _heldTokenCollection,
         uint256[] memory _heldTokenIds,
         uint256 _vaultVersion,
         uint256 slots,
         uint256 nonce,
-        address _creator,
         address _controller,
         address closePoolImplementation_
     ) external initializer {
@@ -214,11 +200,10 @@ contract VaultMulti is ReentrancyGuard, ReentrancyGuard2, Initializable {
         abcToken = ABCToken(controller.abcToken());
         epochVault = IEpochVault(controller.epochVault());
         factory = IVaultFactoryMulti(controller.factoryVersions(_vaultVersion));
-        veAbc = IVeAbc(controller.veAbcToken());
+        alloc = IAllocator(controller.allocator());
 
         vaultVersion = uint8(_vaultVersion);
-        creator = _creator;
-        heldCollection = _heldTokenCollection;
+        heldCollections = _heldTokenCollection;
         heldTokenIds = _heldTokenIds;
         amountNft = slots;
         reservationsAvailable = slots;
@@ -229,666 +214,783 @@ contract VaultMulti is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /* ======== USER ADJUSTMENTS ======== */
-
-    /// @notice user can adjust what percentage of credits they'd like to purchase when unlocking tokens
-    /// @param _creditPurchasePercentage percentage of credits to be purchased (scale 0 - 1000)
-    function adjustPayoutRatio(uint256 _creditPurchasePercentage) external {
-        if(!payoutRatioAdjusted[msg.sender]) payoutRatioAdjusted[msg.sender] = true;
-        Buyer storage trader = traderProfile[msg.sender];
-        trader.creditPurchasePercentage = uint16(_creditPurchasePercentage);
+    /// @notice Turn the emissions on and off
+    /// @dev Only callable by the factory contract
+    /// @param _boostCollection The collection which the pools emission boost is based on
+    /// @param emissionStatus The state new state of 'emissionsStarted' 
+    function toggleEmissions(address _boostCollection, bool emissionStatus) external {
+        require(msg.sender == address(factory));
+        if(boostCollection == address(0)) boostCollection = _boostCollection;
+        emissionsStarted = emissionStatus;
     }
 
-    function startEmission() external {
-        require(msg.sender == address(factory));
-        emissionsStarted = true;
-        timeStopEmissions = uint64(block.timestamp + 8 days);
+    /// @notice Initiate an LP position
+    /// @dev This function can be used to initiate a position in times of low gas fees
+    /// and then later called upon to fill in the position info at a lower gas expense
+    /// @param _user Future buyer address
+    /// @param _nonce Corresponding nonce that this will be stored under
+    function initiateFutureLp(address _user, uint256 _nonce) external nonReentrant {
+        require(traderProfile[_user][_nonce].unlockEpoch == 0);
+        require(_nonce != 0);
+        traderProfile[_user][_nonce].startEpoch = uint32(1);
+        traderProfile[_user][_nonce].unlockEpoch = uint32(1);
+        traderProfile[_user][_nonce].ethLocked = 1;
+        traderProfile[_user][_nonce].comListOfTickets = 1;
+        traderProfile[_user][_nonce].comAmountPerTicket = 1;
+
+        factory.emitLPInitiated(heldCollections, heldTokenIds, _user);
     }
 
     /* ======== TRADING ======== */
-
-    /// @notice Purchase and lock tokens
-    /// @param _caller address that is responsible for calling the function
-    /// @param _buyer address that the purchase is being executed on behalf of
-    /// @param tickets tickets from which the buyer would like to purchase tokens
-    /// @param amountPerTicket how many tokens to purchase per ticket
-    /// @param finalEpoch how long to lock the tokens for
+    /// @notice Purchase an LP position in a spot pool
+    /// @dev Each position that is held by a user is tagged by a nonce which allows each 
+    /// position to hold the property of a pseudo non-fungible token (psuedo because it 
+    /// doesn't directly follow the common ERC721 token standard). This position is tradeable
+    /// post-purchase via the 'transferFrom' function. 
+    /// - The '_caller' address of a purchase receives a 1% referral fee. If this is the buyer,
+    /// they incur no fee as the extra 1% is accredited to them. 
+    /// @param _caller Function caller
+    /// @param _buyer The position buyer
+    /// @param tickets Array of tickets that the buyer would like to add in their position
+    /// @param amountPerTicket Array of amount of tokens that the buyer would like to purchase
+    /// from each ticket
+    /// @param startEpoch Starting LP epoch
+    /// @param finalEpoch The first epoch during which the LP position unlocks
+    /// @param nonce If a user pre-initiated a position this value points to the corresponding nonce
     function purchase(
         address _caller,
         address _buyer, 
         uint256[] memory tickets, 
-        uint256[] memory amountPerTicket, 
-        uint256 finalEpoch
-    ) payable external {
-        if(msg.sender != address(this) && msg.sender != controller.creditBonds()) {
-            takePayment(msg.sender);
-        }
+        uint256[] memory amountPerTicket,
+        uint256 startEpoch,
+        uint256 finalEpoch,
+        uint256 nonce
+    ) external payable nonReentrant {
         require(!poolClosed);
+        require(tickets.length == amountPerTicket.length);
+        require(tickets.length <= 10);
+        require(startEpoch <= (block.timestamp - startTime) / 1 days + 1);
+        require(startEpoch >= (block.timestamp - startTime) / 1 days);
+        require(finalEpoch - startEpoch <= 10);
 
         uint256 totalTokensRequested;
-        uint256 localMaxTicket;
-        uint256 _lockTime;
-        uint256 length = tickets.length;
-        uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
-        Buyer storage trader = traderProfile[_buyer];
-
-        if(trader.timeUnlock == 0) {
-            _lockTime = finalEpoch * 1 days + startTime - block.timestamp;
-            addressesToClosePerEpoch[finalEpoch].push(_buyer);
+        uint256 _lockTime = 
+            finalEpoch * 1 days + startTime - 
+                ((block.timestamp > startEpoch * 1 days + startTime) ? 
+                            block.timestamp : (startEpoch * 1 days + startTime));
+        uint256 _nonce;
+        if(nonce == 0) {
+            _nonce = positionNonce[_buyer];
+            positionNonce[_buyer]++;
+        } else {
+            _nonce = nonce;
         }
-        else {
-            require(adjustmentsMade[_buyer] == adjustmentsRequired);
-            require(trader.timeUnlock - block.timestamp > 1 days);
-            _lockTime = trader.timeUnlock - block.timestamp;
-        }
+        Buyer storage trader = traderProfile[_buyer][_nonce];
+        adjustmentsMade[_buyer][_nonce] = adjustmentsRequired;
+        trader.startEpoch = uint32(startEpoch);
+        trader.unlockEpoch = uint32(finalEpoch);
+        trader.multiplier = uint32(_lockTime * 7 / 1 days);
 
-        //TODO: lock time has to be greater than 2 days
-        require(_lockTime >= 1 days);
-        require(_lockTime <= 8 days);
-        //TODO: trader time unlock difference must be greater than 3 days
-        for(uint256 i=0; i<length; i++) {
-            /// check purchase request is properly submitted
-            require(tickets[i] % 1e18 == 0);
-            require(ticketsPurchased[tickets[i]] + amountPerTicket[i] <= amountNft * 1000e18);
-
-            /// update local max value
-            if(tickets[i] > localMaxTicket) localMaxTicket = tickets[i];
-            /// check that all previous tickets are filled (recursively checks and allows for executed pending orders to bypass)
-            if(tickets[i] != 0 && msg.sender != address(this)) require(ticketsPurchased[tickets[i] - 1e18] == amountNft * 1000e18);
-            /// if new ticket being purchased add it to the traders list
-            if(trader.ticketsOwned[tickets[i]] == 0) {
-                trader.listOfTickets.push(tickets[i]);
-                trader.ticketsOpen++;
-            }
-            uint256 addedAmount = _lockTime * 2 * amountPerTicket[i] * 0.001 ether / 1e18;
-
-            totalTokensRequested += amountPerTicket[i];
-            ticketsPurchased[tickets[i]] += amountPerTicket[i];
-            trader.ticketsOwned[tickets[i]] += amountPerTicket[i];
-            trader.nominalPerTicket[tickets[i]] += addedAmount;
-
-            ///update upcoming epochs with added amount of tokens
-            for(uint256 j = poolEpoch; j < finalEpoch; j++) {
-                totalNominalPerTicketPerEpoch[j][i] += addedAmount;
-                totalNominalTokensPerEpoch[j] += addedAmount;
-                trader.nominalTokensPerEpoch[j] += addedAmount;
-                rewardCapPerEpoch[j] += amountPerTicket[i] * 0.001 ether / 1e18;
-                payoutPerRes[j] += amountPerTicket[i] * 0.001 ether / 1e18 / amountNft;
-                totAvailFunds[j] += amountPerTicket[i] * 0.001 ether / 1e18;
-            }
-        
-            if(msg.sender == address(this)) break;
-        }
-
-        trader.finalEpoch = uint32(finalEpoch);
-        /// update max ticket per epoch using the local max
-        for(uint256 i = poolEpoch; i < trader.finalEpoch; i++) {
-            maxTicketPerEpoch[i] = 1e18;
-            if(localMaxTicket > maxTicketPerEpoch[i]) maxTicketPerEpoch[i] = localMaxTicket;
-        }
-        
-        /// check credit bonds and verify purchase cost
-        uint256 creditedAmount; 
-        uint256 cost = 10_125 * totalTokensRequested * 0.001 ether / 1e18 / 10_000;
-        creditedAmount = ICreditBonds(controller.creditBonds()).sendToVault(msg.sender, address(this), _buyer, cost);
-        if(msg.sender != address(this)) require(msg.value + creditedAmount == cost);
-
-        factory.updatePendingReturns{ 
-            value:25 * (totalTokensRequested / 1e18 * 0.001 ether) / 10_000
-        } ( creator );
-        factory.updatePendingReturns{ 
-            value:100 * (totalTokensRequested / 1e18 * 0.001 ether) / 10_000
-        } ( _caller );
-
-        /// lock user tokens
-        if(trader.startTime == 0) lockTokens(_buyer, totalTokensRequested, _lockTime);
-        else addTokens(_buyer, totalTokensRequested);
-    }
-
-    /// @notice Sell and unlock tokens
-    /// @dev Upon the sale of each ticket, any pending order is executed and the caller is rewarded the executor reward
-    /// @param _user address of person that is being sold for
-    function sell(
-        address _user 
-    ) nonReentrant2 external {
-        takePayment(msg.sender);
-
-        Buyer storage trader = traderProfile[_user];
-        uint256 _totalTokensRequested;
-        uint256 bribePayout;
-        uint256 length = trader.listOfTickets.length;
-
-        require(adjustmentsMade[_user] == adjustmentsRequired);
-        require(trader.timeUnlock <= block.timestamp);
-        require(trader.ticketsOpen != 0);
-
-        for(uint256 j = trader.startEpoch; j < trader.finalEpoch; j++) {
-            uint256 amount;
-            for(uint256 i=length - 1; i>=(length > 25 ? length - 25:0); i--) {
-                uint256 ticketId = trader.listOfTickets[i];
-                uint256 tokensOwned = trader.ticketsOwned[ticketId];
-                /// add nominal tokens per ticket to local tracker `amount`
-                amount += 
-                    (75e18 + (ticketId ** 2) * 100e18 / (maxTicketPerEpoch[j] ** 2) / 2) * trader.nominalPerTicket[ticketId] / 100e18;
-                _totalTokensRequested += tokensOwned;
-
-                bribePayout += trader.nominalPerTicket[ticketId] * concentratedBribe[j][i] / totalNominalPerTicketPerEpoch[j][i];
-                /// if on final epoch start clearing token list and decreasing tranche sizes
-                if(j == trader.finalEpoch - 1) {
-                    ticketsPurchased[ticketId] -= tokensOwned;
-                    delete trader.nominalPerTicket[ticketId];
-                    delete trader.ticketsOwned[ticketId];
-                    trader.ticketsOpen--;
-                    
-                    /// if pending order is waiting for execution - execute it
-                    if(pendingOrder[_user][ticketId].ticketQueued) {
-                        pendingOrder[_user][ticketId].amount.push(tokensOwned);
-                        executePending(msg.sender, _user, ticketId, tokensOwned);
-                    }
-                    
-                    trader.listOfTickets.pop();
-                    if(trader.ticketsOpen == 0) {
-                        break;
-                    }
-                }
-
-                if(trader.listOfTickets.length == 0 || i == 0) break;
-            }
-
-            ///check reward cap to calculate weekly reward cap count
-            uint256 rewardCap;
-            if(rewardCapPerEpoch[j] < 100e18) rewardCap = rewardCapPerEpoch[j];
-            else rewardCap = 100e18;
-            ///increase final credit count
-            trader.finalCreditCount += amount * rewardCap / totalNominalTokensPerEpoch[j];
-            bribePayout += amount * generalBribe[j] / totalNominalTokensPerEpoch[j];
-
-            /// unlock users tokens
-            if(trader.ticketsOpen == 0) {
-                unlockTokens(msg.sender, _user);
-                break;
-            }
-
-            factory.updatePendingReturns{ 
-                value:bribePayout
-            } ( _user );
-        }
-    }
-
-    /// @notice Allow users to submit pending orders to the meta-layer of Spot pools 
-    /// @dev allows users to bid for the rights to a position when it opens. 
-    /// the executor reward goes to the person that executes the sale.
-    /// @param _targetPositionHolder the position that the user is interested in buying ticket from
-    /// @param _buyer the buyer address that is submiting the purchase order
-    /// @param ticket targeted ticket of interest
-    /// @param finalEpoch amount of time the user would like to lock their tokens for
-    /// @param executorReward reward being offered to the caller that executes the sale
-    function createPendingOrder(
-        address _targetPositionHolder,
-        address _buyer,
-        uint256 ticket,
-        uint256 finalEpoch,
-        uint256 executorReward
-    ) nonReentrant payable external {
-        require(!poolClosed);
-        takePayment(msg.sender);
-        PendingOrder storage newOrder = pendingOrder[_targetPositionHolder][ticket];
-        if(traderProfile[_buyer].timeUnlock != 0) {
-            require(traderProfile[_buyer].timeUnlock - block.timestamp > 1 days);
-            require(traderProfile[_buyer].timeUnlock - traderProfile[_targetPositionHolder].timeUnlock > 1 days);
-        }
-        
-        require(traderProfile[_targetPositionHolder].timeUnlock - block.timestamp < 1 days);
-        require(
-            msg.value == 
-                10_125 * traderProfile[_targetPositionHolder].ticketsOwned[ticket] * 0.001 ether / 1e18 / 10_000 + executorReward
+        (trader.comListOfTickets, trader.comAmountPerTicket) = bitShift(
+            tickets,
+            amountPerTicket
         );
-        /// check that executor reward outbids last bidder
-        require(executorReward > newOrder.executorReward);
 
-        /// update and send return funds to factory
-        if(newOrder.ticketQueued) {
-            factory.updatePendingReturns{ 
-                value:newOrder.executorReward + traderProfile[_targetPositionHolder].ticketsOwned[ticket] * 0.001 ether / 1e18 
-            } ( newOrder.buyer );
+        require(_lockTime >= 12 hours);
+        noncesToClosePerEpoch[_buyer][finalEpoch].push(_nonce);
+        for(uint256 i=0; i<tickets.length; i++) {
+            uint256 ticketAmount = amountPerTicket[i];
+            uint256 baseCost = ticketAmount * 0.001 ether;
+            totalTokensRequested += ticketAmount;
+            uint256 ticketId = tickets[i];
+            for(uint256 j = startEpoch; j < finalEpoch; j++) {
+                require(ticketAmount >= amountNft);
+                require(ticketsPurchased[j][ticketId] + ticketAmount <= amountNft * 1000);
+                ticketsPurchased[j][ticketId] += ticketAmount;
+                payoutPerRes[j] += baseCost / amountNft;
+                totAvailFunds[j] += baseCost;
+                if(ticketId > maxTicketPerEpoch[j]) maxTicketPerEpoch[j] = ticketId;
+            }
         }
-        else{
-            newOrder.ticket.push(ticket);
-        }
-
-        /// update new pending order configuration
-        newOrder.finalEpoch = uint64(finalEpoch);
-        newOrder.executorReward = executorReward;
-        newOrder.buyer = _buyer;
-        newOrder.ticketQueued = true;
+        
+        executePayments(_caller, _buyer, _nonce, msg.value, totalTokensRequested);
+        factory.emitPurchase(
+            heldCollections,
+            heldTokenIds,
+            _buyer, 
+            tickets,
+            amountPerTicket,
+            startEpoch,
+            finalEpoch
+        );
     }
 
-    function offerGeneralBribe(uint256 bribePerEpoch, uint256 startEpoch, uint256 endEpoch) payable external {
+    /// @notice Close an LP position and receive credits earned
+    /// @dev Users ticket balances are counted on a risk adjusted basis in comparison to the
+    /// maximum purchased ticket tranche. The lowest discounted EDC payout is 75% and the 
+    /// highest premium is 125% for the highest ticket holders. This rate effects the portion of
+    /// EDC that a user receives per EDC emitted from a pool each epoch. Furthermore, upon unlock
+    /// any concentrated or general bribes during the users LP time is distributed on a risk
+    /// adjusted basis. Revenues from an EDC sale are distributed among allocators.
+    /// @param _user Address of the LP
+    /// @param _nonce Held nonce to close 
+    /// @param _payoutRatio Ratio of mined EDC that the user would like to purchase 
+    function sell(
+        address _user,
+        uint256 _nonce,
+        uint256 _payoutRatio
+    ) external nonReentrant {
+        require(msg.sender == _user);
+
+        Buyer storage trader = traderProfile[_user][_nonce];
+        uint256 bribePayout;
+        uint256 finalEpoch = 
+            poolClosed ? 
+                (poolClosureEpoch > trader.unlockEpoch ? 
+                    trader.unlockEpoch : poolClosureEpoch) 
+                        : trader.unlockEpoch;
+        uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
+        uint256 finalCreditCount;
+        require(
+            poolEpoch >= trader.unlockEpoch 
+            || poolClosed
+        );
+        require(trader.unlockEpoch != 0);
+        require(trader.ethLocked > 1);
+        require(adjustmentsMade[_user][_nonce] == adjustmentsRequired);
+
+        for(uint256 j = trader.startEpoch; j < finalEpoch; j++) {
+            uint256 amount;
+            uint256 _comListOfTickets = trader.comListOfTickets;
+            uint256 _comAmounts = trader.comAmountPerTicket;
+            uint256 tracker = 1;
+            while(tracker > 0) {
+                tracker = _comAmounts;
+                uint256 ticket = _comListOfTickets & 0x7fff;
+                uint256 amountTokens = _comAmounts & 0x7fff;
+                _comListOfTickets >>= 16;
+                _comAmounts >>= 16;
+                
+                if(maxTicketPerEpoch[j] == 0) maxTicketPerEpoch[j] = 1;
+                amount += 
+                    (75e18 + ((1e18 * ticket) ** 2) * 100e18 
+                        / ((maxTicketPerEpoch[j] * 1e18) ** 2) / 2) 
+                            * (amountTokens * 0.001 ether) / 100e18;
+                bribePayout += 
+                    amountTokens * concentratedBribe[j][ticket] 
+                    / ticketsPurchased[j][ticket];
+            }
+
+            uint256 rewardCap;
+            if(totAvailFunds[j] < 100e18) {
+                rewardCap = totAvailFunds[j];
+            } else {
+                rewardCap = 100e18;
+            }
+
+            finalCreditCount += amount * rewardCap / totAvailFunds[j];
+            bribePayout += amount * generalBribe[j] / totAvailFunds[j];
+        }
+
+        unlock(_user, _nonce, bribePayout, finalCreditCount, _payoutRatio);
+    }
+
+    /// @notice Offer a bribe to all LPs during a set of epochs
+    /// @param bribePerEpoch Bribe size during each desired epoch
+    /// @param startEpoch First epoch where bribes will be distributed
+    /// @param endEpoch Epoch in which bribe distribution from this general
+    /// bribe concludes
+    function offerGeneralBribe(
+        uint256 bribePerEpoch, 
+        uint256 startEpoch, 
+        uint256 endEpoch
+    ) external payable nonReentrant {
         uint256 cost;
         for(uint256 i = startEpoch; i < endEpoch; i++) {
             generalBribe[i] += bribePerEpoch;
+            generalBribeOffered[msg.sender][i] += bribePerEpoch;
             cost += bribePerEpoch;
         }
 
+        factory.emitGeneralBribe(
+            heldCollections,
+            heldTokenIds,
+            msg.sender,
+            bribePerEpoch,
+            startEpoch,
+            endEpoch
+        );
         require(msg.value == cost);
     }
 
+    /// @notice Offer a concentrated bribe
+    /// @dev Concentrated bribes are offered to specific tranches during specific epochs 
+    /// @param startEpoch First epoch where bribes will be distributed
+    /// @param endEpoch Epoch in which bribe distribution from this general
+    /// @param tickets Tranches for bribe to be applied
+    /// @param bribePerTicket Size of the bribe offered to each tranche LP
     function offerConcentratedBribe(
-        uint256 startEpoch, 
-        uint256 endEpoch, 
+        uint256 startEpoch,
+        uint256 endEpoch,
         uint256[] memory tickets,
         uint256[] memory bribePerTicket
-    ) payable external {
+    ) external payable nonReentrant {
         uint256 cost;
         uint256 length = tickets.length;
         require(length == bribePerTicket.length);
         for(uint256 i = startEpoch; i < endEpoch; i++) {
             for(uint256 j = 0; j < length; j++) {
                 concentratedBribe[i][tickets[j]] += bribePerTicket[j];
+                concentratedBribeOffered[msg.sender][i][tickets[j]] += bribePerTicket[j];
                 cost += bribePerTicket[j];
             }
         }
 
+        factory.emitConcentratedBribe(
+            heldCollections,
+            heldTokenIds,
+            msg.sender,
+            tickets,
+            bribePerTicket,
+            startEpoch,
+            endEpoch
+        );
         require(msg.value == cost);
     }
 
-    function remove(uint256 id) external {
-        require(msg.sender == heldCollection.ownerOf(id));
-        uint256 timeLeftMultiplier = (timeStopEmissions / 1 days);
-        uint256 gas = timeLeftMultiplier ** 2 * controller.abcGasFee();
-        abcToken.bypassTransfer(
-            msg.sender, 
-            controller.epochVault(),
-            gas
-        );
-        epochVault.receiveAbc(
-            gas
-        );
-        heldTokenIds = factory.updateNftInUse(address(heldCollection), id, MAPoolNonce);
+    function reclaimGeneralBribe(uint256 epoch) external {
+        require(totAvailFunds[epoch] == 0);
+        uint256 payout = generalBribeOffered[msg.sender][epoch];
+        delete generalBribeOffered[msg.sender][epoch];
+        payable(msg.sender).transfer(payout);
     }
 
-    function updateAvailFunds(uint256 _id, uint256 _saleValue) external {
+    function reclaimConcentratedBribe(uint256 epoch, uint256 ticket) external {
+        require(ticketsPurchased[epoch][ticket] == 0);
+        uint256 payout = concentratedBribeOffered[msg.sender][epoch][ticket];
+        delete concentratedBribeOffered[msg.sender][epoch][ticket];
+        payable(msg.sender).transfer(payout);
+    }
+
+    /// @notice Revoke an NFTs connection to a pool
+    /// @param _nft NFT to be removed
+    /// @param id Token ID of the NFT to be removed
+    function remove(address _nft, uint256 id) external nonReentrant {
+        require(msg.sender == IERC721(_nft).ownerOf(id));
+        require(controller.nftVaultSignedAddress(_nft, id) == address(this));
+        require(!reservationMade[(block.timestamp - startTime) / 1 days][_nft][id]);
+        if(controller.gasFeeStatus()) epochVault.receiveAbc(
+            msg.sender,
+            controller.removalFee()
+        );
+        (heldCollections, heldTokenIds) = factory.updateNftInUse(_nft, id, MAPoolNonce);
+    }
+
+    /// @notice Update the 'totAvailFunds' count upon the conclusion of an auction
+    /// @dev Called automagically by the closure contract 
+    /// @param _nft NFT that was auctioned off
+    /// @param _id Token ID of the NFT that was auctioned off
+    /// @param _saleValue Auction sale value
+    function updateAvailFunds(
+        address _nft,
+        uint256 _id,
+        uint256 _saleValue
+    ) external payable nonReentrant {
         require(msg.sender == closePoolContract);
-        uint256 e = (block.timestamp - startTime) / 1 days;
-        uint256 ppr = payoutPerRes[epochOfClosure[_id]];
+        uint256 e = epochOfClosure[_nft][_id];
+        uint256 ppr = payoutPerRes[e];
         if(_saleValue > payoutPerRes[e]) return;
-        //TODO: revisit, the value is 12 because of max lockup time of 12 weeks 
-        while(totAvailFunds[e] > 0 && e <= epochOfClosure[_id] + 12) {
-            totAvailFunds[e] -= totAvailFunds[e] * ((ppr - _saleValue) * 1e18 / ppr / amountNft) / 1e18;
+        while(totAvailFunds[e] > 0) {
+            totAvailFunds[e] -= totAvailFunds[e] 
+                * ((ppr - _saleValue) * 1e18 / ppr / amountNft) / 1e18;
             e++;
         }
     }
 
-    function restore() external returns(bool) {
+    /// @notice Reset the value of 'payoutPerRes' size and the total allowed reservations
+    /// @dev This rebalances the payout per reservation value dependent on the total 
+    /// available funds count. 
+    function restore() external nonReentrant returns(bool) {
         uint256 startingEpoch = (block.timestamp - startTime) / 1 days;
+        require(amountNft <= heldTokenIds.length);
         require(!poolClosed);
         require(reservations[startingEpoch] == 0);
         require(reservationsAvailable < amountNft);
         require(IClosePoolMulti(closePoolContract).getLiveAuctionCount() == 0);
 
+        reservationsAvailable = amountNft;
         while(totAvailFunds[startingEpoch] > 0) {
             payoutPerRes[startingEpoch] = totAvailFunds[startingEpoch] / amountNft;
             startingEpoch++;
         }
 
+        factory.emitPoolRestored(
+            heldCollections,
+            heldTokenIds,
+            payoutPerRes[(block.timestamp - startTime) / 1 days]
+        );
         return true;
     }
 
-    function reserve(uint256 id, uint256 endEpoch) external {
+    /// @notice Reserve the ability to close an NFT during an epoch 
+    /// @dev Example: Alice and Bob create a 1 slot pool together with 2 Punks. Alice wants to
+    /// borrow against the NFT in the upcoming epoch so she reserves the right to close the pool via 
+    /// 'reserve'. If Bob wants to close the NFT he has to wait until he can reserve the closure space.
+    /// The cost to reserve also increases by 25% based on the amount of reservations that have been
+    /// made during the epoch of interest. So if the pool was created with 2 slots and Alice already
+    /// reserved a space, Bob would have to pay 125% of what Alice paid to take the second reservation
+    /// slot. 
+    /// @param _nft NFT that is being reserved
+    /// @param id Token ID of the NFT that is being reserved
+    /// @param endEpoch The epoch during which the reservation wears off
+    function reserve(address _nft, uint256 id, uint256 endEpoch) external payable nonReentrant {
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
         require(!poolClosed);
-        require(msg.sender == heldCollection.ownerOf(id));
-        require(factory.getIdPresence(address(heldCollection), id));
+        require(msg.sender == IERC721(_nft).ownerOf(id));
+        require(controller.nftVaultSignedAddress(_nft, id) == address(this));
         require(reservations[poolEpoch] + 1 <= reservationsAvailable);
-        require(endEpoch - poolEpoch <= 12);
-        uint256 gas = controller.abcGasFee();
-        abcToken.bypassTransfer(
-            msg.sender, 
-            controller.epochVault(),
-            reservations[poolEpoch] ** 2 * (endEpoch - poolEpoch) * gas
+        require(endEpoch - poolEpoch <= 10);
+        require(
+            msg.value == (100 + reservations[poolEpoch] * 25) 
+                * (endEpoch - poolEpoch) * controller.reservationFee() 
+                    * payoutPerRes[poolEpoch] / 100_000
         );
-        epochVault.receiveAbc(
-            reservations[poolEpoch] ** 2 * (endEpoch - poolEpoch) * gas
-        );
+        alloc.receiveFees{ 
+            value:(100 + reservations[poolEpoch] * 25) 
+                * (endEpoch - poolEpoch) * controller.reservationFee() 
+                    * payoutPerRes[poolEpoch] / 1_000_000 
+        }();
         for(uint256 i = poolEpoch; i < endEpoch; i++) {
-            reservationMade[i][id] = true;
+            require(!reservationMade[i][_nft][id]); 
+            reservationMade[i][_nft][id] = true;
             reservations[i]++;
         }
+
+        factory.emitSpotReserved(
+            heldCollections,
+            heldTokenIds,
+            id,
+            poolEpoch,
+            endEpoch
+        );
+    }
+
+    /* ======== POSITION TRANSFER ======== */
+    /// @notice Allow another user permission to execute a single 'transferFrom' call
+    /// @param recipient Allowee address
+    /// @param nonce Nonce of allowance 
+    function grantTransferPermission(
+        address recipient,
+        uint256 nonce
+    ) external nonReentrant returns(bool) {
+        allowanceTracker[msg.sender][recipient][nonce] = true;
+
+        factory.emitPositionAllowance(heldCollections, heldTokenIds, msg.sender, recipient);
+        return true;
+    }
+
+    /// @notice Transfer a position or portion of a position from one user to another
+    /// @dev A user can transfer an amount of tokens in each tranche from their held position at
+    /// 'nonce' to another users new position (upon transfer a new position (with a new nonce)
+    /// is created for the 'to' address). 
+    /// @param from Sender 
+    /// @param to Recipient
+    /// @param nonce Nonce of position that transfer is being applied
+    /// @param _listOfTickets List of tickets to be transferred
+    /// @param _amountPerTicket Amount of tokens for each designated ticket
+    function transferFrom(
+        address from,
+        address to,
+        uint256 nonce,
+        uint256[] memory _listOfTickets,
+        uint256[] memory _amountPerTicket
+    ) external nonReentrant returns(bool) {
+        require(
+            allowanceTracker[from][msg.sender][nonce] 
+            || msg.sender == from
+        );
+        require(adjustmentsMade[from][nonce] == adjustmentsRequired);
+        Buyer storage traderFrom = traderProfile[from][nonce];
+        uint256 totalTransferRequested;
+        uint256 _tempComTickets;
+        uint256 _tempComAmounts;
+        uint256 _comTickets = traderFrom.comListOfTickets;
+        uint256 _comAmounts = traderFrom.comAmountPerTicket;
+        uint256 i;
+        uint256 tracker = 1;
+        while(tracker > 0) {
+            tracker = _comAmounts;
+            uint256 ticket = _comTickets & 0x7fff;
+            uint256 amountTokens = _comAmounts & 0x7fff;
+            _comTickets >>= 16;
+            _comAmounts >>= 16;
+
+            if(tracker != 0) {
+                require(_listOfTickets[i] == ticket);
+
+                amountTokens -= _amountPerTicket[i];
+                _tempComTickets <<= 16;
+                _tempComAmounts <<= 16;
+                _tempComTickets |= (ticket & 0x7fff);
+                _tempComAmounts |= (amountTokens & 0x7fff);
+            }
+            i++;
+        }
+
+        traderFrom.comListOfTickets = _tempComTickets;
+        traderFrom.comAmountPerTicket = _tempComAmounts;
+        traderFrom.ethLocked -= totalTransferRequested * 0.001 ether / 1e18;
+
+        createNewPosition(
+            from,
+            to,
+            totalTransferRequested * 0.001 ether / 1e18,
+            _listOfTickets,
+            _amountPerTicket
+        );
+
+        return true;
     }
 
     /* ======== POOL CLOSURE ======== */
-
-    /// @notice close pool and deploy pool closure contract
-    /** 
-    @dev In the case of an auction the value in the pool is sent to the owner at the end of the tx and fees are stored
-    for distribution on the current contract while the NFT is sent to the closure contract for auction. 
-    In the case of an exit fee being paid, the owner immediately receives the NFT and the exit fee money is 
-    sent to the closure contract for users to claim when closing their accounts.
-    */
-    function closeNft(uint256 _id) nonReentrant external {
+    /// @notice Close an NFT in exchange for the 'payoutPerRes' of the current epoch
+    /// @dev This closure triggers a 48 hour auction to begin in which the closed NFT will be sold
+    /// and can only be called by the holder of the NFT. Upon calling this function the caller will
+    /// be sent the 'payoutPerRes' and the NFT will be taken. (If this is the first function call)
+    /// it will create a close pool contract that the rest of the closure will use as well.
+    /// @param _nft NFT that is being closed
+    /// @param _id Token ID of the NFT that is being closed
+    function closeNft(address _nft, uint256 _id) external nonReentrant {
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
-        require(reservationMade[poolEpoch][_id]);
+        require(reservationMade[poolEpoch][_nft][_id]);
         require(!poolClosed);
+        require(epochOfClosure[_nft][_id] == 0);
         adjustmentsRequired++;
 
-        //closure fee to close a vault
-        uint256 closureFee = controller.vaultClosureFee();
-        abcToken.bypassTransfer(msg.sender, address(epochVault), closureFee);
-        epochVault.receiveAbc(closureFee);
-        heldTokenIds = factory.updateNftInUse(address(heldCollection), _id, MAPoolNonce);
+        (heldCollections, heldTokenIds) = factory.updateNftInUse(_nft, _id, MAPoolNonce);
         reservationsAvailable--;
 
         uint256 i = poolEpoch;
-        while(reservationMade[i][_id]) {
-            reservationMade[i][_id] = false;
+        while(reservationMade[i][_nft][_id]) {
+            reservationMade[i][_nft][_id] = false;
             reservations[i]--;
             i++;
         }
 
         if(closePoolContract == address(0)) {
-            IClosePoolMulti closePoolMultiDeployment = IClosePoolMulti(ClonesUpgradeable.clone(_closePoolMultiImplementation));
+            IClosePoolMulti closePoolMultiDeployment = 
+                IClosePoolMulti(ClonesUpgradeable.clone(_closePoolMultiImplementation));
             closePoolMultiDeployment.initialize(
                 address(this),
                 address(controller),
-                address(heldCollection),
                 vaultVersion
             );
 
-            controller.addAccreditedAddresses(address(closePoolMultiDeployment), address(0), 0, 0);
+            controller.addAccreditedAddressesMulti(address(closePoolMultiDeployment));
             closePoolContract = address(closePoolMultiDeployment);
         }
 
-        IClosePoolMulti(closePoolContract).startAuction(payoutPerRes[poolEpoch], _id);
-        //transfer held NFT to the owner (exit fee) or closure contract (auction)
-        heldCollection.transferFrom(msg.sender, address(closePoolContract), _id);
+        IClosePoolMulti(closePoolContract).startAuction(payoutPerRes[poolEpoch], _nft, _id);
+        IERC721(_nft).transferFrom(msg.sender, address(closePoolContract), _id);
 
-        epochOfClosure[_id] = poolEpoch;
-        payable(msg.sender).transfer(payoutPerRes[poolEpoch]);
+        epochOfClosure[_nft][_id] = poolEpoch;
+        alloc.receiveFees{value:controller.vaultClosureFee() * payoutPerRes[poolEpoch] / 100 }();
+        payable(msg.sender).transfer(
+            (100 - controller.vaultClosureFee()) * payoutPerRes[poolEpoch] / 100
+        );
+        if(heldCollections[0] == address(0)) {
+            poolClosed = true;
+        }
+        factory.emitNftClosed(
+            heldCollections,
+            heldTokenIds,
+            msg.sender,
+            _id,
+            payoutPerRes[poolEpoch],
+            address(closePoolContract)
+        );
     }
 
-    function closePool() external {
+    /// @notice Close the pool
+    /// @dev This can only be called from the factory once majority of holders
+    /// sign off on the overall closure of this pool.
+    function closePool() external nonReentrant {
         require(msg.sender == address(factory));
-        uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
-        require(reservations[poolEpoch] == 0);
+        poolClosureEpoch = (block.timestamp - startTime) / 1 days;
         poolClosed = true;
     } 
 
     /* ======== ACCOUNT CLOSURE ======== */
-
-    /// @notice adjust ticket info when closing account on closure contract
-    /// @dev calculates the final principal of a user by clearing each ticket in comparison to final nft value using FIFO
-    /// @param _user the user whos principal that is being calculated
-    /// @param _finalNftVal the final auction sale price of the NFT 
-    /// @param _id id of token that the user is adjusting for
+    /// @notice Adjust a users LP information after an NFT is closed
+    /// @dev This function is called by the calculate principal function in the closure contract
+    /// @param _user Address of the LP owner
+    /// @param _nonce Nonce of the LP
+    /// @param _finalNftVal Final auction sale value of the closed NFT
+    /// @param _nft Address of the auctioned NFT
+    /// @param _id Token ID of the auctioned NFT
     function adjustTicketInfo(
         address _user,
+        uint256 _nonce,
         uint256 _finalNftVal,
+        address _nft,
         uint256 _id
-    ) external returns(bool complete){
-        require(adjustmentsMade[_user] < adjustmentsRequired);
+    ) external returns(bool complete) {
+        require(adjustmentsMade[_user][_nonce] < adjustmentsRequired);
 
-        ///TODO: adjust to fill in tickets with purchase price and payout premium
-        //only closure contract can call this
-        Buyer storage trader = traderProfile[_user];
-        uint256 _epochOfClosure = epochOfClosure[_id];
-        /** 
-        compare each ticket to final NFT val and follow:
-            - ticket value < nft value -> add val of tokens in ticket to principal 
-            - ticket start < nft value && ticket end > nft val -> take the proportional overflow
-              and return each token in ticket at that value
-            - ticket start > nft value -> tokens in ticket are worth 0
-        */
-        uint256 toRemoveNom;
-        uint256 length = trader.listOfTickets.length;
-        uint256 checkpoint = closureCheckpoint[_user];
+        Buyer storage trader = traderProfile[_user][_nonce];
+        uint256 _epochOfClosure = epochOfClosure[_nft][_id];
+        uint256 _tempComTickets;
+        uint256 _tempComAmounts;
+        uint256 _comTickets = trader.comListOfTickets;
+        uint256 _comAmounts = trader.comAmountPerTicket;
 
-        for(uint256 i=checkpoint; i<checkpoint+1; i++) {
-            if(maxTicketPerEpoch[_epochOfClosure] + 1e18 < _finalNftVal) {
-                complete = true;
-                break; 
-            }
-            uint256 ticketId = trader.listOfTickets[i];
-            if(ticketId + 1e18 < _finalNftVal) {
-                if(i == length - 1) {
-                    complete = true;
-                    break;
-                }
+        if(
+            maxTicketPerEpoch[_epochOfClosure] + 1e18 < _finalNftVal
+            || trader.unlockEpoch < _epochOfClosure
+            || trader.startEpoch > _epochOfClosure
+        ) {
+            return true;
+        }
+
+        uint256 tracker = 1;
+        while(tracker > 0) {
+            tracker = _comAmounts;
+            uint256 ticket = _comTickets & 0x7fff;
+            uint256 amountTokens = _comAmounts & 0x7fff;
+            _comTickets >>= 16;
+            _comAmounts >>= 16;
+            if(ticket + 1e18 <= _finalNftVal) {
                 continue;
+            } else if(ticket > _finalNftVal) {
+                amountTokens = 0;
+            } else if(ticket + 1e18 > _finalNftVal) {
+                amountTokens -= 
+                    amountTokens * (ticket + 1e18 - _finalNftVal) / amountNft / 1e18;
             }
-            if(ticketId > _finalNftVal) {
-                trader.ticketsOwned[ticketId] = trader.ticketsOwned[ticketId] * (amountNft - 1)/amountNft;
-                trader.nominalPerTicket[ticketId] = trader.nominalPerTicket[ticketId] * (amountNft - 1)/amountNft;
-                toRemoveNom += trader.nominalPerTicket[ticketId] * 1/amountNft;
-            }
-            else if(ticketId + 1e18 > _finalNftVal) {
-                trader.ticketsOwned[ticketId] -= 
-                    trader.ticketsOwned[ticketId] / amountNft * (ticketId + 1e18 - _finalNftVal) / 1e18;
-                trader.nominalPerTicket[ticketId] -= 
-                    trader.nominalPerTicket[ticketId] / amountNft * (ticketId + 1e18 - _finalNftVal) / 1e18;
-                toRemoveNom += 
-                    trader.nominalPerTicket[ticketId] / amountNft * (ticketId + 1e18 - _finalNftVal) / 1e18;
-            }
-            
-            if(i == length - 1) {
-                complete = true;
-                break;
-            }
+
+            _tempComTickets <<= 16;
+            _tempComAmounts <<= 16;
+            _tempComTickets |= (ticket & 0x7fff);
+            _tempComAmounts |= (amountTokens & 0x7fff);
         }
 
-        for(uint256 j = _epochOfClosure; j < trader.finalEpoch; j++) {
-            trader.nominalTokensPerEpoch[j] -= toRemoveNom;
-        }
+        trader.comListOfTickets = _tempComTickets;
+        trader.comAmountPerTicket = _tempComAmounts;
 
-        uint256 auctionPremium = IClosePoolMulti(closePoolContract).getAuctionPremium(_id);
-        if(!complete) closureCheckpoint[_user] += 1;
-        else {
-            closureCheckpoint[_user] = 0;
-            adjustmentsMade[_user]++;
-            IClosePoolMulti(closePoolContract).payout(
-                _user, 
-                auctionPremium * trader.nominalTokensPerEpoch[_epochOfClosure] / totalNominalTokensPerEpoch[_epochOfClosure]
+        adjustmentsMade[_user][_nonce]++;
+        if(_finalNftVal > payoutPerRes[_epochOfClosure]) {
+            payable(_user).transfer(
+                IClosePoolMulti(closePoolContract).getAuctionPremium(_nft, _id) * trader.ethLocked 
+                    / totAvailFunds[_epochOfClosure]
             );
         }
+
+        return true;
     }
 
     /* ======== INTERNAL ======== */
-
-    /// @notice lock purchase pool tokens 
-    /** 
-    @dev when user purchases tokens, they're automatically locked. 
-    Upon locking the user final eth:credit purchase rate is 1:(lock time / 1 weeks).
-    This means that at the position maturity, the user will be able to purchase 
-    (tokensLocked * 0.001 ether) * (lock time / 1 weeks) for the cost of (tokensLocked * 0.001 ether).
-    This function is only called when a user has 0 tokens locked.
-    */
-    /// @param _user the user that is locking tokens
-    /// @param _amount the amount of tokens being locked
-    /// @param _lockTime the amount of times the tokens are being locked 
-    function lockTokens(address _user, uint256 _amount, uint256 _lockTime) internal {
-        adjustmentsMade[_user] = adjustmentsRequired;
-        //max lock time is 12 weeks
-        uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
-        Buyer storage trader = traderProfile[_user];
-        //log start time and unlock time
-        trader.startEpoch = uint32(poolEpoch);
-        trader.startTime = uint64(block.timestamp);
-        trader.timeUnlock = uint64(block.timestamp + (_lockTime / 1 days) * 1 days);
-        trader.tokensLocked += uint128(_amount);
-        tokensLocked += _amount;
+    function bitShift(
+        uint256[] memory tickets, 
+        uint256[] memory amountPerTicket
+    ) internal pure returns(uint256 comTickets, uint256 comAmounts) {
+        uint256 length = tickets.length;
+        for(uint256 i = 0; i < length; i++) {
+            comTickets <<= 16;
+            comAmounts <<= 16;
+            comTickets |= (tickets[i] & 0x7fff);
+            comAmounts |= (amountPerTicket[i] & 0x7fff);
+        }
     }
 
-    /// @notice lock *more* tokens
-    /** 
-    @dev if a user purchases tokens and they've already locked some amount of tokens, addTokens is called.
-    This updates the final credit balance that a user will converge on based on how much is being added 
-    to the locked balance and the length of time left on the lockup.
-    */
-    /// @param _user the user that is locking tokens
-    /// @param _amount the amount of tokens being locked 
-    function addTokens(address _user, uint256 _amount) internal {
-
-        //make sure there are already tokens locked and position hasn't matured
-        Buyer storage trader = traderProfile[_user];
-        require(trader.tokensLocked != 0 && trader.timeUnlock > block.timestamp);
+    function executePayments(
+        address _caller, 
+        address _buyer, 
+        uint256 _nonce, 
+        uint256 paymentSize, 
+        uint256 totalTokensRequested
+    ) internal {
+        Buyer storage trader = traderProfile[_buyer][_nonce];
+        uint256 base = totalTokensRequested * 0.001 ether;
+        uint256 cost = (_caller == _buyer ? 10_000 : 10_100) * base / 10_000;
+        require(paymentSize + ICreditBonds(controller.creditBonds()).sendToVault(
+            _caller, 
+            address(this), 
+            _buyer, 
+            cost
+            ) == cost
+        );
         
-        //mint and lock tokens
-        trader.tokensLocked += uint128(_amount);
-        tokensLocked += _amount;
+        if(_caller != _buyer) {
+            factory.updatePendingReturns{ 
+                value:100 * (base) / 10_000
+            } ( _caller );
+        }
+        trader.ethLocked += base;
     }
 
-    /// @notice unlock tokens
-    /** 
-    @dev users can only unlock tokens once their unlock time is up. Upon unlocking tokens the ENTIRE position
-    is closed. All locked tokens are burned, user makes decisions regarding credits via the sellTokens.
-    */
-    /// @param _user the user that whos tokens are unlocking
-    function unlockTokens(address _caller, address _user) internal {
+    function unlock(
+        address _user,
+        uint256 _nonce,
+        uint256 _bribeReward,
+        uint256 _finalCreditCount,
+        uint256 _payoutRatio
+    ) internal {
+        if(
+            !epochVault.getBaseAdjustmentStatus()
+            && epochVault.getCurrentEpoch() != 0
+        ) epochVault.adjustBase();
 
-        //make sure position has matured
-        Buyer storage trader = traderProfile[_user];
-        require(block.timestamp >= trader.timeUnlock);
-
-        uint256 amountTokensLocked = trader.tokensLocked;
-        uint256 _salePrice = (amountTokensLocked * 0.001 ether / 1e18);
+        Buyer storage trader = traderProfile[_user][_nonce];
+        uint256 basePercentage = epochVault.getBasePercentage();
         uint256 amountCreditsDesired = 
-            (payoutRatioAdjusted[_user] ? trader.creditPurchasePercentage : 1_000) * trader.finalCreditCount / 1_000;
+            _payoutRatio * _finalCreditCount / 1_000;
         uint256 cost = 
-            (payoutRatioAdjusted[_user] ? trader.creditPurchasePercentage : 1_000) * amountTokensLocked * 0.001 ether / 1_000e18;
-        uint256 mod;
-        if(emissionsStarted) mod = 1;
+            _payoutRatio * trader.ethLocked / 1_000
+                * basePercentage / 10_000;
 
         if(!emissionsStarted) {
             amountCreditsDesired = 0;
             cost = 0;
         }
 
-        // update claim amount for msg.sender and nft owner
-        factory.updatePendingReturns{ 
-            value:25 * (_salePrice - cost) / 10_000
-        } ( _caller );
-        factory.updatePendingReturns{ 
-            value:mod * cost / 100
-        } ( creator );
+        alloc.receiveFees{value: (cost)}();
+        payable(_user).transfer(trader.ethLocked + _bribeReward - cost);
+        epochVault.updateEpoch(boostCollection, _user, amountCreditsDesired * trader.multiplier);
+        delete traderProfile[_user][_nonce];
 
-        /// send revenue to veABC holders and treasury
-        veAbc.receiveFees{value: (100 - mod - controller.treasuryRate()) * cost / 100}();
-        payable(controller.abcTreasury()).transfer(controller.treasuryRate() * cost / 100);
-
-        _salePrice -= 25 * (_salePrice - cost) / 10_000;
-
-        //return remaining funds to seller
-        factory.updatePendingReturns{ 
-            value:_salePrice - cost
-        } ( _user );
-
-        //update user credit count in vault
-        epochVault.updateEpoch(address(heldCollection), _user, amountCreditsDesired);
-
-        //unlock and burn tokens
-        tokensLocked -= amountTokensLocked;
-
-        //reset buyer position
-        delete trader.timeUnlock;
-        delete trader.startTime;
-        delete trader.finalCreditCount;
-        delete trader.tokensLocked;
+        factory.emitSaleComplete(
+            heldCollections,
+            heldTokenIds,
+            _user,
+            amountCreditsDesired
+        );
     }
 
-    /// @notice internal function to execute a pending order atomically upon sale
-    function executePending(address _caller, address _user, uint256 ticketId, uint256 amountTokensOwned) internal {
-        if(poolClosed) {
-            factory.updatePendingReturns{ 
-                value:amountTokensOwned * 0.001 ether / 1e18
-                    + pendingOrder[_user][ticketId].executorReward
-            } ( pendingOrder[_user][ticketId].buyer );
+    function createNewPosition(
+        address from,
+        address to, 
+        uint256 ethValTransfer, 
+        uint256[] memory listOfTickets,
+        uint256[] memory amountPerTicket
+    ) internal {
+        Buyer storage traderTo = traderProfile[to][positionNonce[to]];
+        adjustmentsMade[to][positionNonce[to]] = adjustmentsRequired;
+        traderTo.ethLocked = ethValTransfer;
+        uint256 comTickets;
+        uint256 comAmounts;
+        for(uint256 i = 0; i < listOfTickets.length; i++) {
+            comTickets <<= 16;
+            comAmounts <<= 16;
+            comTickets |= (listOfTickets[i] & 0x7fff);
+            comAmounts |= (amountPerTicket[i] & 0x7fff);
         }
-        else {
-            // execute token purchase on behalf of highest bidder
-            this.purchase(
-                _caller, 
-                pendingOrder[_user][ticketId].buyer, 
-                pendingOrder[_user][ticketId].ticket,
-                pendingOrder[_user][ticketId].amount, 
-                pendingOrder[_user][ticketId].finalEpoch
-            );
+        traderTo.comListOfTickets = comTickets;
+        traderTo.comAmountPerTicket = comAmounts;
+        positionNonce[to]++;
 
-            pendingOrder[_user][ticketId].ticket.pop();
-            pendingOrder[_user][ticketId].amount.pop();
-
-            // send executor reward to the caller
-            payable(_caller).transfer(pendingOrder[_user][ticketId].executorReward);
-        }
-
-        // delete pending order
-        delete pendingOrder[_user][ticketId];
-    }
-
-    /// @notice charge abc network fee
-    function takePayment(address _user) internal {
-        uint256 gas = controller.abcGasFee();
-        abcToken.bypassTransfer(_user, controller.epochVault(), gas);
-        epochVault.receiveAbc(gas);
+        factory.emitLPTransfer(
+            heldCollections, 
+            heldTokenIds, 
+            from, 
+            to, 
+            listOfTickets, 
+            amountPerTicket
+        );
     }
 
     /* ======== GETTER ======== */
-
-    function getEpoch(uint256 _time) view external returns(uint256) {
+    /// @notice Get the pool epoch at a specific time
+    /// @param _time Time of interest
+    function getEpoch(uint256 _time) external view returns(uint256) {
         return (_time - startTime) / 1 days; 
     }
 
-    function getNonce() view external returns(uint256) {
+    /// @notice Get multi asset pool reference nonce
+    function getNonce() external view returns(uint256) {
         return MAPoolNonce;
     }
 
-    function getPayoutPerRes(uint256 epoch) view external returns(uint256) {
+    /// @notice Get the list of NFT address and corresponding token IDs in by this pool
+    function getHeldTokens() external view returns(
+        address[] memory tokens, 
+        uint256[] memory ids
+    ) {
+        tokens = heldCollections;
+        ids = heldTokenIds;
+    }
+
+    /// @notice Get the total amount of reservations made during an epoch
+    /// @param _epoch Epoch of interest
+    function getAmountOfReservations(
+        uint256 _epoch
+    ) external view returns(uint256 amountOfReservations) {
+        amountOfReservations = reservations[_epoch];
+    }
+
+    /// @notice Get the reservation status of an NFT during an epoch
+    /// @param nft Address of NFT of interest
+    /// @param id Token ID of NFT of interest
+    /// @param epoch Epoch of interest
+    function getReservationStatus(
+        address nft, 
+        uint256 id, 
+        uint256 epoch
+    ) external view returns(bool) {
+        return reservationMade[epoch][nft][id];
+    }
+
+    /// @notice Get the cost to reserve an NFT for an amount of epochs
+    /// @dev This takes into account the reservation amount premiums
+    /// @param _endEpoch The epoch after the final reservation epoch
+    function getCostToReserve(uint256 _endEpoch) external view returns(uint256) {
+        uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
+        return (100 + reservations[poolEpoch] * 25) 
+                * (_endEpoch - poolEpoch) * controller.reservationFee() 
+                    * payoutPerRes[poolEpoch] / 100_000;
+    }
+
+    /// @notice Get size of the payout during an epoch
+    /// @param epoch Epoch of interest
+    function getPayoutPerRes(uint256 epoch) external view returns(uint256) {
         return payoutPerRes[epoch];
     }
 
-    /// @notice return a users nominal token count per epoch
-    function getNominalTokensPerEpoch(address _user, uint256 _epoch) view external returns(uint256) {
-        return traderProfile[_user].nominalTokensPerEpoch[_epoch];
-    }
-
-    /// @notice return a users full list of tickets held
-    function getListOfTickets(address _user) view external returns(uint256[] memory) {
-        return traderProfile[_user].listOfTickets;
-    }
-    
-    ///TODO: add in unlock epoch to be returned
-    /// @notice returns user tokens owned in a ticket and shows pending offer information
-    /// @param _user user of interest
-    /// @param _ticket ticket of interest 
-    /// @return tokensOwnedPerTicket tokens currently owned in at ticket by _user
-    /// @return currentBribe size of the bribe for that position
-    /// @return ticketQueued whether there is currently a queued ticket
-    /// @return buyer highest bidder to take over that position
-    function getPendingInfo(
+    /// @notice Get a decoded version of an LP position
+    /// @dev This getter decodes the bit shifts used to compress a list of tickets. The two
+    /// lists are returned in reverse order of the original list.
+    /// @param _user LP of interest
+    /// @param _nonce Nonce tag of LP position of interest
+    function getDecodedLPInfo(
         address _user, 
-        uint256 _ticket
-    ) view external returns(uint256 tokensOwnedPerTicket, uint256 currentBribe, bool ticketQueued, address buyer) {
-        Buyer storage trader = traderProfile[_user];
-        tokensOwnedPerTicket = trader.ticketsOwned[_ticket];
-        currentBribe = pendingOrder[_user][_ticket].executorReward;
-        ticketQueued = pendingOrder[_user][_ticket].ticketQueued;
-        buyer = pendingOrder[_user][_ticket].buyer;
-    }
+        uint256 _nonce
+    ) external view returns(
+        uint256 multiplier,
+        uint256 unlockEpoch,
+        uint256 startEpoch,
+        uint256[10] memory tickets, 
+        uint256[10] memory amounts
+    ) {
+        Buyer storage trader = traderProfile[_user][_nonce];
+        uint256 i;
+        uint256 _comListOfTickets = trader.comListOfTickets;
+        uint256 _comAmounts = trader.comAmountPerTicket;
+        uint256 tracker = 1;
+        while(tracker > 0) {
+            tracker = _comAmounts;
+            uint256 ticket = _comListOfTickets & 0x7fff;
+            uint256 amountTokens = _comAmounts & 0x7fff;
+            _comListOfTickets >>= 16;
+            _comAmounts >>= 16;
 
-    /// @notice returns how many tokens are locked and when they unlock
-    /// @param _user user of interest
-    function getUserPositionInfo(address _user) view external returns(uint256 lockedTokens, uint256 timeUnlock) {
-        Buyer storage trader = traderProfile[_user];
-        lockedTokens = trader.tokensLocked;
-        timeUnlock = trader.timeUnlock;
-    }
-
-    function getUnlockInfo(uint256 _epoch) view external returns(uint256 amountUnlocked, uint256 unlockTime) {
-        amountUnlocked = unlockSizePerEpoch[_epoch];
-        unlockTime = _epoch * 1 days + startTime;
-    }
-
-    /// @notice return a users chosen payout ratio
-    function getPayoutRatio(address _user) view external returns(uint256 payoutRatio) {
-        Buyer storage trader = traderProfile[_user];
-        payoutRatio = payoutRatioAdjusted[_user] ? trader.creditPurchasePercentage : 1_000;
+            if(tracker != 0) {
+                tickets[i] = ticket;
+                amounts[i] = amountTokens;
+            }
+            i++;
+        }
+        multiplier = trader.multiplier;
+        startEpoch = trader.startEpoch;
+        unlockEpoch = trader.unlockEpoch;
     }
 
     /* ======== FALLBACK FUNCTIONS ======== */

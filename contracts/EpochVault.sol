@@ -3,169 +3,265 @@ pragma solidity ^0.8.0;
 
 import { ABCToken } from "./AbcToken.sol";
 import { AbacusController } from "./AbacusController.sol";
-import { VeABC } from "./VeAbcToken.sol";
+import { IAllocator } from "./interfaces/IAllocator.sol";
 import { ICreditBonds } from "./interfaces/ICreditBond.sol";
-import { IVeAbc } from "./interfaces/IVeAbc.sol";
 
 import "./helpers/ReentrancyGuard.sol";
 import "hardhat/console.sol";
 
 /// @title Epoch Vault
 /// @author Gio Medici
-/// @notice Mints user reward tokens per epoch
+/// @notice Manages epoch metrics (includes: minting abc rewards, base, EDC earnings)
 contract EpochVault is ReentrancyGuard {
 
     /* ======== ADDRESS ======== */
 
-    /// @notice protocol directory contract
-    AbacusController public controller;
+    AbacusController public immutable controller;
 
     /* ======== UINT ======== */
+    /// @notice Target epoch distribution credit count to be reached in an epoch
+    uint256 public base;
 
-    /// @notice start time of Abacus
+    /// @notice Percentage of liquidity used to farm epoch distribution credits required to
+    /// purchase those credits
+    uint256 public basePercentage;
+
+    /// @notice Protocol start time
     uint256 public startTime;
 
-    /// @notice length of each epoch
-    uint256 public epochLength;
-
-    /* ======== BOOL ======== */
-
-    /// @notice set to true once Abacus started
-    bool public started;
+    /// @notice The length of epochs
+    uint256 public immutable epochLength;
 
     /* ======== MAPPING ======== */
+    /// @notice Track if the base has been adjusted during an epoch
+    /// [uint256] -> epoch
+    /// [bool] -> adjustment status
+    mapping(uint256 => bool) public baseAdjusted;
 
-    /// @notice track information per epoch (see Epoch struct below for what information)
+    /// @notice Track epoch details
+    /// [uint256] -> epoch
+    /// [Epoch] -> struct of epoch details
     mapping(uint256 => Epoch) public epochTracker;
 
-    /// @notice track a users personal boost per epoch based on credit bonds
-    mapping(uint256 => mapping(address => uint256)) public personalBoost;
-
     /* ======== STRUCT ======== */
-
-    /// @notice hold information about each epoch that passes
-    /** 
-    @dev (1) totaCredits -> total amount of credits purchased in an epoch
-         (2) startTime -> time the epoch began 
-         (3) abcEmissionSize -> size of that epochs emissions for retroactive claims
-         (4) userCredits -> each users amount of credits in each epoch 
-    */
+    /// @notice Stores operational information of an epoch
+    /// [totalCredits] -> total epoch distribution credits purchased in an epoch
+    /// [abcEmissionSize] -> amount of ABC spent on network fees during an epoch
+    /// [userCredits] -> track a users credit count in an epoch
+        /// [address] -> user
+        /// [uint256] -> credit count
     struct Epoch {
         uint256 totalCredits;
-        uint256 startTime;
         uint256 abcEmissionSize;
         mapping(address => uint256) userCredits;
     }
+
+    /* ======== EVENTS ======== */
+
+    event PaymentMade(uint256 _epoch, uint256 _amount);
+    event BaseAdjusted(uint256 _epoch, uint256 _base, uint256 _basePercentage);
+    event EpochUpdated(address _user, address nft, uint256 _amountCredits);
+    event AbcRewardClaimed(address _user, uint256 _epoch, uint256 _amount);
+    event AbcReceived(uint256 _amountReceived, uint256 _totalEmissionSize);
 
     /* ======== CONSTRUCTOR ======== */
 
     constructor(address _controller, uint256 _epochLength) {
         epochLength = _epochLength;
         controller = AbacusController(_controller);
+        base = 2000e18;
+        basePercentage = 100;
+        baseAdjusted[0] = true;
     }
 
-    /* ======== EPOCH INTERACTION ======== */
-
-    /// @notice kick off the Abacus protocol
-    function begin() nonReentrant external {
-        require(msg.sender == controller.admin() && !started);
+    /* ======== MANUAL EPOCH INTERACTION ======== */
+    /// @notice Start the protocol epoch counter
+    /// @dev This function allows pools to start being created and traded in as well
+    /// as incrementing the mod value tracker on credit bonds to increment bond epoch
+    /// tracker by 1
+    function begin() external nonReentrant {
+        require(msg.sender == controller.admin() && startTime == 0);
         ICreditBonds(payable(controller.creditBonds())).begin();
         startTime = block.timestamp;
-        started = true;
     }
 
-    /// @notice Used as information intake function for Spot pool contracts to update a users credit count
-    /// @param _nft the nft address that corresponds to the pool the user is buying credits from
-    /// @param _user the user that is buying the credits in the Spot pool
-    /// @param _amount total amount of credits being purchased
-    function updateEpoch(address _nft, address _user, uint256 _amount) nonReentrant external {
-        
-        //query veABC contract for boost that NFT collection holds based on allocation gauge
-        (uint256 numerator, uint256 denominator) = VeABC(controller.veAbcToken()).calculateBoost(_nft);
+    /* ======== AUTOMATED EPOCH INTERACTION (ACCREDITED ONLY) ======== */
+    /// @notice Adjust the base tracker and base percentage
+    /// @dev This function adjusts the base and base percentage based on the following criterea:
+    /// 1) If total EDC purchased >= base 
+        /// => base * (1 + 0.125) | base percentage * (1 + 0.25)
+    /// 2) If total EDC purchased >= 0.5 * base
+        /// => base * (1 + 0.125 * (base - EDC) / base) | 
+            /// base percentage * (1 + 0.25 * (base - EDC) / base)
+    /// 3) If total EDC purchased < 0.5 * base
+        /// => base * (1 - 0.125 * (1 - (base - EDC) / base)) |
+            /// => base percentage * (1 - 0.25 * (1 - (base - EDC) / base))
+    /// HOWEVER base can never go below 1000e18 (1000 EDC) and base percentage 50 (0.5%)
+    function adjustBase() external {
+        require(controller.accreditedAddresses(msg.sender));
         uint256 currentEpoch = (block.timestamp - startTime) / epochLength;
+        Epoch storage tracker = epochTracker[currentEpoch - 1];
+        if(epochTracker[currentEpoch - 1].totalCredits > base) {
+            base = 
+                base * (10_000 + 1_250) / 10_000;
+            basePercentage = 
+                basePercentage * (10_000 + 2_500) / 10_000;
+        } else if(tracker.totalCredits > 50 * base / 100) {
+            base = 
+                base 
+                    * (10_000 + 1_250 * tracker.totalCredits / base) 
+                        / 10_000;
+            basePercentage = 
+                basePercentage 
+                    * (10_000 + 2_500 * tracker.totalCredits / base) 
+                        / 10_000;
+        } else if(tracker.totalCredits < 50 * base / 100) {
+            base = 
+                base 
+                    * (10_000 - 1_250 * (1_000 - tracker.totalCredits * 1_000 / base) / 1_000)
+                        / 10_000;
+            basePercentage = 
+                basePercentage 
+                    * (10_000 - 2_500 * (1_000 - tracker.totalCredits * 1_000 / base) / 1_000)
+                        / 10_000;
+        }
 
-        //check the msg.sender is either a Spot pool or closure contract
-        require(controller.accreditedAddresses(msg.sender)); 
+        if(base < 1000e18) {
+            base = 1000e18;
+        }
+        if(basePercentage < 50) {
+            basePercentage = 50;
+        } else if(basePercentage > 10_000) {
+            basePercentage = 10_000;
+        }
 
+        baseAdjusted[currentEpoch] = true;
+        emit BaseAdjusted(currentEpoch, base, basePercentage);
+    }
 
-        uint256 boost = ICreditBonds(payable(controller.creditBonds())).getPersonalBoost(_user, currentEpoch == 0? 0: currentEpoch - 1);
-        
-        /** 
-        User credits automatically vest for 1 full epoch. When _amount is submitted in the function, the contract checks the multiplier
-        based on the gauge to determine what multiple to apply to the users _amount which is to be added to their credit balance
-        */
+    /// @notice Update the EDC counts of the current epoch
+    /// @dev The received nft address will be checked for level of boost to apply before
+    /// logging the EDC
+    /// @param _nft The nft that will be checked for the boost
+    /// @param _user User who will receive the credits
+    /// @param _amountCredits Amount of base credits to be received 
+    function updateEpoch(
+        address _nft,
+        address _user,
+        uint256 _amountCredits
+    ) external nonReentrant {
+        require(controller.accreditedAddresses(msg.sender));
+        (uint256 numerator, uint256 denominator) = 
+            IAllocator(controller.allocator()).calculateBoost(_nft);
+        uint256 currentEpoch = (block.timestamp - startTime) / epochLength;
+        uint256 boost = ICreditBonds(payable(controller.creditBonds())).getPersonalBoost(
+            _user, 
+            currentEpoch == 0? 0: currentEpoch - 1
+        );
         uint256 creditsToAdd = 
-            _amount * (10_000e18 + boost * 1e18)
-            * (denominator == 0 ? 100 : (100 + 100 * numerator / denominator)) / 100 
-            * (1e18 + personalBoost[currentEpoch + 1][_user] * 1e18/ 10_000) / 1e18 / 10_000e18;
+            _amountCredits * (10_000e18 + boost * 1e18)
+            * (denominator == 0 ? 100 : (100 + 100 * numerator / denominator)) / 1_000_000e18;
         epochTracker[currentEpoch].totalCredits += creditsToAdd;
         epochTracker[currentEpoch].userCredits[_user] += creditsToAdd;
+        emit EpochUpdated(_user,  _nft, creditsToAdd);
+    }
+
+    /// @notice Receive network fees paid from accredited addresses
+    /// @dev Any network fees received are added to the current epochs ABC emission size 
+    function receiveAbc(address _user, uint256 _amount) external nonReentrant {
+        require(controller.accreditedAddresses(msg.sender));
+        uint256 currentEpoch = (block.timestamp - startTime) / epochLength;
+        ABCToken(payable(controller.abcToken())).bypassTransfer(_user, address(this), _amount);
+        epochTracker[currentEpoch].abcEmissionSize += _amount;
+        emit AbcReceived(_amount, epochTracker[currentEpoch].abcEmissionSize);
     }
 
     /* ======== ABC REWARDS ======== */
-
-    /// @notice Allow credit holders to claim their portion of the epochs emissions
-    /** 
-    @dev portion of an epochs emissions that a user receives is based on their proportional 
-    ownership of total the total credits that were purchased in that epoch
-    */
-    /// @param _user the user who is receiving their abc rewards
-    /// @param _epoch the epoch they are calling the rewards from
-    function claimAbcReward(address _user, uint256 _epoch) external returns(uint256 amountClaimed){
+    /// @notice Claim abc reward from an epoch
+    /// @param _user The reward recipient
+    /// @param _epoch The epoch of interest
+    /// @return amountClaimed Reward size
+    function claimAbcReward(
+        address _user, 
+        uint256 _epoch
+    ) external nonReentrant returns(uint256 amountClaimed) {
         require(_epoch < (block.timestamp - startTime) / epochLength);
-
-        //calculate epoch emissions size 
-        uint256 epochEmission = this.getBaseEmission(_epoch) + epochTracker[_epoch].abcEmissionSize;
-
-        //check _user proportional ownership of the epoch
-        uint256 abcReward = epochTracker[_epoch].userCredits[_user] * epochEmission / epochTracker[_epoch].totalCredits;
-        
-        //clear _user credit balance
-        epochTracker[_epoch].userCredits[_user] = 0;
-
-        //mint new ABC emission from the epoch
+        Epoch storage tracker = epochTracker[_epoch];
+        uint256 epochEmission = 20_000_000e18 + tracker.abcEmissionSize;
+        uint256 abcReward;
+        if(tracker.totalCredits == 0) {
+            abcReward = 0;
+        } else {
+            abcReward = 
+                tracker.userCredits[_user] * epochEmission / tracker.totalCredits;
+        }
+        delete tracker.userCredits[_user];
         ABCToken(payable(controller.abcToken())).mint(_user, abcReward);
-
         amountClaimed = abcReward;
+        emit AbcRewardClaimed(_user, _epoch, abcReward);
     }
 
-    /// @notice used to receive and log network fees paid to be paid out in upcoming epoch emission
-    function receiveAbc(uint256 _amount) nonReentrant external {
+    /* ======== GETTERS ======== */
+    /// @notice Get the protocols start time
+    function getStartTime() external view returns(uint256) {
+        return startTime;
+    }
+
+    /// @notice Get base adjustment status for the current epoch
+    function getBaseAdjustmentStatus() external view returns(bool) {
         uint256 currentEpoch = (block.timestamp - startTime) / epochLength;
-        require(controller.accreditedAddresses(msg.sender) || controller.veAbcToken() == msg.sender);
-        epochTracker[currentEpoch].abcEmissionSize += _amount;
+        return(baseAdjusted[currentEpoch]);
     }
 
-    /// @notice Calculate (pre-ABC spent) epoch emission size
-    /// @return emission size of current epoch
-    function getBaseEmission(uint256 epoch) view external returns(uint256) {
-        if(epoch < 2) return 26_900_000e18;
-        else if (epoch < 4) return 13_500_000e18;
-        else if (epoch < 6) return 5_800_000e18;
-        else return controller.inflationRate() * ABCToken(payable(controller.abcToken())).totalSupply() / 2600;
+    /// @notice Get the base value
+    function getBase() external view returns(uint256) {
+        return base;
     }
 
-    /// @notice return a past epochs emission 
-    function getPastAbcEmission(uint256 _epoch) view external returns(uint256) {
-        uint256 baseEmission = this.getBaseEmission(_epoch);
-        return baseEmission + epochTracker[_epoch].abcEmissionSize;
+    /// @notice Get the base percentage
+    function getBasePercentage() external view returns(uint256) {
+        return basePercentage;
     }
 
-    /// @notice returns epoch end time
-    function getEpochEndTime(uint256 _epoch) view external returns(uint256 endTime) {
+    /// @notice Get the total distribution credits in the current epoch 
+    function getTotalDistributionCredits() external view returns(uint256) {
+        uint256 currentEpoch = (block.timestamp - startTime) / epochLength;
+        return epochTracker[currentEpoch].totalCredits;
+    }
+
+    /// @notice Get a collections boost
+    /// @param nft Collection of interest
+    function getCollectionBoost(address nft) external view returns(uint256) {
+        (uint256 numerator, uint256 denominator) = IAllocator(
+            controller.allocator()
+        ).calculateBoost(nft);
+        return (denominator == 0 ? 100 : (100 + 100 * numerator / denominator));
+    }
+
+    /// @notice Get an epochs total emission size
+    /// @param _epoch Epoch of interest
+    function getPastAbcEmission(uint256 _epoch) external view returns(uint256) {
+        return 20_000_000e18 + epochTracker[_epoch].abcEmissionSize;
+    }
+
+    /// @notice Get an epochs end time
+    /// @param _epoch Epoch of interest
+    function getEpochEndTime(uint256 _epoch) external view returns(uint256 endTime) {
         endTime = startTime + epochLength * (_epoch + 1);
     }
 
-    /// @notice returns a users epoch distribution credits
-    /// @param _epoch check the chosen epoch for EDC
-    /// @param _user the user in question
-    function getUserCredits(uint256 _epoch, address _user) view external returns(uint256 credits) {
+    /// @notice Get user credit count during an epoch
+    /// @param _epoch Epoch of interest
+    /// @param _user User of interest
+    function getUserCredits(
+        uint256 _epoch, 
+        address _user
+    ) external view returns(uint256 credits) {
         credits = epochTracker[_epoch].userCredits[_user];
     }
 
-    /// @notice return the current epoch
-    function getCurrentEpoch() view external returns(uint256 epochNumber) {
-        if(startTime == 0) epochNumber = 0;
-        else epochNumber = (block.timestamp - startTime) / epochLength;
+    /// @notice Get the current epoch
+    function getCurrentEpoch() external view returns(uint256 epochNumber) {
+        epochNumber = (block.timestamp - startTime) / epochLength;
     }
 }

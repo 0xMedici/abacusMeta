@@ -3,7 +3,7 @@ const { SupportedAlgorithm } = require("@ethersproject/sha2");
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("Bribe factory", function () {
+describe("Epoch Vault", function () {
     let
         deployer,
         MockNft,
@@ -47,8 +47,8 @@ describe("Bribe factory", function () {
       AbcToken = await ethers.getContractFactory("ABCToken");
       abcToken = await AbcToken.deploy(controller.address);
 
-      BribeFactory = await ethers.getContractFactory("BribeFactory");
-      bribe = await BribeFactory.deploy(controller.address);
+    //   BribeFactory = await ethers.getContractFactory("BribeFactory");
+    //   bribe = await BribeFactory.deploy(controller.address);
 
       EpochVault = await ethers.getContractFactory("EpochVault");
       eVault = await EpochVault.deploy(controller.address, 86400);
@@ -120,90 +120,74 @@ describe("Bribe factory", function () {
       await eVault.begin();
 
     });
-  
-    it("Proper compilation and setting", async function () {
-      console.log("Contracts compiled and controller configured!");
-    });
 
-    it("Add to bribe", async function () {
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await factoryMulti.initiateMultiAssetVault(
-          [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
-          [1,2,3,4,5,6],
-          3
-      );
-      
-      let vaultAddress = await factoryMulti.recentlyCreatedPool(mockNft.address, 1);
-      let maPool = await VaultMulti.attach(vaultAddress);
+  it("Proper compilation and setting", async function () {
+    console.log("Contracts compiled and controller configured!");
+  });
 
-      await bribe.addToBribe(maPool.address, { value: (5e17).toString() });
-      expect(await bribe.offeredBribeSize(maPool.address)).to.equal((5e17).toString());
-      expect(await bribe.bribePerAccount(deployer.address, maPool.address)).to.equal((5e17).toString());
-    });
+  it("Test update epoch - non boosted", async function () {
+    await abcToken.transfer(user1.address, '1000000000000000000000000');
+    await alloc.depositAbc('2000000000000000000000');
+    await network.provider.send("evm_increaseTime", [86400]);
+    await alloc.depositAbc('2000000000000000000000');
+    
+    expect(await eVault.getCollectionBoost(mockNft.address)).to.equal(100);
+  });
 
-    it("Withdraw bribe", async function () {
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await factoryMulti.initiateMultiAssetVault(
-          [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
-          [1,2,3,4,5,6],
-          3
-      );
-      
-      let vaultAddress = await factoryMulti.recentlyCreatedPool(mockNft.address, 1);
-      let maPool = await VaultMulti.attach(vaultAddress);
+  it("Test update epoch - boosted", async function () {
+    await abcToken.transfer(user1.address, '1000000000000000000000000');
+    await alloc.depositAbc('2000000000000000000000');
+    await alloc.allocateToCollection(mockNft.address, '10000000000000000000');
+    await network.provider.send("evm_increaseTime", [86400]);
+    await alloc.depositAbc('2000000000000000000000');
+    
+    expect(await eVault.getCollectionBoost(mockNft.address)).to.equal(200);
+  });
 
-      await bribe.addToBribe(maPool.address, { value: (5e17).toString() });
-      await bribe.withdrawBribe(maPool.address, (25e16).toString());
-      
-      await factoryMulti.signMultiAssetVault(
-          0,
-          [mockNft.address, mockNft.address, mockNft.address],
-          [1,2,3],
-          mockNft.address
-      );
-      await expect(bribe.withdrawBribe(maPool.address, (25e16).toString())).to.reverted;
-      await maPool.remove(mockNft.address, 1);
-      await bribe.withdrawBribe(maPool.address, (25e16).toString());
-      expect(await bribe.offeredBribeSize(maPool.address)).to.equal((0).toString());
-      expect(await bribe.bribePerAccount(deployer.address, maPool.address)).to.equal((0).toString());
-    });
+  it("Claim emissions rewards", async function () {
+    await mockNft.mintNew();
+    await mockNft.mintNew();
+    await mockNft.mintNew();
+    await mockNft.mintNew();
+    await mockNft.mintNew();
+    await abcToken.transfer(user1.address, '1000000000000000000000000');
+    await factoryMulti.initiateMultiAssetVault(
+        [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
+        [1,2,3,4,5,6],
+        3
+    );
+    
+    let vaultAddress = await factoryMulti.recentlyCreatedPool(mockNft.address, 1);
+    let maPool = await VaultMulti.attach(vaultAddress);
+    await factoryMulti.signMultiAssetVault(
+        0,
+        [mockNft.address, mockNft.address, mockNft.address],
+        [1,2,3],
+        mockNft.address
+    );
+    
+    let costPerToken = 1e15;
+    let totalCost = costPerToken * 3000 * 3;
+    await maPool.purchase(
+        deployer.address,
+        deployer.address,
+        [0, '1', '2'],
+        ['3000', '3000', '3000'],
+        0,
+        2,
+        0,
+        { value: totalCost.toString() }
+    );
+    await network.provider.send("evm_increaseTime", [86400 * 2]);
+    await maPool.sell(
+      deployer.address,
+      0,
+      1000
+    );
 
-    it("Claim bribe", async function () {
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await mockNft.mintNew();
-      await factoryMulti.initiateMultiAssetVault(
-          [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
-          [1,2,3,4,5,6],
-          3
-      );
-      
-      let vaultAddress = await factoryMulti.recentlyCreatedPool(mockNft.address, 1);
-      let maPool = await VaultMulti.attach(vaultAddress);
-
-      await bribe.addToBribe(maPool.address, { value: (6e17).toString() });
-      
-      await factoryMulti.signMultiAssetVault(
-          0,
-          [mockNft.address, mockNft.address, mockNft.address],
-          [1,2,3],
-          mockNft.address
-      );
-      await bribe.collectBribe(maPool.address, mockNft.address, 1);
-      expect(await bribe.bribesEarned(deployer.address)).to.equal((2e17).toString());
-
-      await bribe.withdrawBribesEarned();
-      expect(await bribe.bribesEarned(deployer.address)).to.equal((0).toString());
-    });
-
+    await network.provider.send("evm_increaseTime", [86400]);
+    await eVault.claimAbcReward(deployer.address, 0);
+    await eVault.claimAbcReward(deployer.address, 1);
+    await eVault.claimAbcReward(deployer.address, 2);
+  });
 });

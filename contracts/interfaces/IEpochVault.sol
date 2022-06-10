@@ -3,23 +3,43 @@ pragma solidity ^0.8.0;
 
 interface IEpochVault {
     
-    function endEpoch() external;
+    function begin() external;
 
-    function updatePersonalBoost(address _user, uint256 epoch, uint256 _amount) external;
+    function adjustBase() external;
 
-    function updateEpoch(address _nft, address _user, uint256 _amount) external;
+    function updateEpoch(
+        address _nft, 
+        address _user, 
+        uint256 _amountCredits
+    ) external;
 
-    function claimAbcReward(address _user, uint256 _epoch) external returns(uint256 amountClaimed);
+    function receiveAbc(address _user, uint256 _amount) external;
 
-    function acceptAbcDonation(uint256 _amount) external;
+    function claimAbcReward(
+        address _user, 
+        uint256 _epoch
+    ) external returns(uint256 amountClaimed);
 
-    function receiveAbc(uint256 _amount) external;
+    function getStartTime() external view returns(uint256);
 
-    function getAbcEmission(uint256 _epoch) view external returns(uint256);
+    function getBaseAdjustmentStatus() external view returns(bool);
 
-    function getEpochEndTime(uint256 _epoch) view external returns(uint256 endTime);
+    function getBase() external view returns(uint256);
 
-    function getUserCredits(uint256 _epoch, address _user) view external returns(uint256 credits);
+    function getBasePercentage() external view returns(uint256);
 
-    function getCurrentEpoch() view external returns(uint256 epochNumber);
+    function getTotalDistributionCredits() external view returns(uint256);
+
+    function getCollectionBoost(address nft) external view returns(uint256);
+
+    function getPastAbcEmission(uint256 _epoch) external view returns(uint256);
+
+    function getEpochEndTime(uint256 _epoch) external view returns(uint256 endTime);
+
+    function getUserCredits(
+        uint256 _epoch, 
+        address _user
+    ) external view returns(uint256 credits);
+
+    function getCurrentEpoch() external view returns(uint256 epochNumber);
 }

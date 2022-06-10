@@ -5,12 +5,20 @@ interface ICreditBonds {
 
     function begin() external;
 
-    function sendToVault(address _caller, address _vault, address _user, uint256 _amount) external returns(uint256);
+    function allowTransferAddress(address allowee, uint256 allowance) external;
 
-    function bond() payable external;
+    function resetAllowance(address allowee) external;
 
-    function purchase(address _vault, uint256[] memory tickets, uint256[] memory amounts, uint256 lockTime) external;
+    function clearUnusedBond(uint256 _epoch) external;
+
+    function bond() external payable;
+
+    function sendToVault(
+        address _caller, 
+        address _vault, 
+        address _user, 
+        uint256 _amount
+    ) external returns(uint256);
 
     function getPersonalBoost(address _user, uint256 epoch) view external returns(uint256);
-
 }

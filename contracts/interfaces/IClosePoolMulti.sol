@@ -8,25 +8,20 @@ interface IClosePoolMulti {
     function initialize(
         address _vault,
         address _controller,
-        address _heldCollection,
         uint256 _version
     ) external;
 
-    function startAuction(uint256 _nftVal, uint256 _id) external;
+    function startAuction(uint256 _nftVal, address _nft, uint256 _id) external;
 
-    function newBid(uint256 _id) payable external;
+    function newBid(address _nft, uint256 _id) external payable;
 
-    function reclaimBid(uint256 _id) external;
+    function endAuction(address _nft, uint256 _id) external;
 
-    function endAuction(uint256 _id) external;
+    function calculatePrincipal(address _user, uint256 _nonce, address _nft, uint256 _id) external;
 
-    function calculatePrincipal(uint256 _id) external;
+    function getAuctionPremium(address _nft, uint256 _id) external view returns(uint256 premium);
 
-    function payout(address _user, uint256 payoutAmount) external;
+    function getAuctionEndTime(address _nft, uint256 _id) external view returns(uint256 endTime);
 
-    function getLiveAuctionCount() view external returns(uint256 _liveAuctions);
-
-    function getAuctionPremium(uint256 _id) view external returns(uint256 premium);
-
-    function getAuctionEndTime(uint256 _id) view external returns(uint256 endTime);
+    function getLiveAuctionCount() external view returns(uint256 _liveAuctions);
 }
