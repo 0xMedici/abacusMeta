@@ -165,7 +165,7 @@ contract VaultMulti is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [address] allowee
     /// [uint256] nonce
     /// [bool] allowance status
-    mapping(address => mapping(address => mapping(uint256 => bool))) allowanceTracker;
+    mapping(address => mapping(address => mapping(uint256 => bool))) public allowanceTracker;
     
     /* ======== STRUCTS ======== */
     /// @notice Holds core metrics for each trader
