@@ -180,6 +180,7 @@ contract VaultMulti is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint32 multiplier;
         uint32 startEpoch;
         uint32 unlockEpoch;
+        uint64 maxTicket;
         uint256 comListOfTickets;
         uint256 comAmountPerTicket;
         uint256 ethLocked;
@@ -279,6 +280,7 @@ contract VaultMulti is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 ((block.timestamp > startEpoch * 1 days + startTime) ? 
                             block.timestamp : (startEpoch * 1 days + startTime));
         uint256 _nonce;
+        uint256 _localMax;
         if(nonce == 0) {
             _nonce = positionNonce[_buyer];
             positionNonce[_buyer]++;
@@ -309,9 +311,11 @@ contract VaultMulti is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 ticketsPurchased[j][ticketId] += ticketAmount;
                 payoutPerRes[j] += baseCost / amountNft;
                 totAvailFunds[j] += baseCost;
+                if(ticketId > _localMax) _localMax = ticketId; 
                 if(ticketId > maxTicketPerEpoch[j]) maxTicketPerEpoch[j] = ticketId;
             }
         }
+        trader.maxTicket = uint64(_localMax);
         
         executePayments(_caller, _buyer, _nonce, msg.value, totalTokensRequested);
         factory.emitPurchase(
@@ -745,9 +749,10 @@ contract VaultMulti is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _comAmounts = trader.comAmountPerTicket;
 
         if(
-            maxTicketPerEpoch[_epochOfClosure] + 1e18 < _finalNftVal
+            maxTicketPerEpoch[_epochOfClosure] * 1e18 + 1e18 < _finalNftVal
             || trader.unlockEpoch < _epochOfClosure
             || trader.startEpoch > _epochOfClosure
+            || trader.maxTicket * 1e18 + 1e18 < _finalNftVal
         ) {
             return true;
         }
@@ -759,13 +764,13 @@ contract VaultMulti is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 amountTokens = _comAmounts & 0x7fff;
             _comTickets >>= 16;
             _comAmounts >>= 16;
-            if(ticket + 1e18 <= _finalNftVal) {
+            if(ticket * 1e18 + 1e18 <= _finalNftVal) {
                 continue;
-            } else if(ticket > _finalNftVal) {
+            } else if(ticket * 1e18 > _finalNftVal) {
                 amountTokens = 0;
-            } else if(ticket + 1e18 > _finalNftVal) {
+            } else if(ticket * 1e18 + 1e18 > _finalNftVal) {
                 amountTokens -= 
-                    amountTokens * (ticket + 1e18 - _finalNftVal) / amountNft / 1e18;
+                    amountTokens * (ticket * 1e18 + 1e18 - _finalNftVal) / amountNft / 1e18;
             }
 
             _tempComTickets <<= 16;
