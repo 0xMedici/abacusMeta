@@ -4,25 +4,25 @@ pragma solidity ^0.8.0;
 import "./helpers/ReentrancyGuard.sol";
 import { AbacusController } from "./AbacusController.sol";
 import { ABCToken } from "./AbcToken.sol";
-import { IVaultMulti } from "./interfaces/IVaultMulti.sol";
-import { IVaultFactoryMulti } from "./interfaces/IVaultFactoryMulti.sol";
+import { IVault } from "./interfaces/IVault.sol";
+import { IFactory } from "./interfaces/IFactory.sol";
 import { IEpochVault } from "./interfaces/IEpochVault.sol";
 
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import "hardhat/console.sol";
 
 /// @title Spot pool closure contract
 /// @author Gio Medici
 /// @notice Executes the post NFT closure operations (auction, principal adjustment)
-contract ClosePoolMulti is ReentrancyGuard, Initializable {
+contract Closure is ReentrancyGuard, Initializable {
     
     /* ======== ADDRESS ======== */
 
-    IVaultFactoryMulti public factory;
+    IFactory public factory;
 
-    IVaultMulti public vault;
+    IVault public vault;
 
     AbacusController public controller;
 
@@ -71,9 +71,9 @@ contract ClosePoolMulti is ReentrancyGuard, Initializable {
         address _controller,
         uint256 _version
     ) external initializer {
-        vault = IVaultMulti(payable(_vault));
+        vault = IVault(payable(_vault));
         controller = AbacusController(_controller);
-        factory = IVaultFactoryMulti(controller.factoryVersions(_version));
+        factory = IFactory(controller.factoryVersions(_version));
     }
 
     /* ======== FALLBACK FUNCTIONS ======== */
@@ -87,7 +87,7 @@ contract ClosePoolMulti is ReentrancyGuard, Initializable {
     /// @param _nftVal pool ascribed value of the NFT being auctioned
     /// @param _nft NFT collection address
     /// @param _id NFT ID
-    function startAuction(uint256 _nftVal, address _nft, uint256 _id) external nonReentrant {
+    function startAuction(uint256 _nftVal, address _nft, uint256 _id) external {
         require(msg.sender == address(vault));
         auctionEndTime[_nft][_id] = block.timestamp + 12 hours;
         nftVal[_nft][_id] = _nftVal;
@@ -130,6 +130,8 @@ contract ClosePoolMulti is ReentrancyGuard, Initializable {
         if(highestBid[_nft][_id] > nftVal[_nft][_id]) {
             auctionPremium[_nft][_id] = highestBid[_nft][_id] - nftVal[_nft][_id];
         }
+        
+        vault.updateSaleValue{value:highestBid[_nft][_id]}(_nft, _id, highestBid[_nft][_id]);
 
         auctionComplete[_nft][_id] = true;
         IERC721(_nft).transferFrom(
@@ -138,9 +140,7 @@ contract ClosePoolMulti is ReentrancyGuard, Initializable {
             _id
         );
 
-        vault.updateAvailFunds{value:highestBid[_nft][_id]}(_nft, _id, highestBid[_nft][_id]);
         liveAuctions--;
-
         factory.emitAuctionEnded(
             address(vault),
             _nft,
@@ -150,31 +150,11 @@ contract ClosePoolMulti is ReentrancyGuard, Initializable {
         );
     }
 
-    /* ======== ACCOUNT CLOSURE ======== */
-    /// @notice User adjusts their open ticket info 
-    /// @param _user User to adjust position
-    /// @param _nft NFT collection address
-    /// @param _id NFT ID 
-    function calculatePrincipal(address _user, uint256 _nonce, address _nft, uint256 _id) external nonReentrant {
-        require(!principalCalculated[_nft][_id][_user]);
-        require(auctionComplete[_nft][_id]);
-        principalCalculated[_nft][_id][_user] = vault.adjustTicketInfo(
-            _user,
-            _nonce,
-            highestBid[_nft][_id],
-            _nft,
-            _id
-        );
-
-        factory.emitPrincipalCalculated(
-            address(vault),
-            _nft,
-            _id,
-            _user
-        );
+    /* ======== GETTERS ======== */
+    function getHighestBid(address _nft, uint256 _id) external view returns(uint256 bid) {
+        bid = highestBid[_nft][_id];
     }
 
-    /* ======== GETTERS ======== */
     /// @notice Get the auction premium (auction sale - ascribed pool value) of an NFT
     /// @param _nft NFT collection address
     /// @param _id NFT ID 

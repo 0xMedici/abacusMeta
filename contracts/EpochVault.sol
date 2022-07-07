@@ -69,7 +69,7 @@ contract EpochVault is ReentrancyGuard {
     constructor(address _controller, uint256 _epochLength) {
         epochLength = _epochLength;
         controller = AbacusController(_controller);
-        base = 2000e18;
+        base = 1000e18;
         basePercentage = 100;
         baseAdjusted[0] = true;
     }
@@ -80,7 +80,7 @@ contract EpochVault is ReentrancyGuard {
     /// as incrementing the mod value tracker on credit bonds to increment bond epoch
     /// tracker by 1
     function begin() external nonReentrant {
-        require(msg.sender == controller.admin() && startTime == 0);
+        require(msg.sender == controller.multisig() && startTime == 0);
         ICreditBonds(payable(controller.creditBonds())).begin();
         startTime = block.timestamp;
     }

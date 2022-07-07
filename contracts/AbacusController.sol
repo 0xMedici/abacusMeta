@@ -10,9 +10,6 @@ contract AbacusController {
 
     /* ======== ADDRESS ======== */
 
-    /// @notice proposed address for accredation (the right to mint EDC)
-    address public pendingAccredation;
-
     /// @notice proposed list of users to be whitelisted for beta stage 1 
     address[] public pendingWLUserAddition;
 
@@ -24,15 +21,6 @@ contract AbacusController {
 
     /// @notice proposed list of collections to be removed from the collection whitelist
     address[] public pendingWLRemoval;
-
-    /// @notice proposed recipient of pool trading fees
-    address public pendingFeeRecipient;
-
-    /// @notice recipient of pool trading fees
-    address public feeRecipient;
-
-    /// @notice proposed addition to addresses with permission *redacted*
-    address public pendingSpecialPermissions;
 
     /// @notice contract address for Credit Bonds 
     address public creditBonds;
@@ -64,79 +52,17 @@ contract AbacusController {
     /// @notice proposed address of new Factory contract
     address public pendingFactory;
 
-    /// @notice contract address of NFT ETH
-    address public nEth;
-
     /// @notice proposed address of new Multisig
     address public pendingMultisig;
     
     /// @notice controller multisig address (controlled by council)
     address public multisig;
 
-    /* ======== BOOL ======== */
-
-    /// @notice proposed status of ABC gas fee requirement
-    bool public pendingGasFeeStatus;
-
-    /// @notice status of ABC gas fee requirement
-    bool public gasFeeStatus;
-
     /* ======== UINT ======== */
 
-    uint256 public pendingPoolSizeLimit;
+    uint256 public totalVolumeTraversed;
 
-    uint256 public poolSizeLimit;
-
-    /// @notice proposed fee to remove an NFT from a pool after signing (not to be confused with closure fee)
-    uint256 public pendingRemovalFee;
-
-    /// @notice fee to remove an NFT from a pool after signing
-    uint256 public removalFee;
-
-    /// @notice proposed fee to create a new pool
-    uint256 public pendingCreationFee;
-
-    /// @notice fee to create a new pool
-    uint256 public creationFee;
-
-    /// @notice proposed target percentage (units of 1 percentage point) of total ETH
-    /// volume in pools to be directed towards NFT ETH stakers
-    uint256 public pendingNEthTarget;
-
-    /// @notice target percentage (units of 1 percentage point) of total ETH
-    /// volume in pools to be directed towards NFT ETH stakers
-    uint256 public nEthTarget;
-
-    /// @notice proposed percentage cost (of the payout value) to close a pool (units of 
-    /// 1 percentage point)
-    uint256 public pendingClosureFee;
-
-    /// @notice percentage cost (of the payout value) to close a pool (units of 
-    /// 1 percentage point)
-    uint256 public vaultClosureFee;
-
-    /// @notice proposed fee (units of 1 percentage point) to be paid out in order
-    /// to reserve the right to close an NFT in an epoch
-    uint256 public pendingReservationFee;
-
-    /// @notice fee (units of 1 percentage point) to be paid out in order
-    /// to reserve the right to close an NFT in an epoch
-    uint256 public reservationFee;
-
-    /// @notice proposed percentage of revenue generated that is streamed to 
-    /// the treasury
-    uint256 public pendingTreasuryRate;
-
-    /// @notice percentage of revenue generated that is streamed to the treasury
-    uint256 public treasuryRate;
-
-    /// @notice proposed max threshold (in units of ETH) that unlocks the full 2x multiplier
-    /// for a spot pool trader
-    uint256 public pendingBondMaxPremiumThreshold;
-
-    /// @notice max threshold (in units of ETH) that unlocks the full 2x multiplier for a
-    /// spot pool trader
-    uint256 public bondMaxPremiumThreshold;
+    uint256 public voteEndTime;
 
     /// @notice amount of live factories that can create emission producing spot pools 
     uint256 public amountOfFactories;
@@ -146,6 +72,10 @@ contract AbacusController {
 
     /// @notice beta stage
     uint256 public beta;
+
+    /* ======== BOOL ======== */
+
+    bool public changeLive;
 
     /* ======== MAPPING ======== */
 
@@ -160,11 +90,6 @@ contract AbacusController {
     /// [uint256] -> NFT token id
     /// [address] -> pool address
     mapping(address => mapping(uint256 => address)) public nftVaultSignedAddress;
-
-    /// @notice track if a lender has access to mint NFT ETH
-    /// [address] -> lender
-    /// [bool] -> access status
-    mapping(address => bool) public specialPermissions;
 
     /// @notice track addresses that are allowed to produce EDC
     /// [address] -> producer
@@ -192,10 +117,8 @@ contract AbacusController {
     mapping(uint256 => address) public factoryVersions;
 
     /* ======== EVENTS ======== */
-    
-    event ProposeManualAccredation(address _addr);
-    event ManualAccredationApproved(address _addr);
-    event ManualAccredationRejected(address _addr);
+
+    event AdminSet(address _admin);
     event NftEthSet(address _nftEth);
     event CreditBondsSet(address _creditBonds);
     event PresaleSet(address _presale);
@@ -203,28 +126,8 @@ contract AbacusController {
     event AllocatorSet(address _veToken);
     event EpochVaultSet(address _epochVault);
     event UpdateNftInUse(address pool, address nft, uint256 id, bool status);
-    event ProposeRemovalFee(uint256 _fee);
-    event RemovalFeeApproved(uint256 previous, uint256 _new);
-    event RemovalFeeRejected(uint256 _fee);
-    event ProposeCreationFee(uint256 creationFee);
-    event CreationFeeApproved(uint256 previous, uint256 creationFee);
-    event CreationFeeRejected(uint256 creationFee);
-    event ProposeNEthTarget(uint256 target);
-    event nEthTargetApproved(uint256 previousTarget, uint256 target);
-    event nEthTargetRejected(uint256 target);
-    event ProposeReservationFee(uint256 reservationFee);
-    event ReservationFeeApproved(uint256 _prevFee, uint256 _newFee);
-    event ReservationFeeRejected(uint256 reservationFee);
-    event ProposeSpecialPermissionsAddition(address _newPermission);
-    event SpecialPermissionsProposalApproved(address _newPermission);
-    event SpecialPermissionsProposalRejected(address _newPermission);
-    event ProposeFeeRecipient(address _newRecipient);
-    event FeeRecipientApproved(address _previousRecipient, address _newRecipient);
-    event FeeRecipientRejected(address _newRecipient);
-    event ProposeTurnOnGas();
-    event TurnOnGasApproved();
-    event TurnOnGasRejected();
     event ProposeWLUserAddition(address[] _user);
+    event WLLpApproved(address[] _user);
     event WLUserApproved(address[] _user);
     event WLUserRejected(address[] _user);
     event ProposeWLUserRemoval(address[] _user);
@@ -245,9 +148,6 @@ contract AbacusController {
     event ProposePoolSizeLimit(uint256 limit);
     event PoolSizeLimitApproved(uint256 prev, uint256 limit);
     event PoolSizeLimitRejected(uint256 limit);
-    event ProposeTreasuryRate(uint256 rate);
-    event TreasuryRateApproved(uint256 previous, uint256 rate);
-    event TreasuryRateRejected(uint256 rate);
     event ProposeNewMultisig(address _multisig);
     event MultisigApproved(address previous, address _multisig);
     event MultisigRejected(address _multisig);
@@ -257,12 +157,6 @@ contract AbacusController {
     event ProposeNewTreasury(address _treasury);
     event TreasuryApproved(address previous, address _treasury);
     event TreasuryRejected(address _treasury);
-    event ProposeClosureFee(uint256 closureFee);
-    event ClosureFeeApproved(uint256 previous, uint256 closureFee);
-    event ClosureFeeRejected(uint256 closureFee);
-    event ProposeMaxBondThreshold(uint256 amount);
-    event MaxBondThresholdApproved(uint256 previous, uint256 amount);
-    event MaxBondThresholdRejected(uint256 amount);
 
     /* ======== MODIFIERS ======== */
 
@@ -279,20 +173,12 @@ contract AbacusController {
     /* ======== CONSTRUCTOR ======== */
 
     constructor(address _multisig) {
-        admin = msg.sender;
         multisig = _multisig;
         amountOfFactories = 1;
-        vaultClosureFee = 3;
         beta = 1;
     }
 
     /* ======== IMMUTABLE SETTERS ======== */
-
-    function setNftEth(address _nEth) external onlyMultisig {
-        require(nEth == address(0), "Already set");
-        nEth = _nEth;
-        emit NftEthSet(_nEth);
-    }
 
     function setCreditBonds(address _creditBonds) external onlyMultisig {
         require(creditBonds == address(0), "Already set");
@@ -324,6 +210,12 @@ contract AbacusController {
         emit EpochVaultSet(_epochVault);
     }
 
+    function setAdmin(address _admin) external onlyMultisig {
+        require(admin == address(0), "Already set");
+        admin = _admin;
+        emit AdminSet(_admin);
+    }
+
     /* ======== AUTOMATED SETTERS ======== */
 
     function addAccreditedAddressesMulti(address newAddress) external {
@@ -344,106 +236,49 @@ contract AbacusController {
         emit UpdateNftInUse(pool, nft, id, status);
     }
 
-    /* ======== PROPOSALS ADDRESSES ======== */
-
-    function proposeManualAccredation(address _addr) external onlyMultisig {
-        require(pendingAccredation == address(0), "Must vote first");
-        pendingAccredation = _addr;
-        emit ProposeManualAccredation(_addr);
+    function updateTotalVolumeTraversed(uint256 _amount) external {
+        require(accreditedAddresses[msg.sender]);
+        totalVolumeTraversed += _amount;
     }
 
-    function approveManualAccredation() external onlyAdmin {
-        emit ManualAccredationApproved(pendingAccredation);
-        accreditedAddresses[pendingAccredation] = true;
-        delete pendingAccredation;
-    }
-
-    function rejectManualAccredation() external onlyAdmin {
-        emit ManualAccredationRejected(pendingAccredation);
-        delete pendingAccredation;
-    }
-
-    function proposeSpecialPermissions(address _newPermission) external onlyMultisig {
-        require(pendingSpecialPermissions == address(0), "Must vote first");
-        pendingSpecialPermissions = _newPermission;
-        emit ProposeSpecialPermissionsAddition(_newPermission);
-    }
-
-    function approveSpecialPermissions() external onlyAdmin {
-        specialPermissions[pendingSpecialPermissions] = true;
-        emit SpecialPermissionsProposalApproved(pendingSpecialPermissions);
-        delete pendingSpecialPermissions;
-    }
-
-    function rejectSpecialPermissions() external onlyAdmin {
-        emit SpecialPermissionsProposalRejected(pendingSpecialPermissions);
-        delete pendingSpecialPermissions;
-    }
-
-    function proposeFeeRecipient(address _newRecipient) external onlyMultisig {
-        require(pendingFeeRecipient == address(0), "Must vote first");
-        pendingFeeRecipient = _newRecipient;
-        emit ProposeFeeRecipient(_newRecipient);
-    }
-
-    function approveFeeRecipient() external onlyAdmin {
-        emit FeeRecipientApproved(feeRecipient, pendingFeeRecipient);
-        feeRecipient = pendingFeeRecipient;
-        delete pendingFeeRecipient;
-    }
-
-    function rejectFeeRecipient() external onlyAdmin {
-        emit FeeRecipientRejected(pendingFeeRecipient);
-        delete pendingFeeRecipient;
-    }
+    /* ======== PROPOSALS BETA 1 ======== */
 
     function proposeWLUser(address[] memory users) external onlyMultisig {
-        require(pendingWLUserAddition.length == 0, "Must vote first");
-        pendingWLUserAddition = users;
-        emit ProposeWLUserAddition(users);
-    }
-
-    function approveWLUser() external onlyAdmin {
-        uint256 length = pendingWLUserAddition.length;
-        emit WLUserApproved(pendingWLUserAddition);
+        // require(beta == 1);
+        uint256 length = users.length;
+        emit WLUserApproved(users);
         for(uint256 i = 0; i < length; i++) {
-            userWhitelist[pendingWLUserAddition[i]] = true;
+            userWhitelist[users[i]] = true;
         }
-        delete pendingWLUserAddition;
     }
 
-    function rejectWLUser() external onlyAdmin {
-        emit WLUserRejected(pendingWLUserAddition);
-        delete pendingWLUserAddition;
-    }
-
-    function proposedWLUserRemoval(address[] memory users) external onlyMultisig {
-        require(pendingWLUserRemoval.length == 0, "Must vote first");
+    function proposeWLUserRemoval(address[] memory users) external onlyMultisig {
+        require(beta == 1);
         pendingWLUserRemoval = users;
         emit ProposeWLUserRemoval(users);
     }
 
-    function approveWLUserRemoval() external onlyAdmin {
-        uint256 length = pendingWLUserRemoval.length;
-        emit WLUserRemovalApproved(pendingWLUserRemoval);
-        for(uint256 i = 0; i < length; i++) {
-            userWhitelist[pendingWLUserRemoval[i]] = false;
-        }
-        delete pendingWLUserRemoval;
+    function setBeta(uint256 _stage) external onlyMultisig {
+        require(pendingBeta == 0, "Must vote first");
+        require(_stage > beta);
+        beta = _stage;
+        emit BetaStageApproved(_stage);
     }
 
-    function rejectWLUserRemoval() external onlyAdmin {
-        emit WLUserRemovalRejected(pendingWLUserRemoval);
-        delete pendingWLUserRemoval;
-    }
+    /* ======== PROPOSALS ADDRESSES ======== */
 
-    function proposeWLAddresses(address[] memory collections) external onlyMultisig {
+    function proposeWLAddresses(address[] memory collections) external onlyAdmin {
         require(pendingWLAdditions.length == 0, "Must vote first");
+        require(!changeLive);
+        changeLive = true;
+        voteEndTime = block.timestamp + 5 days;
         pendingWLAdditions = collections;
         emit ProposeWLAddressesAddition(collections);
     }
 
     function approveWLAddresses() external onlyAdmin {
+        require(changeLive);
+        delete changeLive;
         uint256 length = pendingWLAdditions.length;
         emit WLAddressesAdditionApproved(pendingWLAdditions);
         for(uint256 i = 0; i < length; i++) {
@@ -453,17 +288,24 @@ contract AbacusController {
     }
 
     function rejectWLAddresses() external onlyAdmin {
+        require(changeLive);
+        delete changeLive;
         emit WLAddressesAdditionRejected(pendingWLAdditions);
         delete pendingWLAdditions;
     }
 
-    function proposedWLRemoval(address[] memory collections) external onlyMultisig {
+    function proposeWLRemoval(address[] memory collections) external onlyAdmin {
         require(pendingWLRemoval.length == 0, "Must vote first");
+        require(!changeLive);
+        changeLive = true;
+        voteEndTime = block.timestamp + 5 days;
         pendingWLRemoval = collections;
         emit ProposeWLAddressesRemoval(collections);
     }
 
     function approveWLRemoval() external onlyAdmin {
+        require(changeLive);
+        delete changeLive;
         uint256 length = pendingWLRemoval.length;
         emit WLAddressesRemovalApproved(pendingWLRemoval);
         for(uint256 i = 0; i < length; i++) {
@@ -473,18 +315,25 @@ contract AbacusController {
     }
 
     function rejectWLRemoval() external onlyAdmin {
+        require(changeLive);
+        delete changeLive;
         emit WLAddressesRemovalRejected(pendingWLRemoval);
         delete pendingWLRemoval;
     }
 
-    function proposeFactoryAddition(address _newFactory) external onlyMultisig {
+    function proposeFactoryAddition(address _newFactory) external onlyAdmin {
         require(pendingFactory == address(0), "Must vote first");
         require(_newFactory != address(0), "Address is zero");
+        require(!changeLive);
+        changeLive = true;
+        voteEndTime = block.timestamp + 10 days;
         pendingFactory = _newFactory;
         emit ProposeFactoryAddition(_newFactory);
     }
 
     function approveFactoryAddition() external onlyAdmin {
+        require(changeLive);
+        delete changeLive;
         factoryWhitelist[pendingFactory] = true;
         factoryVersions[amountOfFactories] = pendingFactory;
         amountOfFactories++;
@@ -493,242 +342,9 @@ contract AbacusController {
     }
 
     function rejectFactoryAddition() external onlyAdmin {
+        require(changeLive);
+        delete changeLive;
         emit FactoryAdditionRejected(pendingFactory);
         delete pendingFactory;
-    }
-
-    function setMultisig(address _multisig) external onlyMultisig {
-        require(pendingMultisig == address(0), "Must vote first");
-        require(_multisig != address(0), "Address is zero");
-        pendingMultisig = _multisig;
-        emit ProposeNewMultisig(_multisig);
-    }
-
-    function approveMultisigChange() external onlyAdmin {
-        emit MultisigApproved(multisig, pendingMultisig);
-        multisig = pendingMultisig;
-        delete pendingMultisig;
-    }
-
-    function rejectMultisigChange() external onlyAdmin {
-        emit MultisigRejected(pendingMultisig);
-        delete pendingMultisig;
-    }
-
-    function setAdmin(address _admin) external onlyMultisig {
-        require(pendingAdmin == address(0), "Must vote first");
-        require(_admin != address(0), "Address is zero");
-        pendingAdmin = _admin;
-        emit ProposeNewAdmin(_admin);
-    }
-
-    function approveAdminChange() external onlyAdmin {
-        emit AdminApproved(admin, pendingAdmin);
-        admin = pendingAdmin;
-        delete pendingAdmin;
-    }
-
-    function rejectAdminChange() external onlyAdmin {
-        emit AdminRejected(pendingAdmin);
-        delete pendingAdmin;
-    }
-
-    function setTreasury(address _abcTreasury) external onlyMultisig {
-        require(pendingTreasury == address(0), "Must vote first");
-        require(_abcTreasury != address(0), "Address is zero");
-        pendingTreasury = _abcTreasury;
-        emit ProposeNewTreasury(_abcTreasury);
-    }
-
-    function approveTreasuryChange() external onlyAdmin {
-        emit TreasuryApproved(abcTreasury, pendingTreasury);
-        abcTreasury = pendingTreasury;
-        delete pendingTreasury;
-    }
-
-    function rejectTreasuryChange() external onlyAdmin {
-        emit TreasuryRejected(pendingTreasury);
-        delete pendingTreasury;
-    }
-
-    /* ======== PROPOSALS METRICS ======== */
-
-    function proposePoolSizeLimit(uint256 _sizeLimit) external onlyMultisig {
-        require(pendingPoolSizeLimit == 0, "Must vote first");
-        pendingPoolSizeLimit = _sizeLimit;
-
-        emit ProposePoolSizeLimit(_sizeLimit);
-    }
-
-    function approvePoolSizeLimit() external onlyAdmin {
-        emit PoolSizeLimitApproved(poolSizeLimit, pendingPoolSizeLimit);
-        poolSizeLimit = pendingPoolSizeLimit;
-        delete pendingPoolSizeLimit;
-    }
-
-    function rejectPoolSizeLimit() external onlyAdmin {
-        emit PoolSizeLimitRejected(pendingPoolSizeLimit);
-        delete pendingPoolSizeLimit;
-    }
-
-    function proposeRemovalFee(uint256 _fee) external onlyMultisig {
-        require(pendingRemovalFee == 0, "Must vote first");
-        require(_fee <= 200e18);
-        pendingRemovalFee = _fee;
-        emit ProposeRemovalFee(_fee);
-    }
-
-    function approveRemovalFee() external onlyAdmin {
-        emit RemovalFeeApproved(removalFee, pendingRemovalFee);
-        removalFee = pendingRemovalFee;
-        delete pendingRemovalFee;
-    }
-
-    function rejectRemovalFee() external onlyAdmin {
-        emit RemovalFeeRejected(pendingRemovalFee);
-        delete pendingRemovalFee;
-    }
-
-    function proposeCreationFee(uint256 _amount) external onlyMultisig {
-        require(pendingCreationFee == 0, "Must vote first"); 
-        require(_amount <= 2000e18);
-        pendingCreationFee = _amount;
-        emit ProposeCreationFee(pendingCreationFee);
-    }
-
-    function approveCreationFee() external onlyAdmin {
-        emit CreationFeeApproved(creationFee, pendingCreationFee);
-        creationFee = pendingCreationFee;
-        delete pendingCreationFee;
-    }
-
-    function rejectCreationFee() external onlyAdmin {
-        emit CreationFeeRejected(pendingCreationFee);
-        delete pendingCreationFee;
-    }
- 
-    function proposeNEthTarget(uint256 _amount) external onlyMultisig {
-        require(pendingNEthTarget == 0, "Must vote first");
-        require(_amount <= 6);
-        pendingNEthTarget = _amount;
-        emit ProposeNEthTarget(_amount);
-    }
-
-    function approveNEthTarget() external onlyAdmin {
-        emit nEthTargetApproved(nEthTarget, pendingNEthTarget);
-        nEthTarget = pendingNEthTarget;
-        delete pendingNEthTarget;
-    }
-
-    function rejectNEthTarget() external onlyAdmin {
-        emit nEthTargetRejected(pendingNEthTarget);
-        delete pendingNEthTarget;
-    }
-
-    function proposeReservationFee(uint256 _pendingReservationFee) external onlyMultisig {
-        require(pendingReservationFee == 0, "Must vote first");
-        require(_pendingReservationFee <= 200);
-        pendingReservationFee = _pendingReservationFee;
-        emit ProposeReservationFee(pendingReservationFee);
-    }
-
-    function approveReservationFee() external onlyAdmin {
-        emit ReservationFeeApproved(reservationFee, pendingReservationFee);
-        reservationFee = pendingReservationFee;
-        delete pendingReservationFee;
-    }
-
-    function rejectReservationFee() external onlyAdmin {
-        emit ReservationFeeRejected(pendingReservationFee);
-        delete pendingReservationFee;
-    }
-
-    function proposeTurnOnGas() external onlyMultisig {
-        require(pendingGasFeeStatus == false, "Must vote first");
-        require(!pendingGasFeeStatus);
-        pendingGasFeeStatus = true;
-        emit ProposeTurnOnGas();
-    }
-
-    function approveTurnOnGas() external onlyAdmin {
-        gasFeeStatus = pendingGasFeeStatus;
-        delete pendingGasFeeStatus;
-        emit TurnOnGasApproved();
-    }
-
-    function rejectTurnOnGas() external onlyMultisig {
-        delete pendingGasFeeStatus;
-        emit TurnOnGasRejected();
-    }
-
-    function setBeta(uint256 _stage) external onlyMultisig {
-        require(pendingBeta == 0, "Must vote first");
-        pendingBeta = _stage;
-        emit ProposeBetaStage(_stage);
-    }
-
-    function approveBeta() external onlyAdmin {
-        beta = pendingBeta;
-        emit BetaStageApproved(pendingBeta);
-        delete pendingBeta;
-    }
-
-    function rejectBeta() external onlyAdmin {
-        emit BetaStageRejected(pendingBeta);
-        delete pendingBeta;
-    }
-
-    function setTreasuryRate(uint256 rate) external onlyMultisig {
-        require(pendingTreasuryRate == 0, "Must vote first");
-        require(rate <= 10);
-        pendingTreasuryRate = rate;
-        emit ProposeTreasuryRate(rate);
-    }
-
-    function approveRateChange() external onlyAdmin {
-        emit TreasuryRateApproved(treasuryRate, pendingTreasuryRate);
-        treasuryRate = pendingTreasuryRate;
-        delete pendingTreasuryRate;
-    }
-
-    function rejectRateChange() external onlyAdmin {
-        emit TreasuryRateRejected(pendingTreasuryRate);
-        delete pendingTreasuryRate;
-    }
-
-    function setClosureFee(uint256 _amount) external onlyMultisig {
-        require(pendingClosureFee == 0, "Must vote first");
-        require(_amount <= 4);
-        pendingClosureFee = _amount;
-        emit ProposeClosureFee(_amount);
-    }
-
-    function approveFeeChange() external onlyAdmin {
-        emit ClosureFeeApproved(vaultClosureFee, pendingClosureFee);
-        vaultClosureFee = pendingClosureFee;
-        delete pendingClosureFee;
-    }
-
-    function rejectFeeChange() external onlyAdmin {
-        emit ClosureFeeRejected(pendingClosureFee);
-        delete pendingClosureFee;
-    }
-
-    function setBondMaxPremiumThreshold(uint256 _amount) external onlyMultisig {
-        require(pendingBondMaxPremiumThreshold == 0, "Must vote first");
-        require(_amount <= 200e18);
-        pendingBondMaxPremiumThreshold = _amount;
-        emit ProposeMaxBondThreshold(_amount);
-    }
-
-    function approveBondMaxPremiumThreshold() external onlyAdmin {
-        emit MaxBondThresholdApproved(bondMaxPremiumThreshold, pendingBondMaxPremiumThreshold);
-        bondMaxPremiumThreshold = pendingBondMaxPremiumThreshold;
-        delete pendingBondMaxPremiumThreshold;
-    }
-
-    function rejectBondMaxPremiumThreshold() external onlyAdmin {
-        emit MaxBondThresholdRejected(pendingBondMaxPremiumThreshold);
-        delete pendingBondMaxPremiumThreshold;
     }
 }

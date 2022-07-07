@@ -69,10 +69,6 @@ describe("Bribe factory", function () {
 
       ClosePoolMulti = await ethers.getContractFactory("ClosePoolMulti");
 
-      const setReservationFee = await controller.proposeReservationFee(1);
-      await setReservationFee.wait();
-      const approveReservationFee = await controller.approveReservationFee();
-      await approveReservationFee.wait();
       const setNftEth = await controller.setNftEth(nEth.address);
       await setNftEth.wait();
       const setBeta = await controller.setBeta(3);
@@ -80,11 +76,7 @@ describe("Bribe factory", function () {
       const approveBeta = await controller.approveBeta();
       await approveBeta.wait();
       const setCreditBonds = await controller.setCreditBonds(bonds.address);
-      await setCreditBonds.wait()
-      const setBondPremium = await controller.setBondMaxPremiumThreshold((100e18).toString());
-      await setBondPremium.wait();
-      const approveBondPremium = await controller.approveBondMaxPremiumThreshold();
-      await approveBondPremium.wait();
+      await setCreditBonds.wait();
       const proposeFactoryAddition1 = await controller.proposeFactoryAddition(factoryMulti.address);
       await proposeFactoryAddition1.wait()
       const approveFactoryAddition1 = await controller.approveFactoryAddition();
@@ -105,8 +97,6 @@ describe("Bribe factory", function () {
       await approveRateChange.wait();
       const wlAddress = await controller.proposeWLUser([deployer.address]);
       await wlAddress.wait();
-      const confirmWlAddress = await controller.approveWLUser();
-      await confirmWlAddress.wait();
       const wlCollection = await controller.proposeWLAddresses([mockNft.address]);
       await wlCollection.wait();
       const confirmWlCollection = await controller.approveWLAddresses();
@@ -115,6 +105,10 @@ describe("Bribe factory", function () {
       await setPoolSizeLimit.wait();
       const approvePoolSizeLimit = await controller.approvePoolSizeLimit();
       await approvePoolSizeLimit.wait();
+      const proposeNEthTarget = await controller.proposeNEthTarget(50);
+      await proposeNEthTarget.wait();
+      const approveNEthTarget = await controller.approveNEthTarget();
+      await approveNEthTarget.wait();
 
       await abcToken.transfer(user1.address, '1000000000000000000000000000');
       await eVault.begin();
@@ -132,9 +126,10 @@ describe("Bribe factory", function () {
       await mockNft.mintNew();
       await mockNft.mintNew();
       await factoryMulti.initiateMultiAssetVault(
-          [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
-          [1,2,3,4,5,6],
-          3
+        "HelloWorld",
+        [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
+        [1,2,3,4,5,6],
+        3
       );
       
       let vaultAddress = await factoryMulti.recentlyCreatedPool(mockNft.address, 1);
@@ -152,9 +147,10 @@ describe("Bribe factory", function () {
       await mockNft.mintNew();
       await mockNft.mintNew();
       await factoryMulti.initiateMultiAssetVault(
-          [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
-          [1,2,3,4,5,6],
-          3
+        "HelloWorld",
+        [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
+        [1,2,3,4,5,6],
+        3
       );
       
       let vaultAddress = await factoryMulti.recentlyCreatedPool(mockNft.address, 1);
@@ -183,9 +179,10 @@ describe("Bribe factory", function () {
       await mockNft.mintNew();
       await mockNft.mintNew();
       await factoryMulti.initiateMultiAssetVault(
-          [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
-          [1,2,3,4,5,6],
-          3
+        "HelloWorld",
+        [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
+        [1,2,3,4,5,6],
+        3
       );
       
       let vaultAddress = await factoryMulti.recentlyCreatedPool(mockNft.address, 1);

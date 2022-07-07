@@ -3,16 +3,14 @@ pragma solidity ^0.8.0;
 
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-interface IVaultMulti {
+interface IVault {
 
     function initialize(
-        address[] memory _heldTokenCollection,
-        uint256[] memory _heldTokenIds,
         uint256 _vaultVersion,
-        uint256 slots,
         uint256 nonce,
         address _controller,
-        address closePoolImplementation_
+        address closePoolImplementation_,
+        address _creator
     ) external;
     
     function toggleEmissions(address _boostCollection, bool emissionStatus) external;
@@ -59,7 +57,11 @@ interface IVaultMulti {
 
     function remove(address _nft, uint256 id) external;
 
-    function updateAvailFunds(address _nft, uint256 _id, uint256 _saleValue) external payable;
+    function updateSaleValue(
+        address _nft,
+        uint256 _id,
+        uint256 _saleValue
+    ) external payable;
 
     function restore() external returns(bool);
 
@@ -89,15 +91,14 @@ interface IVaultMulti {
         address _nft,
         uint256 _id
     ) external returns(bool complete);
+    
+    function getPoolClosedStatus() external view returns(bool);
 
     function getEpoch(uint256 _time) external view returns(uint256);
 
     function getNonce() external view returns(uint256);
 
-    function getHeldTokens() external view returns(
-        address[] memory tokens, 
-        uint256[] memory ids
-    );
+    function getHeldTokenExistence(address _nft, uint256 _id) external view returns(bool);
 
     function getAmountOfReservations(
         uint256 _epoch
@@ -110,6 +111,8 @@ interface IVaultMulti {
     ) external view returns(bool);
 
     function getCostToReserve(uint256 _endEpoch) external view returns(uint256);
+
+    function getTotalFunds(uint256 epoch) external view returns(uint256);
 
     function getPayoutPerRes(uint256 epoch) external view returns(uint256);
 

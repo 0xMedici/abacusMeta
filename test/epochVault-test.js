@@ -41,8 +41,8 @@ describe("Epoch Vault", function () {
       Treasury = await ethers.getContractFactory("Treasury");
       treasury = await Treasury.deploy(deployer.address);
 
-      VaultFactoryMulti = await ethers.getContractFactory("VaultFactoryMulti");
-      factoryMulti = await VaultFactoryMulti.deploy(controller.address);
+      Factory = await ethers.getContractFactory("Factory");
+      factory = await Factory.deploy(controller.address);
 
       AbcToken = await ethers.getContractFactory("ABCToken");
       abcToken = await AbcToken.deploy(controller.address);
@@ -65,14 +65,10 @@ describe("Epoch Vault", function () {
       NftEth = await ethers.getContractFactory("NftEth");
       nEth = await NftEth.deploy(controller.address);
 
-      VaultMulti = await ethers.getContractFactory("VaultMulti");
+      Vault = await ethers.getContractFactory("Vault");
 
-      ClosePoolMulti = await ethers.getContractFactory("ClosePoolMulti");
+      Closure = await ethers.getContractFactory("Closure");
 
-      const setReservationFee = await controller.proposeReservationFee(1);
-      await setReservationFee.wait();
-      const approveReservationFee = await controller.approveReservationFee();
-      await approveReservationFee.wait();
       const setNftEth = await controller.setNftEth(nEth.address);
       await setNftEth.wait();
       const setBeta = await controller.setBeta(3);
@@ -80,15 +76,11 @@ describe("Epoch Vault", function () {
       const approveBeta = await controller.approveBeta();
       await approveBeta.wait();
       const setCreditBonds = await controller.setCreditBonds(bonds.address);
-      await setCreditBonds.wait()
-      const setBondPremium = await controller.setBondMaxPremiumThreshold((100e18).toString());
-      await setBondPremium.wait();
-      const approveBondPremium = await controller.approveBondMaxPremiumThreshold();
-      await approveBondPremium.wait();
-      const proposeFactoryAddition1 = await controller.proposeFactoryAddition(factoryMulti.address);
-      await proposeFactoryAddition1.wait()
+      await setCreditBonds.wait();
+      const proposeFactoryAddition1 = await controller.proposeFactoryAddition(factory.address);
+      await proposeFactoryAddition1.wait();
       const approveFactoryAddition1 = await controller.approveFactoryAddition();
-      await approveFactoryAddition1.wait()
+      await approveFactoryAddition1.wait();
       const setTreasury = await controller.setTreasury(treasury.address);
       await setTreasury.wait();
       const approveTreasuryChange = await controller.approveTreasuryChange();
@@ -99,22 +91,12 @@ describe("Epoch Vault", function () {
       await setAllocator.wait();
       const setEpochVault = await controller.setEpochVault(eVault.address);
       await setEpochVault.wait();
-      const changeTreasuryRate = await controller.setTreasuryRate(10);
-      await changeTreasuryRate.wait();
-      const approveRateChange = await controller.approveRateChange();
-      await approveRateChange.wait();
       const wlAddress = await controller.proposeWLUser([deployer.address]);
       await wlAddress.wait();
-      const confirmWlAddress = await controller.approveWLUser();
-      await confirmWlAddress.wait();
       const wlCollection = await controller.proposeWLAddresses([mockNft.address]);
       await wlCollection.wait();
       const confirmWlCollection = await controller.approveWLAddresses();
       await confirmWlCollection.wait();
-      const setPoolSizeLimit = await controller.proposePoolSizeLimit(50);
-      await setPoolSizeLimit.wait();
-      const approvePoolSizeLimit = await controller.approvePoolSizeLimit();
-      await approvePoolSizeLimit.wait();
 
       await abcToken.transfer(user1.address, '1000000000000000000000000000');
       await eVault.begin();
@@ -151,21 +133,28 @@ describe("Epoch Vault", function () {
     await mockNft.mintNew();
     await mockNft.mintNew();
     await abcToken.transfer(user1.address, '1000000000000000000000000');
-    await factoryMulti.initiateMultiAssetVault(
-        [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
-        [1,2,3,4,5,6],
-        3
+    await factory.initiateMultiAssetVault(
+        "HelloWorld"
     );
-    
-    let vaultAddress = await factoryMulti.recentlyCreatedPool(mockNft.address, 1);
-    let maPool = await VaultMulti.attach(vaultAddress);
-    await factoryMulti.signMultiAssetVault(
+
+    let vaultAddress = await factory.vaultNames("HelloWorld", 0);
+    let maPool = await Vault.attach(vaultAddress);
+
+    await maPool.includeNft(
+        await factory.encodeCompressedValue(
+            [mockNft.address, mockNft.address, mockNft.address],
+            [1, 2, 3],
+        )
+    );
+
+    await maPool.begin(3);
+    await factory.signMultiAssetVault(
         0,
         [mockNft.address, mockNft.address, mockNft.address],
         [1,2,3],
         mockNft.address
     );
-    
+
     let costPerToken = 1e15;
     let totalCost = costPerToken * 3000 * 3;
     await maPool.purchase(
@@ -175,7 +164,6 @@ describe("Epoch Vault", function () {
         ['3000', '3000', '3000'],
         0,
         2,
-        0,
         { value: totalCost.toString() }
     );
     await network.provider.send("evm_increaseTime", [86400 * 2]);

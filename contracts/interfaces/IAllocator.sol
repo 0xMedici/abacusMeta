@@ -46,6 +46,8 @@ interface IAllocator {
         uint256 denominator
     );
 
+    function getEpochFeesAccumulated() external view returns(uint256);
+
     function getTokensLocked(address _user) external view returns(uint256 amount);
 
     function getAmountAutoAllocated(

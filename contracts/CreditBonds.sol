@@ -187,7 +187,6 @@ contract CreditBonds is ReentrancyGuard {
             currentEpoch = epochVault.getCurrentEpoch() + modVal;
         }
         uint256 payload;
-
         if(_caller != _user) {
             if(transferAllowance[currentEpoch][_user][_caller] < _amount) {
                 payload = transferAllowance[currentEpoch][_user][_caller];
@@ -222,7 +221,7 @@ contract CreditBonds is ReentrancyGuard {
     /// @param _user User of interest
     /// @param epoch Epoch of interest
     function getPersonalBoost(address _user, uint256 epoch) view external returns(uint256) {
-        if(finalUserCredit[epoch][_user] >= controller.bondMaxPremiumThreshold()) return 10_000;
-        return 10_000 * finalUserCredit[epoch][_user] / controller.bondMaxPremiumThreshold();
+        if(finalUserCredit[epoch][_user] >= 100e18) return 10_000;
+        return 10_000 * finalUserCredit[epoch][_user] / 100e18;
     }
 }

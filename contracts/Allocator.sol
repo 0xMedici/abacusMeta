@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import { AbacusController } from "./AbacusController.sol";
 import { ABCToken } from "./AbcToken.sol";
 import { IEpochVault } from "./interfaces/IEpochVault.sol";
-import { INftEth } from "./interfaces/INftEth.sol";
 import { ICreditBonds } from "./interfaces/ICreditBond.sol";
 
 import "./helpers/ReentrancyGuard.sol";
@@ -33,10 +32,10 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
 
     /* ======== UINT ======== */
 
+    uint256 public fundsSentToT;
+
     /// @notice fees received that are designated for the treasury 
     uint256 public fundsForTreasury;
-
-    uint256 public fundsForN;
 
     /* ======== MAPPING ======== */
 
@@ -191,22 +190,24 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
 
     /// @notice Receive fees from protocol based fee generators
     function receiveFees() external payable nonReentrant {
-        require(controller.accreditedAddresses(msg.sender));
+        require(
+            controller.accreditedAddresses(msg.sender)
+        );
+        uint256 treasuryRate;
+        if((controller.multisig()).balance >= 100_000e18) {
+            treasuryRate = 0;
+        } else {
+            treasuryRate = 10_000 - 500 * (controller.multisig()).balance / 10_000e18;
+        }
+
         epochFeesAccumulated[epochVault.getCurrentEpoch()] += 
-            (100 - controller.treasuryRate() - controller.nEthTarget()) * msg.value / 100;
-        fundsForTreasury += controller.treasuryRate() * msg.value / 100;
-        fundsForN += controller.nEthTarget() * msg.value / 100;
+            (100_000 - treasuryRate) * msg.value / 100_000;
+        fundsForTreasury += treasuryRate * msg.value / 100_000;
+        fundsSentToT += treasuryRate * msg.value / 100_000;
         emit ReceivedFees(
             epochVault.getCurrentEpoch(), 
-            (100 - controller.treasuryRate() - controller.nEthTarget()) * msg.value / 100
+            (100_000 - treasuryRate) * msg.value / 100_000
         );
-    }
-
-    function distributeToN() external payable nonReentrant {
-        uint256 payout = fundsForN;
-        delete fundsForN;
-        payable(msg.sender).transfer(payout / 100);
-        INftEth(controller.nEth()).receiveFees{value:99 * payout / 100}();
     }
 
     /* ======== ABC CREDIT ======== */
@@ -420,11 +421,13 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// there were no EDC earned. The caller receives 5% of the empty epoch fees
     /// @param _epoch The desired epoch to clear funds from
     function clearToTreasury(uint256 _epoch) external nonReentrant {
-        require(totalAllocationPerEpoch[_epoch] == 0);
-        uint256 payout = epochFeesAccumulated[_epoch];
-        epochFeesAccumulated[_epoch] = 0;
-        payable(controller.abcTreasury()).transfer(95 * payout / 100 + fundsForTreasury);
-        payable(msg.sender).transfer(5 * payout / 100);
+        uint256 payout;
+        if(totalAllocationPerEpoch[_epoch] == 0) {
+            payout = epochFeesAccumulated[_epoch];
+            epochFeesAccumulated[_epoch] = 0;
+        }
+        payable(controller.multisig()).transfer(995 * (payout + fundsForTreasury) / 1000);
+        payable(msg.sender).transfer(5 * (payout + fundsForTreasury) / 1000);
         fundsForTreasury = 0;
 
         emit FundsClearedToTreasury(msg.sender, _epoch, payout);
@@ -456,6 +459,13 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
             numerator = _collectionAllocation + _autoAllocation * _collectionBribe / _totalBribe;
         }
         denominator = totalAllocationPerEpoch[recentEpoch];
+    }
+
+    function getEpochFeesAccumulated() external view returns(uint256) {
+        uint256 currentEpoch;
+        if(epochVault.getStartTime() == 0) currentEpoch == 0;
+        else currentEpoch = epochVault.getCurrentEpoch();
+        return epochFeesAccumulated[currentEpoch];
     }
 
     /// @notice The total ABC deposited by a user
