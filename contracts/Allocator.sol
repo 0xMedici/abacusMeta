@@ -56,11 +56,6 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
 
     /* ======== MAPPING ======== */
 
-    /// @notice whitelist of allowed contract interactors
-    /// [address] -> contract
-    /// [bool] -> whitelist status
-    mapping(address => bool) public contractWL;
-
     /// @notice ABC holders lockup history for retroactive fee claims
     /// [address] -> user
     /// [Holder] -> holder history struct
@@ -155,48 +150,6 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         epochVault = IEpochVault(_epochVault);
     }
 
-    /* ======== SETTER ======== */
-
-    function addToWL(address _contract) external {
-        require(msg.sender == controller.multisig());
-        pendingWLAddition = _contract;
-
-        emit ProposeWLAddition(_contract);
-    }
-
-    function approveWLAddition() external {
-        require(msg.sender == controller.admin());
-        contractWL[pendingWLAddition] = true;
-
-        emit WLAdditionApproved(pendingWLAddition);
-    }
-
-    function rejectWLAddition() external {
-        require(msg.sender == controller.admin());
-        emit WLAdditionRejected(pendingWLAddition);
-        delete pendingWLAddition;
-    }
-
-    function removeFromWL(address _contract) external {
-        require(msg.sender == controller.multisig());
-        pendingWLRemoval = _contract;
-
-        emit ProposeWLRemoval(_contract);
-    }
-
-    function approveWLRemoval() external {
-        require(msg.sender == controller.admin());
-        contractWL[pendingWLRemoval] = false;
-
-        emit WLRemovalApproved(pendingWLRemoval);
-    }
-
-    function rejectWLRemoval() external {
-        require(msg.sender == controller.admin());
-        emit WLRemovalRejected(pendingWLRemoval);
-        delete pendingWLRemoval;
-    }
-
     /* ======== EPOCH CONFIG ======== */
     /// @notice Donate ETH to an epochs for reward distribution
     /// @param epoch The desired epoch during which these funds should be distributed
@@ -263,16 +216,6 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @param _amount The amount of ABC to allocate towards the chosen collection
     function allocateToCollection(address _collection, uint256 _amount) external nonReentrant {
         require(controller.collectionWhitelist(_collection));
-        uint32 size;
-        address _addr = msg.sender;
-        assembly {
-            size := extcodesize(_addr)
-        }
-        require(
-            size == 0 
-            || contractWL[msg.sender]
-        );
-
         Holder storage holder = holderHistory[msg.sender];
         if(holder.listOfEpochs.length == 25) {
             this.claimReward(msg.sender);
@@ -341,16 +284,6 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// once added. 
     /// @param _amount The amount of ABC to be auto allocated
     function addAutoAllocation(uint256 _amount) external nonReentrant {
-        uint32 size;
-        address _addr = msg.sender;
-        assembly {
-            size := extcodesize(_addr)
-        }
-        require(
-            size == 0 
-            || contractWL[msg.sender]
-        );
-
         Holder storage holder = holderHistory[msg.sender];
         uint256 currentEpoch;
         if(epochVault.getStartTime() == 0) {
