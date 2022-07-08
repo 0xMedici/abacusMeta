@@ -168,6 +168,9 @@ contract Closure is ReentrancyGuard, Initializable {
     }
 
     /* ======== GETTERS ======== */
+    /// @notice Get the highest bid in the auction for an NFT
+    /// @param _nft NFT collection address
+    /// @param _id NFT ID 
     function getHighestBid(address _nft, uint256 _id) external view returns(uint256 bid) {
         bid = highestBid[_nft][_id];
     }
