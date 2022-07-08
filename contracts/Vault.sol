@@ -93,11 +93,22 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     bool public poolClosed;
 
     /* ======== MAPPINGS ======== */
-
+    /// @notice Used to track the existence of tokens within the pool
+    /// [uint256] -> Compressed token information (address and ID)
+    /// [bool] -> Status of presence in the pool
     mapping(uint256 => bool) public tokenMapping;
 
+    /// @notice Track the total loss logged based on the auction sale value and payout size
+    /// [address] -> NFT collection
+    /// [uint256] -> NFT token ID
+    /// [uint256] -> Loss experienced from the auction
     mapping(address => mapping(uint256 => uint256)) public loss;
 
+    /// @notice Track adjustment status of closed NFTs
+    /// [address] -> User 
+    /// [address] -> NFT collection
+    /// [uint256] -> NFT ID
+    /// [bool] -> Status of adjustment
     mapping(address => mapping(address => mapping(uint256 => bool))) public adjustCompleted;
 
     /// @notice Unique tag for each position purchased by a user
@@ -127,6 +138,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> amount of reservations
     mapping(uint256 => uint256) public reservations;
 
+    /// @notice NFT auction sale value
+    /// [address] -> NFT collection 
+    /// [uint256] -> NFT token ID 
+    /// [uint256] -> Auction sale value
     mapping(address => mapping(uint256 => uint256)) public auctionSaleValue;
 
     /// @notice Amount of tokens purchased within a ticket
@@ -169,6 +184,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> amount of bribes offered
     mapping(uint256 => uint256) public generalBribe;
 
+    /// @notice General bribe offered by a user 
+    /// [address] -> User
+    /// [uint256] -> Epoch
+    /// [uint256] -> Bribe offered
     mapping(address => mapping(uint256 => uint256)) public generalBribeOffered;
 
     /// @notice Track whether an address has been added to 'addressesToClosePerEpoch'
@@ -180,6 +199,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> bribe amount
     mapping(uint256 => mapping(uint256 => uint256)) public concentratedBribe;
 
+    /// @notice Concentrated bribe offered by a user
+    /// [address] -> User
+    /// [uint256] -> Epoch
+    /// [uint256] -> Target tranche
+    /// [uint256] -> Amount
     mapping(address => mapping(uint256 => mapping(uint256 => uint256))) public concentratedBribeOffered;
 
     /// @notice Track an addresses allowance status to trade another addresses position
@@ -240,7 +264,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /* ======== CONFIGURATION ======== */
-
+    /// @notice [setup phase] Give an NFT access to the pool 
+    /// @param _compTokenInfo Compressed list of NFT collection address and token ID information
     function includeNft(uint256[] memory _compTokenInfo) external {
         require(startTime == 0);
         require(msg.sender == creator);
@@ -261,6 +286,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         factory.emitNftInclusion(_compTokenInfo);
     }
 
+    /// @notice [setup phase] Start the pools operation
+    /// @param slots The amount of collateral slots the pool will offer
     function begin(uint256 slots) external {
         require(startTime == 0);
         require(msg.sender == creator);
@@ -483,6 +510,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(msg.value == cost);
     }
 
+    /// @notice Reclaim unused general bribes offered
+    /// @param epoch Epoch in which bribe went unused
     function reclaimGeneralBribe(uint256 epoch) external nonReentrant {
         require(startTime != 0);
         require(totAvailFunds[epoch] == 0);
@@ -491,6 +520,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         payable(msg.sender).transfer(payout);
     }
 
+    /// @notice Reclaim unused concentrated bribes offered
+    /// @param epoch Epoch in which bribe went unused
+    /// @param ticket Ticket in which bribe went unused
     function reclaimConcentratedBribe(uint256 epoch, uint256 ticket) external nonReentrant {
         require(startTime != 0);
         require(ticketsPurchased[epoch][ticket] == 0);
@@ -964,7 +996,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /* ======== GETTER ======== */
-
+    /// @notice Check if the pool is closed
     function getPoolClosedStatus() external view returns(bool) {
         return poolClosed;
     }
@@ -1018,6 +1050,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 * (_endEpoch - poolEpoch) / 5 * payoutPerRes[poolEpoch] / 100_000;
     }
 
+    /// @notice Get total funds available in an epoch
     function getTotalFunds(uint256 epoch) external view returns(uint256) {
         return totAvailFunds[epoch];
     }
