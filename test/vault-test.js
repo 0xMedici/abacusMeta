@@ -176,7 +176,7 @@ describe("MA Vault", function () {
         );
         expect(await maPool.emissionsStarted()).to.equal(true);
 
-        await maPool.remove(mockNft.address, 1);
+        await maPool.remove([mockNft.address], [1]);
         expect(await maPool.emissionsStarted()).to.equal(false);
 
         await factory.signMultiAssetVault(
@@ -624,11 +624,9 @@ describe("MA Vault", function () {
             { value: totalCost.toString() }
         );
             
-        expect((await maPool.getCostToReserve(2)).toString()).to.equal('1200000000000000');
+        expect((await maPool.getCostToReserve(2)).toString()).to.equal('6000000000000000');
         await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        expect((await maPool.getCostToReserve(2)).toString()).to.equal('1500000000000000');
         await maPool.reserve(mockNft.address, 2, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        expect((await maPool.getCostToReserve(2)).toString()).to.equal('1800000000000000');
         await maPool.reserve(mockNft.address, 3, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
@@ -867,7 +865,7 @@ describe("MA Vault", function () {
             mockNft.address
         );
         expect(await controller.nftVaultSigned(mockNft.address, 1)).to.equal(true);
-        await maPool.remove(mockNft.address, 1);
+        await maPool.remove([mockNft.address], [1]);
         expect(await controller.nftVaultSigned(mockNft.address, 1)).to.equal(false);
     });
 
@@ -913,7 +911,7 @@ describe("MA Vault", function () {
             );
         }
         expect(await controller.nftVaultSigned(mockNft.address, 1)).to.equal(true);
-        await maPool.remove(mockNft.address, 1);
+        await maPool.remove([mockNft.address], [1]);
         expect(await controller.nftVaultSigned(mockNft.address, 1)).to.equal(false);
     });
 

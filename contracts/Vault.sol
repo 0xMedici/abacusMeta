@@ -532,19 +532,24 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /// @notice Revoke an NFTs connection to a pool
-    /// @param _nft NFT to be removed
-    /// @param id Token ID of the NFT to be removed
-    function remove(address _nft, uint256 id) external nonReentrant {
+    /// @param _nft List of NFTs to be removed
+    /// @param _id List of token ID of the NFT to be removed
+    function remove(address[] memory _nft, uint256[] memory _id) external nonReentrant {
         require(startTime != 0);
-        require(msg.sender == IERC721(_nft).ownerOf(id));
-        require(controller.nftVaultSignedAddress(_nft, id) == address(this));
-        require(!reservationMade[(block.timestamp - startTime) / 1 days][_nft][id]);
-        uint256 tempStorage;
-        tempStorage |= uint160(_nft);
-        tempStorage <<= 160;
-        tempStorage |= id;
-        tokenMapping[tempStorage] = false;
-        factory.updateNftInUse(_nft, id, MAPoolNonce);
+        uint256 length = _nft.length;
+        for(uint256 i = 0; i < length; i++) {
+            address nft = _nft[i];
+            uint256 id = _id[i];
+            require(msg.sender == IERC721(nft).ownerOf(id));
+            require(controller.nftVaultSignedAddress(nft, id) == address(this));
+            require(!reservationMade[(block.timestamp - startTime) / 1 days][nft][id]);
+            uint256 tempStorage;
+            tempStorage |= uint160(nft);
+            tempStorage <<= 160;
+            tempStorage |= id;
+            tokenMapping[tempStorage] = false;
+            factory.updateNftInUse(nft, id, MAPoolNonce);
+        }
     }
 
     /// @notice Update the 'totAvailFunds' count upon the conclusion of an auction
@@ -605,7 +610,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(reservations[poolEpoch] + 1 <= reservationsAvailable);
         require(endEpoch - poolEpoch <= 20);
         require(
-            msg.value == (100_000 + reservations[poolEpoch] * 100_000 / amountNft) 
+            msg.value == (100_000 + reservations[poolEpoch] * 50_000 / amountNft) 
                 * (endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 100_000_000
         );
         alloc.receiveFees{ 
@@ -1046,8 +1051,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param _endEpoch The epoch after the final reservation epoch
     function getCostToReserve(uint256 _endEpoch) external view returns(uint256) {
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
-        return (100 + reservations[poolEpoch] * 25) 
-                * (_endEpoch - poolEpoch) / 5 * payoutPerRes[poolEpoch] / 100_000;
+        return (100_000 + reservations[poolEpoch] * 50_000 / amountNft) 
+                * (_endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 100_000_000;
     }
 
     /// @notice Get total funds available in an epoch
