@@ -556,8 +556,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(reservations[poolEpoch] + 1 <= reservationsAvailable);
         require(endEpoch - poolEpoch <= 20);
         require(
-            msg.value == (100 + reservations[poolEpoch] * 25) 
-                * (endEpoch - poolEpoch) / 5 * payoutPerRes[poolEpoch] / 100_000
+            msg.value == (100_000 + reservations[poolEpoch] * 100_000 / amountNft) 
+                * (endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 100_000_000
         );
         alloc.receiveFees{ 
             value:(100 + reservations[poolEpoch] * 25) 
