@@ -38,9 +38,6 @@ describe("Bribe factory", function () {
       AbacusController = await ethers.getContractFactory("AbacusController");
       controller = await AbacusController.deploy(deployer.address);
 
-      Treasury = await ethers.getContractFactory("Treasury");
-      treasury = await Treasury.deploy(deployer.address);
-
       VaultFactoryMulti = await ethers.getContractFactory("VaultFactoryMulti");
       factoryMulti = await VaultFactoryMulti.deploy(controller.address);
 
@@ -62,53 +59,32 @@ describe("Bribe factory", function () {
       MockNft = await ethers.getContractFactory("MockNft");
       mockNft = await MockNft.deploy();
 
-      NftEth = await ethers.getContractFactory("NftEth");
-      nEth = await NftEth.deploy(controller.address);
-
       VaultMulti = await ethers.getContractFactory("VaultMulti");
 
       ClosePoolMulti = await ethers.getContractFactory("ClosePoolMulti");
 
-      const setNftEth = await controller.setNftEth(nEth.address);
-      await setNftEth.wait();
+      const setAdmin = await controller.setAdmin(deployer.address);
+      await setAdmin.wait();
       const setBeta = await controller.setBeta(3);
       await setBeta.wait();
-      const approveBeta = await controller.approveBeta();
-      await approveBeta.wait();
       const setCreditBonds = await controller.setCreditBonds(bonds.address);
       await setCreditBonds.wait();
-      const proposeFactoryAddition1 = await controller.proposeFactoryAddition(factoryMulti.address);
-      await proposeFactoryAddition1.wait()
+      const proposeFactoryAddition1 = await controller.proposeFactoryAddition(factory.address);
+      await proposeFactoryAddition1.wait();
       const approveFactoryAddition1 = await controller.approveFactoryAddition();
-      await approveFactoryAddition1.wait()
-      const setTreasury = await controller.setTreasury(treasury.address);
-      await setTreasury.wait();
-      const approveTreasuryChange = await controller.approveTreasuryChange();
-      await approveTreasuryChange.wait();
+      await approveFactoryAddition1.wait();
       const setToken = await controller.setToken(abcToken.address);
       await setToken.wait();
       const setAllocator = await controller.setAllocator(alloc.address);
       await setAllocator.wait();
       const setEpochVault = await controller.setEpochVault(eVault.address);
       await setEpochVault.wait();
-      const changeTreasuryRate = await controller.setTreasuryRate(10);
-      await changeTreasuryRate.wait();
-      const approveRateChange = await controller.approveRateChange();
-      await approveRateChange.wait();
       const wlAddress = await controller.proposeWLUser([deployer.address]);
       await wlAddress.wait();
       const wlCollection = await controller.proposeWLAddresses([mockNft.address]);
       await wlCollection.wait();
       const confirmWlCollection = await controller.approveWLAddresses();
       await confirmWlCollection.wait();
-      const setPoolSizeLimit = await controller.proposePoolSizeLimit(50);
-      await setPoolSizeLimit.wait();
-      const approvePoolSizeLimit = await controller.approvePoolSizeLimit();
-      await approvePoolSizeLimit.wait();
-      const proposeNEthTarget = await controller.proposeNEthTarget(50);
-      await proposeNEthTarget.wait();
-      const approveNEthTarget = await controller.approveNEthTarget();
-      await approveNEthTarget.wait();
 
       await abcToken.transfer(user1.address, '1000000000000000000000000000');
       await eVault.begin();

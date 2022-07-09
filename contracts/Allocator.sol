@@ -164,7 +164,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
             controller.accreditedAddresses(msg.sender)
         );
         uint256 treasuryRate;
-        if((controller.multisig()).balance >= 100_000e18) {
+        if(fundsSentToT >= 100_000e18) {
             treasuryRate = 0;
         } else {
             treasuryRate = 10_000 - 500 * (controller.multisig()).balance / 10_000e18;

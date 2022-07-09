@@ -39,9 +39,6 @@ describe("MA Vault", function () {
     AbacusController = await ethers.getContractFactory("AbacusController");
     controller = await AbacusController.deploy(deployer.address);
 
-    Treasury = await ethers.getContractFactory("Treasury");
-    treasury = await Treasury.deploy(deployer.address);
-
     Factory = await ethers.getContractFactory("Factory");
     factory = await Factory.deploy(controller.address);
 
@@ -62,9 +59,6 @@ describe("MA Vault", function () {
 
     MockNft = await ethers.getContractFactory("MockNft");
     mockNft = await MockNft.deploy();
-
-    NftEth = await ethers.getContractFactory("NftEth");
-    nEth = await NftEth.deploy(controller.address);
 
     Vault = await ethers.getContractFactory("Vault");
 

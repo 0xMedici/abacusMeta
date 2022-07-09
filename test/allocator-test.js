@@ -39,9 +39,6 @@ describe("Allocator", function () {
       AbacusController = await ethers.getContractFactory("AbacusController");
       controller = await AbacusController.deploy(deployer.address);
 
-      Treasury = await ethers.getContractFactory("Treasury");
-      treasury = await Treasury.deploy(deployer.address);
-
       Factory = await ethers.getContractFactory("Factory");
       factory = await Factory.deploy(controller.address);
 
@@ -64,29 +61,20 @@ describe("Allocator", function () {
       mockNft = await MockNft.deploy();
       mockNft2 = await MockNft.deploy();
 
-      NftEth = await ethers.getContractFactory("NftEth");
-      nEth = await NftEth.deploy(controller.address);
-
       Vault = await ethers.getContractFactory("Vault");
 
       Closure = await ethers.getContractFactory("Closure");
 
-      const setNftEth = await controller.setNftEth(nEth.address);
-      await setNftEth.wait();
+      const setAdmin = await controller.setAdmin(deployer.address);
+      await setAdmin.wait();
       const setBeta = await controller.setBeta(3);
       await setBeta.wait();
-      const approveBeta = await controller.approveBeta();
-      await approveBeta.wait();
       const setCreditBonds = await controller.setCreditBonds(bonds.address);
       await setCreditBonds.wait();
       const proposeFactoryAddition1 = await controller.proposeFactoryAddition(factory.address);
       await proposeFactoryAddition1.wait();
       const approveFactoryAddition1 = await controller.approveFactoryAddition();
       await approveFactoryAddition1.wait();
-      const setTreasury = await controller.setTreasury(treasury.address);
-      await setTreasury.wait();
-      const approveTreasuryChange = await controller.approveTreasuryChange();
-      await approveTreasuryChange.wait();
       const setToken = await controller.setToken(abcToken.address);
       await setToken.wait();
       const setAllocator = await controller.setAllocator(alloc.address);
