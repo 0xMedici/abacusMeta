@@ -281,7 +281,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             require(controller.nftVaultSignedAddress(_nft, _id) == address(this));
         }
         if(emissionStatus) {
-            if(emissionStartedCount[poolEpoch] == 0) {
+            (uint256 currentBoostNum, uint256 currentBoostDen) = alloc.calculateBoost(boostCollection);
+            (uint256 newBoostNum, uint256 newBoostDen) = alloc.calculateBoost(_nft);
+            if(
+                emissionStartedCount[poolEpoch] == 0
+                || (newBoostNum * 100 / newBoostDen) > (currentBoostNum * 100 / currentBoostDen)
+            ) {
                 boostCollection = _nft;
             }
             emissionsStarted[_nft][_id][poolEpoch] = true;
