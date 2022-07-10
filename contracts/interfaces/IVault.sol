@@ -15,8 +15,6 @@ interface IVault {
     
     function toggleEmissions(address _nft, uint256 _id, bool emissionStatus) external;
 
-    function initiateFutureLp(address _user, uint256 _nonce) external;
-
     function purchase(
         address _caller,
         address _buyer, 
