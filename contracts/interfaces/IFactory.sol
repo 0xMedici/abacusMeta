@@ -11,7 +11,8 @@ interface IFactory {
 
     function updateSlotCount(
         uint256 mavNonce, 
-        uint256 slots
+        uint256 slots,
+        uint256 amountNfts
     ) external;
 
     function signMultiAssetVault(

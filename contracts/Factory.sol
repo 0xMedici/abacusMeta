@@ -77,6 +77,7 @@ contract Factory is ReentrancyGuard {
     struct MultiAssetVault {
         string name;
         address pool;
+        uint32 nftsInPool;
         uint32 slots;
         uint32 nftRemoved;
         uint32 amountSigned;
@@ -170,9 +171,10 @@ contract Factory is ReentrancyGuard {
         emit VaultCreated(name, msg.sender, address(vaultMultiDeployment));
     }
 
-    function updateSlotCount(uint256 mavNonce, uint256 slots) external {
+    function updateSlotCount(uint256 mavNonce, uint256 slots, uint256 amountNfts) external {
         require(controller.accreditedAddresses(msg.sender));
         multiAssetMapping[mavNonce].slots = uint32(slots);
+        multiAssetMapping[mavNonce].nftsInPool = uint32(amountNfts);
     }
 
     /// @notice Sign off on starting a vaults emissions
@@ -180,13 +182,10 @@ contract Factory is ReentrancyGuard {
     /// @param multiVaultNonce Nonce corresponding to desired vault
     /// @param nft List of NFTs (must be in the vault and owned by the caller)
     /// @param id List of NFT IDs (must be in the vault and owned by the caller)
-    /// @param boostedCollection The collection that the vaults EDC emission boost will 
-    /// be tied too (must be in the vault)
     function signMultiAssetVault(
         uint256 multiVaultNonce,
         address[] memory nft,
-        uint256[] memory id,
-        address boostedCollection
+        uint256[] memory id
     ) external nonReentrant {
         MultiAssetVault storage mav = multiAssetMapping[multiVaultNonce];
         uint256 length = id.length;
@@ -202,14 +201,9 @@ contract Factory is ReentrancyGuard {
                 || IVault(controller.nftVaultSignedAddress(collection, _id)).getPoolClosedStatus()
             );
             controller.updateNftUsage(pool, collection, _id, true);
-            mav.amountSigned++;
+            IVault(mav.pool).toggleEmissions(collection, _id, true);
         }
         emit VaultSigned(pool, msg.sender, nft, id);
-        
-        if(mav.amountSigned >= mav.slots) {
-            IVault(mav.pool).toggleEmissions(boostedCollection, true);
-            emit EmissionsStarted(pool);
-        }
     }
 
     /// @notice Sever ties between an NFT and a pool
@@ -227,16 +221,13 @@ contract Factory is ReentrancyGuard {
         require(IVault(mav.pool).getHeldTokenExistence(nftToRemove, idToRemove));
         controller.updateNftUsage(address(0), nftToRemove, idToRemove, false);
         mav.nftRemoved++;
-        mav.amountSigned--;
-        if(mav.amountSigned < mav.slots) {
-            IVault(mav.pool).toggleEmissions(address(0), false);
-            emit EmissionsStopped(mav.pool);
-        }
-        if(mav.nftRemoved == mav.slots) {
+        IVault(mav.pool).toggleEmissions(nftToRemove, idToRemove, false);
+        emit EmissionsStopped(mav.pool);
+
+        if(mav.nftRemoved == mav.nftsInPool) {
             IVault(mav.pool).closePool();
             emit PoolClosed(mav.pool);
         }
-
         emit NftRemoved(msg.sender, nftToRemove, idToRemove);
     }
 
