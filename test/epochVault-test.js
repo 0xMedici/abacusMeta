@@ -139,8 +139,7 @@ describe("Epoch Vault", function () {
     await factory.signMultiAssetVault(
         0,
         [mockNft.address, mockNft.address, mockNft.address],
-        [1,2,3],
-        mockNft.address
+        [1,2,3]
     );
 
     let costPerToken = 1e15;
