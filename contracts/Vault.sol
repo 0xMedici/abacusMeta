@@ -267,6 +267,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param _id ID of NFT
     /// @param emissionStatus The state new state of 'emissionsStarted' 
     function toggleEmissions(address _nft, uint256 _id, bool emissionStatus) external {
+        require(!poolClosed);
         uint256 poolEpoch;
         if(startTime == 0) {
             poolEpoch = 0;
@@ -299,6 +300,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             emissionsStarted[_nft][_id][poolEpoch] = false;
             emissionStartedCount[poolEpoch]--;
         }
+
+        factory.emitToggle(_nft, _id, emissionStatus, emissionStartedCount[poolEpoch]);
     }
 
     /* ======== CONFIGURATION ======== */
@@ -476,7 +479,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             }
             finalCreditCount += amount * rewardCap
                 * (emissionStartedCount[j] > amountNft ? amountNft : emissionStartedCount[j])
-                    * ((reservations[j] > 0 && totalReservationValue[j] > 2e17) ? (5 * totalReservationValue[j] / 1e18) : 1) / totAvailFunds[j];
+                    * (
+                        (reservations[j] > 0 && totalReservationValue[j] > 2e17) ? 
+                            (5 * totalReservationValue[j] / 1e18) : 1
+                    ) / totAvailFunds[j];
             bribePayout += trader.ethLocked * generalBribe[j] / totAvailFunds[j];
         }
 

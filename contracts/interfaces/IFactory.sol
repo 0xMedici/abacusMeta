@@ -42,6 +42,13 @@ interface IFactory {
 
     function emitPoolBegun() external;
 
+    function emitToggle(
+        address _nft,
+        uint256 _id,
+        bool _chosenToggle, 
+        uint256 _totalToggles
+    ) external;
+
     function emitPurchase(
         address _buyer, 
         uint256[] memory tickets,

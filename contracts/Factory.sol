@@ -90,6 +90,7 @@ contract Factory is ReentrancyGuard {
     event VaultSigned(address _pool, address _signer, address[] nftAddress, uint256[] ids);
     event NftInclusion(address _pool, uint256[] nfts);
     event VaultBegun(address _pool);
+    event EmissionsToggled(address _pool, address _nft, uint256 _id, bool chosenToggle, uint256 totalToggles);
     event EmissionsStarted(address _pool);
     event EmissionsStopped(address _pool);
     event SignPoolClosure(address _pool, address _signer,address _collections, uint256 _idSigned);
@@ -262,6 +263,15 @@ contract Factory is ReentrancyGuard {
 
     function emitPoolBegun() external onlyAccredited {
         emit VaultBegun(msg.sender);
+    }
+
+    function emitToggle(
+        address _nft,
+        uint256 _id,
+        bool _chosenToggle, 
+        uint256 _totalToggles
+    ) external onlyAccredited {
+        emit EmissionsToggled(msg.sender, _nft, _id, _chosenToggle, _totalToggles);
     }
 
     function emitPurchase(
