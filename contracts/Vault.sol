@@ -144,6 +144,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> amount of reservations
     mapping(uint256 => uint256) public reservations;
 
+    mapping(uint256 => uint256) totalReservationValue;
+
     /// @notice NFT auction sale value
     /// [address] -> NFT collection 
     /// [uint256] -> NFT token ID 
@@ -283,9 +285,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         if(emissionStatus) {
             (uint256 currentBoostNum, uint256 currentBoostDen) = alloc.calculateBoost(boostCollection);
             (uint256 newBoostNum, uint256 newBoostDen) = alloc.calculateBoost(_nft);
+            uint256 currentBoost = (currentBoostDen == 0 ? 100 : (100 + 100 * currentBoostNum / currentBoostDen));
+            uint256 newBoost = (newBoostDen == 0 ? 100 : (100 + 100 * newBoostNum / newBoostDen));
             if(
                 emissionStartedCount[poolEpoch] == 0
-                || (newBoostNum * 100 / newBoostDen) > (currentBoostNum * 100 / currentBoostDen)
+                || newBoost > currentBoost
             ) {
                 boostCollection = _nft;
             }
@@ -455,14 +459,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 _comAmounts >>= 25;
                 
                 if(maxTicketPerEpoch[j] == 0) maxTicketPerEpoch[j] = 1;
-                if(emissionStartedCount[j] == 0) {
-                    amount += 0;
-                } else {
-                    amount += 
+                amount += 
                     (75e18 + ((1e18 * ticket) ** 2) * 100e18 
                         / ((maxTicketPerEpoch[j] * 1e18) ** 2) / 2) 
                             * (amountTokens * 0.001 ether) / 100e18;
-                }
                 bribePayout += 
                     amountTokens * concentratedBribe[j][ticket] 
                     / ticketsPurchased[j][ticket];
@@ -474,10 +474,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             } else {
                 rewardCap = 100e18;
             }
-            finalCreditCount += amount * rewardCap 
-                * (emissionStartedCount[j] > amountNft ? amountNft : emissionStartedCount[j]) 
-                    * ((reservations[j] == 0? 1 : 500) + reservations[j] * 500 / amountNft) 
-                        / (totAvailFunds[j] * (reservations[j] == 0? 1 : 100));
+            finalCreditCount += amount * rewardCap
+                * (emissionStartedCount[j] > amountNft ? amountNft : emissionStartedCount[j])
+                    * ((reservations[j] > 0 && totalReservationValue[j] > 2e17) ? (5 * totalReservationValue[j] / 1e18) : 1) / totAvailFunds[j];
             bribePayout += trader.ethLocked * generalBribe[j] / totAvailFunds[j];
         }
 
@@ -643,7 +642,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param id Token ID of the NFT that is being reserved
     /// @param endEpoch The epoch during which the reservation wears off
     function reserve(address _nft, uint256 id, uint256 endEpoch) external payable nonReentrant {
-        
         require(startTime != 0);
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
         require(!poolClosed);
@@ -661,6 +659,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         }();
         for(uint256 i = poolEpoch; i < endEpoch; i++) {
             require(!reservationMade[i][_nft][id]); 
+            totalReservationValue[i] += payoutPerRes[i];
             reservationMade[i][_nft][id] = true;
             reservations[i]++;
         }

@@ -86,7 +86,7 @@ contract EpochVault is ReentrancyGuard {
     constructor(address _controller, uint256 _epochLength) {
         epochLength = _epochLength;
         controller = AbacusController(_controller);
-        base = 40000e18;
+        base = 400_000e18;
         basePercentage = 100;
         baseAdjusted[0] = true;
     }
@@ -143,8 +143,8 @@ contract EpochVault is ReentrancyGuard {
                         / 10_000;
         }
 
-        if(base < 40000e18) {
-            base = 40000e18;
+        if(base < 400_000e18) {
+            base = 400_000e18;
         }
         if(basePercentage < 50) {
             basePercentage = 50;
