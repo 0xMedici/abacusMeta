@@ -455,6 +455,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 amount;
             uint256 _comListOfTickets = trader.comListOfTickets;
             uint256 _comAmounts = trader.comAmountPerTicket;
+            uint256 rewardCap;
+            if(totAvailFunds[j] < 100e18) {
+                rewardCap = totAvailFunds[j];
+            } else {
+                rewardCap = 100e18;
+            }
             while(_comAmounts > 0) {
                 uint256 ticket = _comListOfTickets & (2**25 - 1);
                 uint256 amountTokens = (_comAmounts & (2**25 - 1)) / 100;
@@ -462,20 +468,18 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 _comAmounts >>= 25;
                 
                 if(maxTicketPerEpoch[j] == 0) maxTicketPerEpoch[j] = 1;
+                uint256 adjustment = totAvailFunds[j] / 10e18;
+                if(adjustment > 50) {
+                    adjustment = 50;
+                }
                 amount += 
-                    (75e18 + ((1e18 * ticket) ** 2) * 100e18 
-                        / ((maxTicketPerEpoch[j] * 1e18) ** 2) / 2) 
-                            * (amountTokens * 0.001 ether) / 100e18;
+                    ((75e18 - adjustment * 1e18) + ((1e18 * ticket) ** 2) 
+                        * (100e18 + adjustment * 1e18 * 4) 
+                            / ((maxTicketPerEpoch[j] * 1e18) ** 2) / 2) 
+                                * (amountTokens * 0.001 ether) / 100e18;
                 bribePayout += 
                     amountTokens * concentratedBribe[j][ticket] 
                     / ticketsPurchased[j][ticket];
-            }
-
-            uint256 rewardCap;
-            if(totAvailFunds[j] < 100e18) {
-                rewardCap = totAvailFunds[j];
-            } else {
-                rewardCap = 100e18;
             }
             finalCreditCount += amount * rewardCap
                 * (emissionStartedCount[j] > amountNft ? amountNft : emissionStartedCount[j])
