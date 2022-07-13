@@ -784,7 +784,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         tempStorage <<= 160;
         tempStorage |= _id;
         tokenMapping[tempStorage] = false;
-        factory.updateNftInUse(_nft, _id, MAPoolNonce);
         reservationsAvailable--;
 
         uint256 i = poolEpoch;
