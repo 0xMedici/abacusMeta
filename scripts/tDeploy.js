@@ -80,6 +80,18 @@ async function main() {
     const begin = await eVault.begin();
     await begin.wait();
     console.log("11");
+
+    const wlCollection = await controller.proposeWLAddresses([
+      '0x16baf0de678e52367adc69fd067e5edd1d33e3bf',
+      '0x24b5a675a7684cdbb12fa5215b7b775e291ed355',
+      '0x1935899bfb630aed1fa54f2a943f0b0841724007',
+      '0xb74bf94049d2c01f8805b8b15db0909168cabf46'
+    ]);
+    await wlCollection.wait();
+
+    const approveWl = await controller.approveWLAddresses();
+    await approveWl.wait();
+    console.log("DONE");
 }
 
 main()

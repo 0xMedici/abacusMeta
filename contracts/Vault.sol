@@ -818,8 +818,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         IERC721(_nft).transferFrom(msg.sender, address(closePoolContract), _id);
 
         epochOfClosure[_nft][_id] = poolEpoch;
-        alloc.receiveFees{value:3 * payoutPerRes[poolEpoch] / 100 }();
-        payable(msg.sender).transfer(97 * payoutPerRes[poolEpoch] / 100);
+        alloc.receiveFees{value:1 * payoutPerRes[poolEpoch] / 100 }();
+        payable(msg.sender).transfer(99 * payoutPerRes[poolEpoch] / 100);
         factory.emitNftClosed(
             msg.sender,
             _nft,
