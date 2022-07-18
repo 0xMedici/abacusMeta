@@ -275,11 +275,15 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             poolEpoch = (block.timestamp - startTime) / 1 days;
         }
         if(!emissionStatus) {
-            require(msg.sender == address(factory));
+            require(
+                msg.sender == address(factory)
+                || msg.sender == address(this)    
+            );
         } else {
             require(
                 msg.sender == address(factory)
                 || IERC721(_nft).ownerOf(_id) == msg.sender
+                || msg.sender == address(this)
             );
             require(controller.nftVaultSignedAddress(_nft, _id) == address(this));
         }
@@ -312,8 +316,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(msg.sender == creator);
         uint256 length = _compTokenInfo.length;
         for(uint256 i = 0; i < length; i++) {
-            address collection = address(uint160(_compTokenInfo[i] & (2**160-1)));
-            uint256 id = _compTokenInfo[i] >> 160;
+            uint256 id = _compTokenInfo[i] & (2**95-1);
+            uint256 temp = _compTokenInfo[i] >> 95;
+            address collection = address(uint160(temp & (2**160-1)));
             if(controller.beta() == 2) {
                 require(
                     controller.collectionWhitelist(collection)
@@ -594,12 +599,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             require(msg.sender == IERC721(nft).ownerOf(id));
             require(controller.nftVaultSignedAddress(nft, id) == address(this));
             require(!reservationMade[(block.timestamp - startTime) / 1 days][nft][id]);
-            uint256 tempStorage;
-            tempStorage |= uint160(nft);
-            tempStorage <<= 160;
-            tempStorage |= id;
-            tokenMapping[tempStorage] = false;
             factory.updateNftInUse(nft, id, MAPoolNonce);
+            uint256 temp; 
+            temp |= uint160(nft);
+            temp <<= 95;
+            temp |= id;
+            tokenMapping[temp] = false;
         }
     }
 
@@ -778,14 +783,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(!poolClosed);
         require(epochOfClosure[_nft][_id] == 0);
         adjustmentsRequired++;
-
-        uint256 tempStorage;
-        tempStorage |= uint160(_nft);
-        tempStorage <<= 160;
-        tempStorage |= _id;
-        tokenMapping[tempStorage] = false;
+        controller.updateNftUsage(address(this), _nft, _id, false);
+        this.toggleEmissions(_nft, _id, false);
         reservationsAvailable--;
-
         uint256 i = poolEpoch;
         while(reservationMade[i][_nft][_id]) {
             reservationMade[i][_nft][_id] = false;
@@ -1066,9 +1066,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Get the list of NFT address and corresponding token IDs in by this pool
     function getHeldTokenExistence(address _nft, uint256 _id) external view returns(bool) {
         uint256 temp; 
-        temp |= _id;
-        temp <<= 160;
         temp |= uint160(_nft);
+        temp <<= 95;
+        temp |= _id;
         return tokenMapping[temp];
     }
 

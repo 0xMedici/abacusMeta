@@ -1,7 +1,7 @@
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
-require("hardhat-gas-reporter");
+// require("hardhat-gas-reporter");
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more

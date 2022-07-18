@@ -241,7 +241,7 @@ contract AbacusController {
     }
 
     function updateNftUsage(address pool, address nft, uint256 id, bool status) external {
-        require(factoryWhitelist[msg.sender] || this.accreditedAddresses(msg.sender));
+        require(factoryWhitelist[msg.sender] || accreditedAddresses[msg.sender]);
         if(status) {
             nftVaultSigned[nft][id] = true;
             nftVaultSignedAddress[nft][id] = pool;

@@ -481,9 +481,9 @@ contract Factory is ReentrancyGuard {
         uint256 length = id.length;
         for(uint256 i = 0; i < length; i++) {
             uint256 _compVal;
-            _compVal |= id[i];
-            _compVal <<= 160;
             _compVal |= uint160(nft[i]);
+            _compVal <<= 95;
+            _compVal |= id[i];
             _compTokenInfo[i] = _compVal;
         }
     }

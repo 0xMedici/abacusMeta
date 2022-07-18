@@ -183,16 +183,6 @@ contract EpochVault is ReentrancyGuard {
         emit EpochUpdated(_user,  _nft, creditsToAdd);
     }
 
-    /// @notice Receive network fees paid from accredited addresses
-    /// @dev Any network fees received are added to the current epochs ABC emission size 
-    function receiveAbc(address _user, uint256 _amount) external nonReentrant {
-        require(controller.accreditedAddresses(msg.sender));
-        uint256 currentEpoch = (block.timestamp - startTime) / epochLength;
-        ABCToken(payable(controller.abcToken())).bypassTransfer(_user, address(this), _amount);
-        epochTracker[currentEpoch].abcEmissionSize += _amount;
-        emit AbcReceived(_amount, epochTracker[currentEpoch].abcEmissionSize);
-    }
-
     /* ======== ABC REWARDS ======== */
     /// @notice Claim abc reward from an epoch
     /// @param _user The reward recipient
