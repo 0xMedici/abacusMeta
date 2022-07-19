@@ -136,8 +136,6 @@ interface IFactory {
 
     function getSqrt(uint x) external pure returns (uint y);
 
-    function getEmissionPermission(uint256 _epoch, address _nft, uint256 _id) external view returns(uint256);
-
     function encodeCompressedValue(
         address[] memory nft,
         uint256[] memory id
