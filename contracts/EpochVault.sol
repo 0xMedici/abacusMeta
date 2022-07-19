@@ -59,7 +59,7 @@ contract EpochVault is ReentrancyGuard {
     /// [uint256] -> epoch
     /// [Epoch] -> struct of epoch details
     mapping(uint256 => Epoch) public epochTracker;
-
+    
     /* ======== STRUCT ======== */
     /// @notice Stores operational information of an epoch
     /// [totalCredits] -> total epoch distribution credits purchased in an epoch
@@ -86,7 +86,7 @@ contract EpochVault is ReentrancyGuard {
     constructor(address _controller, uint256 _epochLength) {
         epochLength = _epochLength;
         controller = AbacusController(_controller);
-        base = 400_000e18;
+        base = 15_000_000e18;
         basePercentage = 100;
         baseAdjusted[0] = true;
     }
@@ -143,8 +143,8 @@ contract EpochVault is ReentrancyGuard {
                         / 10_000;
         }
 
-        if(base < 400_000e18) {
-            base = 400_000e18;
+        if(base < 10_000_000e18) {
+            base = 10_000_000e18;
         }
         if(basePercentage < 50) {
             basePercentage = 50;
@@ -209,6 +209,10 @@ contract EpochVault is ReentrancyGuard {
     }
 
     /* ======== GETTERS ======== */
+    function getEpoch(uint256 _time) external view returns(uint256) {
+        return (_time - startTime) / epochLength;
+    }
+
     /// @notice Get the protocols start time
     function getStartTime() external view returns(uint256) {
         return startTime;

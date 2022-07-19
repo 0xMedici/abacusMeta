@@ -39,9 +39,6 @@ describe("MA Vault", function () {
     AbacusController = await ethers.getContractFactory("AbacusController");
     controller = await AbacusController.deploy(deployer.address);
 
-    Factory = await ethers.getContractFactory("Factory");
-    factory = await Factory.deploy(controller.address);
-
     AbcToken = await ethers.getContractFactory("ABCToken");
     abcToken = await AbcToken.deploy(controller.address);
 
@@ -50,6 +47,9 @@ describe("MA Vault", function () {
 
     EpochVault = await ethers.getContractFactory("EpochVault");
     eVault = await EpochVault.deploy(controller.address, 86400 * 4);
+
+    Factory = await ethers.getContractFactory("Factory");
+    factory = await Factory.deploy(controller.address);
 
     CreditBonds = await ethers.getContractFactory("CreditBonds");
     bonds = await CreditBonds.deploy(controller.address, eVault.address);
@@ -565,7 +565,7 @@ describe("MA Vault", function () {
             { value: totalCost.toString() }
         );
             
-        expect((await maPool.getCostToReserve(2)).toString()).to.equal('6000000000000000');
+        expect((await maPool.getCostToReserve(2)).toString()).to.equal('3000000000000000');
         await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await maPool.reserve(mockNft.address, 2, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await maPool.reserve(mockNft.address, 3, 2, { value:(await maPool.getCostToReserve(2)).toString() });
@@ -1213,6 +1213,10 @@ describe("MA Vault", function () {
 
         await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await maPool.reserve(mockNft.address, 2, 2, { value:(await maPool.getCostToReserve(2)).toString() });
+        await maPool.reserve(mockNft.address, 3, 2, { value:(await maPool.getCostToReserve(2)).toString() });
+        await maPool1.reserve(mockNft.address, 101, 2, { value:(await maPool1.getCostToReserve(2)).toString() });
+        await maPool1.reserve(mockNft.address, 102, 2, { value:(await maPool1.getCostToReserve(2)).toString() });
+        await maPool1.reserve(mockNft.address, 103, 2, { value:(await maPool1.getCostToReserve(2)).toString() });
 
         await network.provider.send("evm_increaseTime", [86400]);
         for(let i = 1; i < 101; i++) {
@@ -1275,7 +1279,7 @@ describe("MA Vault", function () {
             1_000
         );
 
-        expect((await eVault.getBase()).toString()).to.equal('450000000000000000000000');
+        expect((await eVault.getBase()).toString()).to.equal('16875000000000000000000000');
         expect((await eVault.getBasePercentage()).toString()).to.equal('125');
     });
 
@@ -1356,6 +1360,33 @@ describe("MA Vault", function () {
             2,
             { value: totalCost.toString() }
         );
+        await maPool.purchase(
+            deployer.address,
+            deployer.address,
+            ['6', '7', '8'],
+            ['50000', '50000', '50000'],
+            0,
+            2,
+            { value: totalCost.toString() }
+        );
+        await maPool.purchase(
+            deployer.address,
+            deployer.address,
+            ['9', '10', '11'],
+            ['50000', '50000', '50000'],
+            0,
+            2,
+            { value: totalCost.toString() }
+        );
+        await maPool.purchase(
+            deployer.address,
+            deployer.address,
+            ['12', '13', '14'],
+            ['50000', '50000', '50000'],
+            0,
+            2,
+            { value: totalCost.toString() }
+        );
         await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await maPool.reserve(mockNft.address, 2, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await maPool.reserve(mockNft.address, 3, 2, { value:(await maPool.getCostToReserve(2)).toString() });
@@ -1378,15 +1409,33 @@ describe("MA Vault", function () {
             1_000
         );
 
-        await network.provider.send("evm_increaseTime", [86401 * 2]);
         await maPool.sell(
             deployer.address,
             1,
             1_000
         );
 
-        expect((await eVault.getBase()).toString()).to.equal('429320000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('113');
+        await maPool.sell(
+            deployer.address,
+            2,
+            1_000
+        );
+
+        await maPool.sell(
+            deployer.address,
+            3,
+            1_000
+        );
+
+        await network.provider.send("evm_increaseTime", [86401 * 2]);
+        await maPool.sell(
+            deployer.address,
+            4,
+            1_000
+        );
+
+        expect((await eVault.getBase()).toString()).to.equal('16803000000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('121');
 
         await maPool.purchase(
             deployer.address,
@@ -1400,11 +1449,11 @@ describe("MA Vault", function () {
         await network.provider.send("evm_increaseTime", [86401 * 10]);
         await maPool.sell(
             deployer.address,
-            2,
+            5,
             1_000
         );
         
-        expect((await eVault.getBase()).toString()).to.equal('400000000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('84');
+        expect((await eVault.getBase()).toString()).to.equal('14702625000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('90');
     });
 });

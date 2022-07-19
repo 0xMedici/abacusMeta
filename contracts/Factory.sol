@@ -43,7 +43,7 @@ contract Factory is ReentrancyGuard {
     /* ======== ADDRESS ======== */
 
     AbacusController public immutable controller;
-    
+        
     address private immutable _vaultMultiImplementation;
     address private immutable _closePoolImplementation;
 
@@ -55,6 +55,8 @@ contract Factory is ReentrancyGuard {
     uint256 public multiAssetVaultNonce;
 
     /* ======== MAPPING ======== */
+
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public emissionPermissionPurchased;
     /// @notice ETH to be returned from all vaults is routed this mapping
     /// [address] -> User
     /// [uint256] -> Return amount 
@@ -470,6 +472,15 @@ contract Factory is ReentrancyGuard {
     }
 
     /* ======== GETTERS ======== */
+
+    function getSqrt(uint x) external pure returns (uint y) {
+        uint z = (x + 1) / 2;
+        y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+    }
 
     function encodeCompressedValue(
         address[] memory nft,

@@ -89,7 +89,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     uint256 public adjustmentsRequired;
 
     /* ======== BOOLEANS ======== */
-
     /// @notice Status of pool closure
     bool public poolClosed;
 
@@ -486,12 +485,18 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                     amountTokens * concentratedBribe[j][ticket] 
                     / ticketsPurchased[j][ticket];
             }
-            finalCreditCount += amount * rewardCap
-                * (emissionStartedCount[j] > amountNft ? amountNft : emissionStartedCount[j])
-                    * (
-                        (reservations[j] > 0 && totalReservationValue[j] > 2e17) ? 
-                            (5 * totalReservationValue[j] / 1e18) : 1
-                    ) / totAvailFunds[j];
+            // COMMENT HERE FOR CLARITY: REPURPOSING _comAmounts
+            _comAmounts = 5 * (
+                factory.getSqrt(totalReservationValue[j] / 1e18) > 0 
+                ? factory.getSqrt(totalReservationValue[j] / 1e18) : 1
+            );
+
+            // COMMENT HERE FOR CLARITY: REPURPOSING _comListOfTickets
+            _comListOfTickets = emissionStartedCount[j] > amountNft 
+                ? factory.getSqrt(amountNft) : factory.getSqrt(emissionStartedCount[j]);
+
+            finalCreditCount += amount * rewardCap * (_comListOfTickets) * 
+                (reservations[j] > 0 ? (_comAmounts == 0 ? 1 : _comAmounts) : 1) / 1e18;
             bribePayout += trader.ethLocked * generalBribe[j] / totAvailFunds[j];
         }
 
@@ -665,13 +670,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(reservations[poolEpoch] + 1 <= reservationsAvailable);
         require(endEpoch - poolEpoch <= 20);
         require(
-            msg.value == (100_000 + reservations[poolEpoch] * 50_000 / amountNft) 
-                * (endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 100_000_000
+            msg.value == (125_000 + reservations[poolEpoch]**2 * 125_000 / amountNft**2) 
+                * (endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 250_000_000
         );
-        alloc.receiveFees{ 
-            value:(100 + reservations[poolEpoch] * 25) 
-                * (endEpoch - poolEpoch) / 5 * payoutPerRes[poolEpoch] / 100_000
-        }();
+        alloc.receiveFees{value:msg.value}();
         for(uint256 i = poolEpoch; i < endEpoch; i++) {
             require(!reservationMade[i][_nft][id]); 
             totalReservationValue[i] += payoutPerRes[i];
@@ -1047,6 +1049,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /* ======== GETTER ======== */
+
     /// @notice Check if the pool is closed
     function getPoolClosedStatus() external view returns(bool) {
         return poolClosed;
@@ -1097,8 +1100,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param _endEpoch The epoch after the final reservation epoch
     function getCostToReserve(uint256 _endEpoch) external view returns(uint256) {
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
-        return (100_000 + reservations[poolEpoch] * 50_000 / amountNft) 
-                * (_endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 100_000_000;
+        return (125_000 + reservations[poolEpoch]**2 * 125_000 / amountNft**2) 
+                * (_endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 250_000_000;
     }
 
     /// @notice Get total funds available in an epoch

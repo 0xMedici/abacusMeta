@@ -28,12 +28,6 @@ interface IFactory {
         uint256 multiVaultNonce
     ) external;
 
-    function closePool(
-        address _pool,
-        address[] memory _nft,
-        uint256[] memory _ids
-    ) external;
-
     function updatePendingReturns(address _user) external payable;
 
     function claimPendingReturns() external;
@@ -139,6 +133,10 @@ interface IFactory {
         address from,
         address to
     ) external;
+
+    function getSqrt(uint x) external pure returns (uint y);
+
+    function getEmissionPermission(uint256 _epoch, address _nft, uint256 _id) external view returns(uint256);
 
     function encodeCompressedValue(
         address[] memory nft,

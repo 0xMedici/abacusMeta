@@ -20,6 +20,8 @@ interface IEpochVault {
         uint256 _epoch
     ) external returns(uint256 amountClaimed);
 
+    function getEpoch(uint256 _time) external view returns(uint256);
+
     function getStartTime() external view returns(uint256);
 
     function getBaseAdjustmentStatus() external view returns(bool);
