@@ -55,8 +55,6 @@ contract Factory is ReentrancyGuard {
     uint256 public multiAssetVaultNonce;
 
     /* ======== MAPPING ======== */
-
-    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public emissionPermissionPurchased;
     /// @notice ETH to be returned from all vaults is routed this mapping
     /// [address] -> User
     /// [uint256] -> Return amount 

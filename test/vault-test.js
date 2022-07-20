@@ -269,9 +269,7 @@ describe("MA Vault", function () {
         await maPool.transferFrom(
             deployer.address,
             user1.address,
-            0,
-            ['4', '3', '2', '1', '0'],
-            ['0', '0', '1500', '1500', '1500'],
+            0
         );
         
         await maPool.getDecodedLPInfo(deployer.address, 0);

@@ -53,7 +53,7 @@ interface IVault {
         uint256[] memory bribePerTicket
     ) external payable;
 
-    function remove(address _nft, uint256 id) external;
+    function remove(address[] memory _nft, uint256[] memory id) external;
 
     function updateSaleValue(
         address _nft,

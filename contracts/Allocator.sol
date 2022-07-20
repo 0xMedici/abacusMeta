@@ -161,7 +161,8 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @notice Receive fees from protocol based fee generators
     function receiveFees() external payable nonReentrant {
         require(
-            controller.accreditedAddresses(msg.sender)
+            controller.factoryWhitelist(msg.sender)
+            || controller.accreditedAddresses(msg.sender)
         );
         uint256 treasuryRate;
         if(fundsSentToT >= 100_000e18) {

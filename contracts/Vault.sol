@@ -114,7 +114,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [address] -> NFT collection
     /// [uint256] -> NFT ID
     /// [bool] -> Status of adjustment
-    mapping(address => mapping(address => mapping(uint256 => bool))) public adjustCompleted;
+    mapping(address => mapping(uint256 => mapping(address => mapping(uint256 => bool)))) public adjustCompleted;
 
     /// @notice Unique tag for each position purchased by a user
     /// [address] -> user
@@ -197,9 +197,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> Bribe offered
     mapping(address => mapping(uint256 => uint256)) public generalBribeOffered;
 
-    /// @notice Track whether an address has been added to 'addressesToClosePerEpoch'
-    mapping(address => mapping(uint256 => bool)) public addedToEpoch;
-
     /// @notice Track concentrated bribes offered to specific tickets during an epoch
     /// [uint256] -> epoch
     /// [uint256] -> ticket
@@ -265,7 +262,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param _nft Address of NFT collection
     /// @param _id ID of NFT
     /// @param emissionStatus The state new state of 'emissionsStarted' 
-    function toggleEmissions(address _nft, uint256 _id, bool emissionStatus) external {
+    function toggleEmissions(address _nft, uint256 _id, bool emissionStatus) external nonReentrant {
         require(!poolClosed);
         uint256 poolEpoch;
         if(startTime == 0) {
@@ -319,10 +316,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 temp = _compTokenInfo[i] >> 95;
             address collection = address(uint160(temp & (2**160-1)));
             if(controller.beta() == 2) {
-                require(
-                    controller.collectionWhitelist(collection)
-                    || msg.sender == controller.admin()
-                );
+                require(controller.collectionWhitelist(collection));
             }
             require(IERC721(collection).ownerOf(id) != address(0));
             tokenMapping[_compTokenInfo[i]] = true;
@@ -412,6 +406,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             }
         }
 
+        controller.updateTotalVolumeTraversed(totalTokensRequested * 0.001 ether);
         executePayments(_caller, _buyer, _nonce, msg.value, totalTokensRequested);
         factory.emitPurchase(
             _buyer,
@@ -595,7 +590,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Revoke an NFTs connection to a pool
     /// @param _nft List of NFTs to be removed
     /// @param _id List of token ID of the NFT to be removed
-    function remove(address[] memory _nft, uint256[] memory _id) external nonReentrant {
+    function remove(address[] memory _nft, uint256[] memory _id) external {
         require(startTime != 0);
         uint256 length = _nft.length;
         for(uint256 i = 0; i < length; i++) {
@@ -713,14 +708,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param from Sender 
     /// @param to Recipient
     /// @param nonce Nonce of position that transfer is being applied
-    /// @param _listOfTickets List of tickets to be transferred
-    /// @param _amountPerTicket Amount of tokens for each designated ticket
     function transferFrom(
         address from,
         address to,
-        uint256 nonce,
-        uint256[] memory _listOfTickets,
-        uint256[] memory _amountPerTicket
+        uint256 nonce
     ) external nonReentrant returns(bool) {
         require(startTime != 0);
         require(
@@ -728,45 +719,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             || msg.sender == from
         );
         require(adjustmentsMade[from][nonce] == adjustmentsRequired);
-        Buyer storage traderFrom = traderProfile[from][nonce];
-        uint256 totalTransferRequested;
-        uint256 _tempComTickets;
-        uint256 _tempComAmounts;
-        uint256 _comTickets = traderFrom.comListOfTickets;
-        uint256 _comAmounts = traderFrom.comAmountPerTicket;
-        uint256 i;
-        uint256 tracker = 1;
-        while(tracker > 0) {
-            tracker = _comAmounts;
-            uint256 ticket = _comTickets & (2**25 - 1);
-            uint256 amountTokens = _comAmounts & (2**25 - 1);
-            _comTickets >>= 25;
-            _comAmounts >>= 25;
-
-            if(tracker != 0) {
-                require(_listOfTickets[i] == ticket);
-
-                amountTokens -= _amountPerTicket[i] * 100;
-                _tempComTickets <<= 25;
-                _tempComAmounts <<= 25;
-                _tempComTickets |= (ticket & (2**25 - 1));
-                _tempComAmounts |= (amountTokens & (2**25 - 1));
-            }
-            i++;
-        }
-
-        traderFrom.comListOfTickets = _tempComTickets;
-        traderFrom.comAmountPerTicket = _tempComAmounts;
-        traderFrom.ethLocked -= totalTransferRequested * 0.001 ether / 100;
-
-        createNewPosition(
-            from,
-            to,
-            totalTransferRequested * 0.001 ether / 1e18,
-            _listOfTickets,
-            _amountPerTicket
-        );
-
+        traderProfile[to][positionNonce[to]] = traderProfile[from][nonce];
+        delete traderProfile[from][nonce];
+        
         return true;
     }
 
@@ -854,7 +809,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _id
     ) external nonReentrant returns(bool) {
         require(startTime != 0);
-        require(!adjustCompleted[_user][_nft][_id]);
+        require(!adjustCompleted[_user][_nonce][_nft][_id]);
         require(adjustmentsMade[_user][_nonce] < adjustmentsRequired);
         require(
             block.timestamp > IClosure(closePoolContract).getAuctionEndTime(_nft, _id)
@@ -900,7 +855,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             _nonce
         );
 
-        adjustCompleted[_user][_nft][_id] = true;
+        adjustCompleted[_user][_nonce][_nft][_id] = true;
         return true;
     }
 
@@ -1016,36 +971,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         appLoss += appLoss * tPrem / (payout + appLoss);
         trader.comListOfTickets = _tempComTickets;
         trader.comAmountPerTicket = _tempComAmounts;
-    }
-
-    function createNewPosition(
-        address from,
-        address to, 
-        uint256 ethValTransfer, 
-        uint256[] memory listOfTickets,
-        uint256[] memory amountPerTicket
-    ) internal {
-        Buyer storage traderTo = traderProfile[to][positionNonce[to]];
-        adjustmentsMade[to][positionNonce[to]] = adjustmentsRequired;
-        traderTo.ethLocked = ethValTransfer;
-        uint256 comTickets;
-        uint256 comAmounts;
-        for(uint256 i = 0; i < listOfTickets.length; i++) {
-            comTickets <<= 25;
-            comAmounts <<= 25;
-            comTickets |= (listOfTickets[i] & (2**25 - 1));
-            comAmounts |= (amountPerTicket[i] & (2**25 - 1));
-        }
-        traderTo.comListOfTickets = comTickets;
-        traderTo.comAmountPerTicket = comAmounts;
-        positionNonce[to]++;
-
-        factory.emitLPTransfer(
-            from, 
-            to, 
-            listOfTickets, 
-            amountPerTicket
-        );
     }
 
     /* ======== GETTER ======== */
