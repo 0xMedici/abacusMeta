@@ -108,7 +108,7 @@ contract Factory is ReentrancyGuard {
     event NftClosed(address _pool, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
     event NewBid(address _pool, address _closePoolContract, address _collection, uint256 _id, address _bidder, uint256 _bid);
     event AuctionEnded(address _pool, address _closePoolContract, address _collection, uint256 _id, address _winner, uint256 _highestBid);
-    event PrincipalCalculated(address _pool, address _closePoolContract, address _collection, uint256 _id, address _user, uint256 _nonce);
+    event PrincipalCalculated(address _pool, address _closePoolContract, address _collection, uint256 _id, address _user, uint256 _nonce, uint256 _closureNonce);
     event Payout(address _pool, address _closePoolContract, address _user, uint256 _payoutAmount);
     event LPTransferAllowanceGranted(address _pool, address from, address to);
     event LPTransferred(address _pool, address from, address to, uint256[] tickets, uint256[] amountPerTicket);
@@ -418,7 +418,8 @@ contract Factory is ReentrancyGuard {
         address _callerToken,
         uint256 _id,
         address _user,
-        uint256 _nonce
+        uint256 _nonce,
+        uint256 _closureNonce
     ) external onlyAccredited {
         emit PrincipalCalculated(
             _pool, 
@@ -426,7 +427,8 @@ contract Factory is ReentrancyGuard {
             _callerToken, 
             _id, 
             _user, 
-            _nonce
+            _nonce,
+            _closureNonce
         );
     }
 

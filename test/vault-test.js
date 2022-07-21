@@ -739,7 +739,79 @@ describe("MA Vault", function () {
         await closureMulti.newBid(mockNft.address, 1, { value:(5e17).toString() });
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 1);
-        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1);
+        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 1);
+    });
+
+    it("Close single NFT multiple times", async function () {
+        let nftIds = new Array();
+        let nftAddresses = new Array();
+        for(let i = 0; i < 6; i++) {
+            await mockNft.mintNew();
+            nftIds[i] = i + 1;
+            nftAddresses[i] = mockNft.address;
+        }
+
+        await factory.initiateMultiAssetVault(
+            "HelloWorld"
+        );
+
+        let vaultAddress = await factory.vaultNames("HelloWorld", 0);
+        let maPool = await Vault.attach(vaultAddress);
+
+        await maPool.includeNft(
+            await factory.encodeCompressedValue(nftAddresses, nftIds)
+        );
+
+        await maPool.begin(3);
+        await factory.signMultiAssetVault(
+            0,
+            [mockNft.address, mockNft.address, mockNft.address],
+            [1,2,3]
+        );
+        
+        let costPerToken = 1e15;
+        let totalCost = costPerToken * 1000 * 3;
+        await maPool.purchase(
+            deployer.address,
+            deployer.address,
+            [0],
+            ['3000'],
+            0,
+            2,
+            { value: totalCost.toString() }
+        );
+
+        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
+        await mockNft.approve(maPool.address, 1);
+        await maPool.closeNft(mockNft.address, 1);
+
+        let closureMulti = await Closure.attach(await maPool.closePoolContract());
+        await closureMulti.newBid(mockNft.address, 1, { value:(5e17).toString() });
+        await network.provider.send("evm_increaseTime", [43200]);
+        await closureMulti.endAuction(mockNft.address, 1);
+        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 1);
+
+        await factory.signMultiAssetVault(
+            0,
+            [mockNft.address],
+            [1]
+        );
+
+        await maPool.reserve(mockNft.address, 1, 4, { value:(await maPool.getCostToReserve(4)).toString() });
+        await mockNft.approve(maPool.address, 1);
+        await maPool.closeNft(mockNft.address, 1);
+
+        await closureMulti.newBid(mockNft.address, 1, { value:(5e17).toString() });
+        await network.provider.send("evm_increaseTime", [43200]);
+        await closureMulti.endAuction(mockNft.address, 1);
+        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 2);
+
+        await network.provider.send("evm_increaseTime", [86400 * 2]);
+        await maPool.sell(
+            deployer.address,
+            0,
+            1000
+        );
     });
 
     it("Remove nft", async function () {
@@ -865,7 +937,7 @@ describe("MA Vault", function () {
         await closureMulti.newBid(mockNft.address, 1, { value:(5e17).toString() });
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 1);
-        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1);
+        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 1);
         expect((await maPool.payoutPerRes(1)).toString()).to.equal('3000000000000000000');
         await maPool.restore();
         expect((await maPool.payoutPerRes(1)).toString()).to.equal('2000000000000000000');
@@ -926,7 +998,7 @@ describe("MA Vault", function () {
         await closureMulti.newBid(mockNft.address, 1, { value:(5e17).toString() });
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 1);
-        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1);
+        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 1);
         await maPool.restore();
 
         await network.provider.send("evm_increaseTime", [43200 * 3 + 1]);
@@ -951,7 +1023,7 @@ describe("MA Vault", function () {
         await closureMulti.newBid(mockNft.address, 2, { value:(5e17).toString() });
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 2);
-        await maPool.adjustTicketInfo(deployer.address, 1, mockNft.address, 2);
+        await maPool.adjustTicketInfo(deployer.address, 1, mockNft.address, 2, 1);
         await maPool.restore();
 
         await maPool.reserve(mockNft.address, 3, 6, { value:(await maPool.getCostToReserve(6)).toString() });
@@ -960,7 +1032,7 @@ describe("MA Vault", function () {
         await closureMulti.newBid(mockNft.address, 3, { value:(5e17).toString() });
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 3);
-        await maPool.adjustTicketInfo(deployer.address, 1, mockNft.address, 3);
+        await maPool.adjustTicketInfo(deployer.address, 1, mockNft.address, 3, 1);
         await maPool.restore();
 
         await network.provider.send("evm_increaseTime", [43200 * 50]);
@@ -1031,7 +1103,7 @@ describe("MA Vault", function () {
         await closureMulti.newBid(mockNft.address, 1, { value:(5e17).toString() });
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 1);
-        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1);
+        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 1);
         await maPool.restore();
     });
 
@@ -1082,7 +1154,7 @@ describe("MA Vault", function () {
         await closureMulti.newBid(mockNft.address, 1, { value:(5e17).toString() });
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 1);
-        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1);
+        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 1);
         await maPool.restore();
 
         await factory.claimPendingReturns();
@@ -1152,12 +1224,12 @@ describe("MA Vault", function () {
         );
         
         let costPerToken = 1e15;
-        let totalCost = costPerToken * 50000 * 3;
+        let totalCost = costPerToken * 50000 * 6;
         await maPool.purchase(
             deployer.address,
             deployer.address,
-            [0, '1', '2'],
-            ['50000', '50000', '50000'],
+            [0, '1', '2', '3', '4', '5'],
+            ['50000', '50000', '50000', '50000', '50000', '50000'],
             0,
             2,
             { value: totalCost.toString() } 
@@ -1165,8 +1237,8 @@ describe("MA Vault", function () {
         await maPool.purchase(
             deployer.address,
             deployer.address,
-            ['3', '4', '5'],
-            ['50000', '50000', '50000'],
+            ['6', '7', '8', '9', '10', '11'],
+            ['50000', '50000', '50000', '50000', '50000', '50000'],
             0,
             2,
             { value: totalCost.toString() }
@@ -1174,8 +1246,8 @@ describe("MA Vault", function () {
         await maPool.purchase(
             deployer.address,
             deployer.address,
-            ['6', '7', '8'],
-            ['50000', '50000', '50000'],
+            ['12', '13', '14', '15', '16', '17'],
+            ['50000', '50000', '50000', '50000', '50000', '50000'],
             0,
             2,
             { value: totalCost.toString() }
@@ -1184,8 +1256,8 @@ describe("MA Vault", function () {
         await maPool1.purchase(
             deployer.address,
             deployer.address,
-            [0, '1', '2'],
-            ['50000', '50000', '50000'],
+            [0, '1', '2', '3', '4', '5'],
+            ['50000', '50000', '50000', '50000', '50000', '50000'],
             0,
             2,
             { value: totalCost.toString() }
@@ -1193,8 +1265,8 @@ describe("MA Vault", function () {
         await maPool1.purchase(
             deployer.address,
             deployer.address,
-            ['3', '4', '5'],
-            ['50000', '50000', '50000'],
+            ['6', '7', '8', '9', '10', '11'],
+            ['50000', '50000', '50000', '50000', '50000', '50000'],
             0,
             2,
             { value: totalCost.toString() }
@@ -1202,8 +1274,8 @@ describe("MA Vault", function () {
         await maPool1.purchase(
             deployer.address,
             deployer.address,
-            ['6', '7', '8'],
-            ['50000', '50000', '50000'],
+            ['12', '13', '14', '15', '16', '17'],
+            ['50000', '50000', '50000', '50000', '50000', '50000'],
             0,
             2,
             { value: totalCost.toString() }
@@ -1263,8 +1335,8 @@ describe("MA Vault", function () {
         await maPool.purchase(
             deployer.address,
             deployer.address,
-            [0, '1', '2'],
-            ['50000', '50000', '50000'],
+            [0, '1', '2', '3', '4', '5'],
+            ['50000', '50000', '50000', '50000', '50000', '50000'],
             3,
             4,
             { value: totalCost.toString() }
@@ -1277,7 +1349,7 @@ describe("MA Vault", function () {
             1_000
         );
 
-        expect((await eVault.getBase()).toString()).to.equal('16875000000000000000000000');
+        expect((await eVault.getBase()).toString()).to.equal('56250000000000000000000000');
         expect((await eVault.getBasePercentage()).toString()).to.equal('125');
     });
 
@@ -1432,8 +1504,8 @@ describe("MA Vault", function () {
             1_000
         );
 
-        expect((await eVault.getBase()).toString()).to.equal('16803000000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('121');
+        expect((await eVault.getBase()).toString()).to.equal('53605000000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('113');
 
         await maPool.purchase(
             deployer.address,
@@ -1451,7 +1523,7 @@ describe("MA Vault", function () {
             1_000
         );
         
-        expect((await eVault.getBase()).toString()).to.equal('14702625000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('90');
+        expect((await eVault.getBase()).toString()).to.equal('46904375000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('84');
     });
 });

@@ -19,11 +19,11 @@ interface IClosure {
 
     function calculatePrincipal(address _user, uint256 _nonce, address _nft, uint256 _id) external;
 
-    function getHighestBid(address _nft, uint256 _id) external view returns(uint256 bid);
+    function getHighestBid(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 bid);
 
-    function getAuctionPremium(address _nft, uint256 _id) external view returns(uint256 premium);
+    function getAuctionPremium(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 premium);
 
-    function getAuctionEndTime(address _nft, uint256 _id) external view returns(uint256 endTime);
+    function getAuctionEndTime(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 endTime);
 
     function getLiveAuctionCount() external view returns(uint256 _liveAuctions);
 }

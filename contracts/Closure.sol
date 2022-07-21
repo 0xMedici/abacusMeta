@@ -49,32 +49,35 @@ contract Closure is ReentrancyGuard, Initializable {
 
     /* ======== MAPPING ======== */
     /// FOR ALL OF THE FOLLOWING MAPPINGS THE FIRST TWO VARIABLES ARE
+    /// [uint256] -> nonce
     /// [address] -> NFT collection address
     /// [uint256] -> NFT ID
 
+    mapping(address => mapping(uint256 => uint256)) public nonce;
+
     /// @notice track the highest bidder in an auction
     /// [address] -> higher bidder
-    mapping(address => mapping(uint256 => address)) public highestBidder;
+    mapping(uint256 => mapping(address => mapping(uint256 => address))) public highestBidder;
 
     /// @notice track auction end time
     /// [uint256] -> auction end time 
-    mapping(address => mapping(uint256 => uint256)) public auctionEndTime;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public auctionEndTime;
 
     /// @notice track NFT value ascribed by the pool
     /// [uint256] -> pool ascribed valuation
-    mapping(address => mapping(uint256 => uint256)) public nftVal;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public nftVal;
 
     /// @notice track highest bid in an auction
     /// [uint256] -> highest bid
-    mapping(address => mapping(uint256 => uint256)) public highestBid;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public highestBid;
 
     /// @notice track auction premium (highest bid - pool ascribed value)
     /// [uint256] -> auction premium
-    mapping(address => mapping(uint256 => uint256)) public auctionPremium;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public auctionPremium;
 
     /// @notice track auction completion status
     /// [bool] -> auction completion status
-    mapping(address => mapping(uint256 => bool)) public auctionComplete;
+    mapping(uint256 => mapping(address => mapping(uint256 => bool))) public auctionComplete;
 
     /// @notice track a users principal calculation status per concluded auction
     /// [address] -> user
@@ -106,9 +109,11 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @param _id NFT ID
     function startAuction(uint256 _nftVal, address _nft, uint256 _id) external {
         require(msg.sender == address(vault));
-        auctionEndTime[_nft][_id] = block.timestamp + 12 hours;
-        nftVal[_nft][_id] = _nftVal;
+        uint256 _nonce = nonce[_nft][_id];
+        auctionEndTime[_nonce][_nft][_id] = block.timestamp + 12 hours;
+        nftVal[_nonce][_nft][_id] = _nftVal;
         liveAuctions++;
+        nonce[_nft][_id]++;
     }
 
     /// @notice Bid in an NFT auction
@@ -116,14 +121,15 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @param _nft NFT collection address
     /// @param _id NFT ID
     function newBid(address _nft, uint256 _id) external payable nonReentrant {
-        require(msg.value > highestBid[_nft][_id]);
-        require(block.timestamp < auctionEndTime[_nft][_id]);
+        uint256 _nonce = nonce[_nft][_id] - 1;
+        require(msg.value > highestBid[_nonce][_nft][_id]);
+        require(block.timestamp < auctionEndTime[_nonce][_nft][_id]);
         factory.updatePendingReturns{ 
-            value:highestBid[_nft][_id]
-        } ( highestBidder[_nft][_id] );
+            value:highestBid[_nonce][_nft][_id]
+        } ( highestBidder[_nonce][_nft][_id] );
 
-        highestBid[_nft][_id] = msg.value;
-        highestBidder[_nft][_id] = msg.sender;
+        highestBid[_nonce][_nft][_id] = msg.value;
+        highestBidder[_nonce][_nft][_id] = msg.sender;
 
         factory.emitNewBid(
             address(vault),
@@ -138,21 +144,22 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @param _nft NFT collection address
     /// @param _id NFT ID
     function endAuction(address _nft, uint256 _id) external nonReentrant {
+        uint256 _nonce = nonce[_nft][_id] - 1;
         require(
-            block.timestamp > auctionEndTime[_nft][_id]
-            && !auctionComplete[_nft][_id]
+            block.timestamp > auctionEndTime[_nonce][_nft][_id]
+            && !auctionComplete[_nonce][_nft][_id]
         );
 
-        if(highestBid[_nft][_id] > nftVal[_nft][_id]) {
-            auctionPremium[_nft][_id] = highestBid[_nft][_id] - nftVal[_nft][_id];
+        if(highestBid[_nonce][_nft][_id] > nftVal[_nonce][_nft][_id]) {
+            auctionPremium[_nonce][_nft][_id] = highestBid[_nonce][_nft][_id] - nftVal[_nonce][_nft][_id];
         }
         
-        vault.updateSaleValue{value:highestBid[_nft][_id]}(_nft, _id, highestBid[_nft][_id]);
+        vault.updateSaleValue{value:highestBid[_nonce][_nft][_id]}(_nft, _id, highestBid[_nonce][_nft][_id]);
 
-        auctionComplete[_nft][_id] = true;
+        auctionComplete[_nonce][_nft][_id] = true;
         IERC721(_nft).transferFrom(
             address(this), 
-            highestBidder[_nft][_id],
+            highestBidder[_nonce][_nft][_id],
             _id
         );
 
@@ -161,8 +168,8 @@ contract Closure is ReentrancyGuard, Initializable {
             address(vault),
             _nft,
             _id,
-            highestBidder[_nft][_id],
-            highestBid[_nft][_id]
+            highestBidder[_nonce][_nft][_id],
+            highestBid[_nonce][_nft][_id]
         );
     }
 
@@ -170,24 +177,24 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @notice Get the highest bid in the auction for an NFT
     /// @param _nft NFT collection address
     /// @param _id NFT ID 
-    function getHighestBid(address _nft, uint256 _id) external view returns(uint256 bid) {
-        bid = highestBid[_nft][_id];
+    function getHighestBid(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 bid) {
+        bid = highestBid[_nonce][_nft][_id];
     }
 
     /// @notice Get the auction premium (auction sale - ascribed pool value) of an NFT
     /// @param _nft NFT collection address
     /// @param _id NFT ID 
     /// @return premium Auction premium
-    function getAuctionPremium(address _nft, uint256 _id) external view returns(uint256 premium) {
-        premium = auctionPremium[_nft][_id];
+    function getAuctionPremium(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 premium) {
+        premium = auctionPremium[_nonce][_nft][_id];
     }
 
     /// @notice Get the auction end time of an NFT 
     /// @param _nft NFT collection address
     /// @param _id NFT ID 
     /// @return endTime Auction end time
-    function getAuctionEndTime(address _nft, uint256 _id) external view returns(uint256 endTime) {
-        endTime = auctionEndTime[_nft][_id];
+    function getAuctionEndTime(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 endTime) {
+        endTime = auctionEndTime[_nonce][_nft][_id];
     }
 
     /// @notice Get the number of live auctions

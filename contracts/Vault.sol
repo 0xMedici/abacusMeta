@@ -94,6 +94,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     /* ======== MAPPINGS ======== */
 
+    mapping(address => mapping(uint256 => uint256)) public closureNonce;
+
     mapping(address => mapping(uint256 => mapping(uint256 => bool))) public emissionsStarted;
 
     mapping(uint256 => uint256) public emissionStartedCount;
@@ -107,14 +109,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [address] -> NFT collection
     /// [uint256] -> NFT token ID
     /// [uint256] -> Loss experienced from the auction
-    mapping(address => mapping(uint256 => uint256)) public loss;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public loss;
 
     /// @notice Track adjustment status of closed NFTs
     /// [address] -> User 
     /// [address] -> NFT collection
     /// [uint256] -> NFT ID
     /// [bool] -> Status of adjustment
-    mapping(address => mapping(uint256 => mapping(address => mapping(uint256 => bool)))) public adjustCompleted;
+    mapping(address => mapping(uint256 => mapping(uint256 => mapping(address => mapping(uint256 => bool))))) public adjustCompleted;
 
     /// @notice Unique tag for each position purchased by a user
     /// [address] -> user
@@ -125,7 +127,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [address] -> NFT Collection address
     /// [uint256] -> NFT ID
     /// [uint256] -> epoch that the NFT was closed on
-    mapping(address => mapping(uint256 => uint256)) public epochOfClosure;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public epochOfClosure;
 
     /// @notice Tracking the adjustments made by each user for each open nonce
     /// [address] -> user
@@ -149,7 +151,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [address] -> NFT collection 
     /// [uint256] -> NFT token ID 
     /// [uint256] -> Auction sale value
-    mapping(address => mapping(uint256 => uint256)) public auctionSaleValue;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public auctionSaleValue;
 
     /// @notice Amount of tokens purchased within a ticket
     /// [uint256] -> epoch
@@ -441,6 +443,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 bribePayout;
         uint256 finalCreditCount;
         uint256 finalEpoch;
+        uint256 totalAmountTokens;
         require(
             poolEpoch >= trader.unlockEpoch 
             || poolClosed
@@ -455,17 +458,17 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 _comListOfTickets = trader.comListOfTickets;
             uint256 _comAmounts = trader.comAmountPerTicket;
             uint256 rewardCap;
-            if(totAvailFunds[j] < 100e18) {
-                rewardCap = totAvailFunds[j];
-            } else {
-                rewardCap = 100e18;
-            }
             while(_comAmounts > 0) {
                 uint256 ticket = _comListOfTickets & (2**25 - 1);
                 uint256 amountTokens = (_comAmounts & (2**25 - 1)) / 100;
+                totalAmountTokens += amountTokens;
                 _comListOfTickets >>= 25;
                 _comAmounts >>= 25;
-                
+                if(totAvailFunds[j] < 100e18) {
+                    rewardCap = totAvailFunds[j];
+                } else {
+                    rewardCap = 100e18;
+                }
                 if(maxTicketPerEpoch[j] == 0) maxTicketPerEpoch[j] = 1;
                 uint256 adjustment = totAvailFunds[j] / 10e18;
                 if(adjustment > 50) {
@@ -487,11 +490,13 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             );
 
             // COMMENT HERE FOR CLARITY: REPURPOSING _comListOfTickets
-            _comListOfTickets = emissionStartedCount[j] > amountNft 
-                ? factory.getSqrt(amountNft) : factory.getSqrt(emissionStartedCount[j]);
-
+            _comListOfTickets = emissionStartedCount[j] > 0 ? 
+                (
+                    emissionStartedCount[j] > amountNft
+                    ? factory.getSqrt(amountNft) : factory.getSqrt(emissionStartedCount[j])
+                ) : 1;
             finalCreditCount += amount * rewardCap * (_comListOfTickets) * 
-                (reservations[j] > 0 ? (_comAmounts == 0 ? 1 : _comAmounts) : 1) / 1e18;
+                    (reservations[j] > 0 ? (_comAmounts == 0 ? 1 : _comAmounts) : 1) / 1e18;
             bribePayout += trader.ethLocked * generalBribe[j] / totAvailFunds[j];
         }
 
@@ -502,7 +507,13 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             _payoutRatio * finalCreditCount / 1_000
         );
 
-        unlock(_user, _nonce, bribePayout, finalCreditCount, _payoutRatio);
+        unlock(
+            _user, 
+            _nonce, 
+            bribePayout, 
+            finalCreditCount * totalAmountTokens * 0.001 ether / trader.ethLocked, 
+            _payoutRatio
+        );
     }
 
     /// @notice Offer a bribe to all LPs during a set of epochs
@@ -619,7 +630,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _saleValue
     ) external payable nonReentrant {
         require(msg.sender == closePoolContract);
-        auctionSaleValue[_nft][_id] = _saleValue;
+        closureNonce[_nft][_id]++;
+        auctionSaleValue[closureNonce[_nft][_id]][_nft][_id] = _saleValue;
     }
 
     /// @notice Reset the value of 'payoutPerRes' size and the total allowed reservations
@@ -738,7 +750,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
         require(reservationMade[poolEpoch][_nft][_id]);
         require(!poolClosed);
-        require(epochOfClosure[_nft][_id] == 0);
         adjustmentsRequired++;
         controller.updateNftUsage(address(this), _nft, _id, false);
         this.toggleEmissions(_nft, _id, false);
@@ -774,7 +785,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         IClosure(closePoolContract).startAuction(payoutPerRes[poolEpoch], _nft, _id);
         IERC721(_nft).transferFrom(msg.sender, address(closePoolContract), _id);
 
-        epochOfClosure[_nft][_id] = poolEpoch;
+        epochOfClosure[closureNonce[_nft][_id]][_nft][_id] = poolEpoch;
         alloc.receiveFees{value:1 * payoutPerRes[poolEpoch] / 100 }();
         payable(msg.sender).transfer(99 * payoutPerRes[poolEpoch] / 100);
         factory.emitNftClosed(
@@ -806,56 +817,47 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         address _user,
         uint256 _nonce,
         address _nft,
-        uint256 _id
+        uint256 _id,
+        uint256 _closureNonce
     ) external nonReentrant returns(bool) {
         require(startTime != 0);
-        require(!adjustCompleted[_user][_nonce][_nft][_id]);
+        require(!adjustCompleted[_user][_nonce][_closureNonce][_nft][_id]);
         require(adjustmentsMade[_user][_nonce] < adjustmentsRequired);
         require(
-            block.timestamp > IClosure(closePoolContract).getAuctionEndTime(_nft, _id)
+            block.timestamp > IClosure(closePoolContract).getAuctionEndTime(_closureNonce - 1, _nft, _id)
         );
-
         Buyer storage trader = traderProfile[_user][_nonce];
-        uint256 _epochOfClosure = epochOfClosure[_nft][_id];
-        uint256 _comTickets = trader.comListOfTickets;
-        uint256 _comAmounts = trader.comAmountPerTicket;
         adjustmentsMade[_user][_nonce]++;
 
         if(
-            trader.unlockEpoch < _epochOfClosure
-            || trader.startEpoch > _epochOfClosure
+            trader.unlockEpoch < epochOfClosure[_closureNonce - 1][_nft][_id]
+            || trader.startEpoch > epochOfClosure[_closureNonce - 1][_nft][_id]
         ) {
             return true;
         }
-
         uint256 appLoss = internalAdjustment(
             _user,
             _nonce,
-            payoutPerRes[_epochOfClosure],
-            auctionSaleValue[_nft][_id],
-            _comTickets,
-            _comAmounts
+            payoutPerRes[epochOfClosure[_closureNonce][_nft][_id]],
+            auctionSaleValue[_closureNonce][_nft][_id],
+            trader.comListOfTickets,
+            trader.comAmountPerTicket
         );
-
-        if(payoutPerRes[_epochOfClosure] > auctionSaleValue[_nft][_id]) {
-            if(loss[_nft][_id] > payoutPerRes[_epochOfClosure] - auctionSaleValue[_nft][_id]) {
-                alloc.receiveFees{value:appLoss}();
-            } else if(loss[_nft][_id] + appLoss > payoutPerRes[_epochOfClosure] - auctionSaleValue[_nft][_id]) {
-                alloc.receiveFees{
-                    value:loss[_nft][_id] + appLoss - (payoutPerRes[_epochOfClosure] - auctionSaleValue[_nft][_id])
-                }();
-            }
-        }
-        loss[_nft][_id] += appLoss;
+        lossCalculator(
+            _nft,
+            _id,
+            _closureNonce,
+            appLoss
+        );
         factory.emitPrincipalCalculated(
             address(this),
             _nft,
             _id,
             _user,
-            _nonce
+            _nonce,
+            _closureNonce
         );
-
-        adjustCompleted[_user][_nonce][_nft][_id] = true;
+        adjustCompleted[_user][_nonce][_closureNonce][_nft][_id] = true;
         return true;
     }
 
@@ -932,8 +934,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _comAmounts
     ) internal returns(uint256 appLoss) {
         Buyer storage trader = traderProfile[_user][_nonce];
-        uint256 _tempComTickets;
-        uint256 _tempComAmounts;
         uint256 ethRemoval;
         uint256 payout;
         uint256 tPrem;
@@ -941,18 +941,13 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         while(_comAmounts > 0) {
             uint256 ticket = _comTickets & (2**25 - 1);
             uint256 amountTokens = _comAmounts & (2**25 - 1);
-            tPrem += amountTokens * 0.001 ether / amountNft * premium / _payout;
+            tPrem += amountTokens * 0.001 ether / amountNft * premium / _payout / 100;
             _comTickets >>= 25;
             _comAmounts >>= 25;
-            _tempComTickets <<= 25;
-            _tempComAmounts <<= 25;
-            _tempComTickets |= ticket;
             if(ticket * 1e18 + 1e18 <= _finalNftVal) {
                 payout += amountTokens * 0.001 ether / amountNft / 100;
-                _tempComAmounts |= amountTokens;
             } else if(ticket * 1e18 > _finalNftVal) {
                 appLoss += amountTokens * 0.001 ether / amountNft / 100;
-                _tempComAmounts |= amountTokens - amountTokens / amountNft;
             } else if(ticket * 1e18 + 1e18 > _finalNftVal) {
                 payout += 
                     (
@@ -960,7 +955,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                     ) * 0.001 ether / amountNft / 100;
                 appLoss += amountTokens * (ticket * 1e18 + 1e18 - _finalNftVal)
                         / amountNft / 1e18 * 0.001 ether / 100;
-                _tempComAmounts |= amountTokens - amountTokens * (ticket * 1e18 + 1e18 - _finalNftVal) / amountNft / 1e18;
             }
 
             ethRemoval += amountTokens * 0.001 ether / amountNft;
@@ -969,8 +963,27 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         trader.ethLocked -= ethRemoval / 100;
         payable(_user).transfer(payout + payout * tPrem / (payout + appLoss));
         appLoss += appLoss * tPrem / (payout + appLoss);
-        trader.comListOfTickets = _tempComTickets;
-        trader.comAmountPerTicket = _tempComAmounts;
+    }
+
+    function lossCalculator(
+        address _nft,
+        uint256 _id,
+        uint256 _closureNonce,
+        uint256 appLoss
+    ) internal {
+        uint256 _epochOfClosure = epochOfClosure[_closureNonce - 1][_nft][_id];
+        uint256 _saleValue = auctionSaleValue[_closureNonce - 1][_nft][_id];
+        uint256 _loss = loss[_closureNonce][_nft][_id];
+        if(payoutPerRes[_epochOfClosure] > _saleValue) {
+            if(_loss > payoutPerRes[_epochOfClosure] - _saleValue) {
+                alloc.receiveFees{value:appLoss}();
+            } else if(_loss + appLoss > payoutPerRes[_epochOfClosure] - _saleValue) {
+                alloc.receiveFees{
+                    value:_loss + appLoss - (payoutPerRes[_epochOfClosure] - _saleValue)
+                }();
+            }
+        }
+        loss[_closureNonce][_nft][_id] += appLoss;
     }
 
     /* ======== GETTER ======== */

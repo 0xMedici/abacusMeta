@@ -113,7 +113,8 @@ interface IFactory {
         address _callerToken,
         uint256 _id,
         address _user,
-        uint256 _nonce
+        uint256 _nonce,
+        uint256 _closureNonce
     ) external;
 
     function emitPayout(
