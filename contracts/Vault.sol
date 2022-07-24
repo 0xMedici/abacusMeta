@@ -704,16 +704,18 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Allow another user permission to execute a single 'transferFrom' call
     /// @param recipient Allowee address
     /// @param nonce Nonce of allowance 
-    function grantTransferPermission(
+    function changeTransferPermission(
         address recipient,
-        uint256 nonce
+        uint256 nonce,
+        bool permission
     ) external nonReentrant returns(bool) {
         require(startTime != 0);
-        allowanceTracker[msg.sender][recipient][nonce] = true;
+        allowanceTracker[msg.sender][recipient][nonce] = permission;
 
         factory.emitPositionAllowance(
             msg.sender, 
-            recipient
+            recipient,
+            permission
         );
         return true;
     }
@@ -739,7 +741,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         traderProfile[to][positionNonce[to]] = traderProfile[from][nonce];
         positionNonce[to]++;
         delete traderProfile[from][nonce];
-        
+
+        factory.emitLPTransfer(from, to, nonce);
         return true;
     }
 

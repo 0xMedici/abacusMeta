@@ -126,13 +126,13 @@ interface IFactory {
     function emitLPTransfer(
         address from,
         address to,
-        uint256[] memory tickets,
-        uint256[] memory amountPerTicket
+        uint256 nonce
     ) external;
 
     function emitPositionAllowance(
         address from,
-        address to
+        address to,
+        bool status
     ) external;
 
     function getSqrt(uint x) external pure returns (uint y);

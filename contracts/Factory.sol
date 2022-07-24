@@ -109,8 +109,8 @@ contract Factory is ReentrancyGuard {
     event AuctionEnded(address _pool, address _closePoolContract, address _collection, uint256 _id, address _winner, uint256 _highestBid);
     event PrincipalCalculated(address _pool, address _closePoolContract, address _collection, uint256 _id, address _user, uint256 _nonce, uint256 _closureNonce);
     event Payout(address _pool, address _closePoolContract, address _user, uint256 _payoutAmount);
-    event LPTransferAllowanceGranted(address _pool, address from, address to);
-    event LPTransferred(address _pool, address from, address to, uint256[] tickets, uint256[] amountPerTicket);
+    event LPTransferAllowanceChanged(address _pool, address from, address to, bool status);
+    event LPTransferred(address _pool, address from, address to, uint256 nonce);
 
 
     /* ======== MODIFIER ======== */
@@ -450,26 +450,26 @@ contract Factory is ReentrancyGuard {
     function emitLPTransfer(
         address from,
         address to,
-        uint256[] memory tickets,
-        uint256[] memory amountPerTicket
+        uint256 nonce
     ) external onlyAccredited {
         emit LPTransferred(
             msg.sender, 
             from, 
             to, 
-            tickets, 
-            amountPerTicket
+            nonce
         );
     }
 
     function emitPositionAllowance(
         address from,
-        address to
+        address to,
+        bool status
     ) external onlyAccredited {
-        emit LPTransferAllowanceGranted(
+        emit LPTransferAllowanceChanged(
             msg.sender, 
             from, 
-            to
+            to,
+            status
         );
     }
 
