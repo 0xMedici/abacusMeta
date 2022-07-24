@@ -63,13 +63,11 @@ contract EpochVault is ReentrancyGuard {
     /* ======== STRUCT ======== */
     /// @notice Stores operational information of an epoch
     /// [totalCredits] -> total epoch distribution credits purchased in an epoch
-    /// [abcEmissionSize] -> amount of ABC spent on network fees during an epoch
     /// [userCredits] -> track a users credit count in an epoch
         /// [address] -> user
         /// [uint256] -> credit count
     struct Epoch {
         uint256 totalCredits;
-        uint256 abcEmissionSize;
         mapping(address => uint256) userCredits;
     }
 
@@ -194,13 +192,12 @@ contract EpochVault is ReentrancyGuard {
     ) external nonReentrant returns(uint256 amountClaimed) {
         require(_epoch < (block.timestamp - startTime) / epochLength);
         Epoch storage tracker = epochTracker[_epoch];
-        uint256 epochEmission = 20_000_000e18 + tracker.abcEmissionSize;
         uint256 abcReward;
         if(tracker.totalCredits == 0) {
             abcReward = 0;
         } else {
             abcReward = 
-                tracker.userCredits[_user] * epochEmission / tracker.totalCredits;
+                tracker.userCredits[_user] * 20_000_000e18 / tracker.totalCredits;
         }
         delete tracker.userCredits[_user];
         ABCToken(payable(controller.abcToken())).mint(_user, abcReward);
@@ -247,12 +244,6 @@ contract EpochVault is ReentrancyGuard {
             controller.allocator()
         ).calculateBoost(nft);
         return (denominator == 0 ? 100 : (100 + 100 * numerator / denominator));
-    }
-
-    /// @notice Get an epochs total emission size
-    /// @param _epoch Epoch of interest
-    function getPastAbcEmission(uint256 _epoch) external view returns(uint256) {
-        return 20_000_000e18 + epochTracker[_epoch].abcEmissionSize;
     }
 
     /// @notice Get an epochs end time

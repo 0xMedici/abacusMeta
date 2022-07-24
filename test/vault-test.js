@@ -129,9 +129,11 @@ describe("MA Vault", function () {
             [3]
         );
         expect(await maPool.emissionStartedCount(0)).to.equal(3);
-
+        expect(await maPool.collectionsSigned(0, mockNft.address)).to.equal(3);
         await maPool.remove([mockNft.address, mockNft.address, mockNft.address], [1, 2, 3]);
+        expect(await maPool.collectionsSigned(0, mockNft.address)).to.equal(0);
         expect(await maPool.emissionStartedCount(0)).to.equal(0);
+        expect(await maPool.boostCollection()).to.equal("0x0000000000000000000000000000000000000000");
 
         await factory.signMultiAssetVault(
             0,
@@ -563,7 +565,7 @@ describe("MA Vault", function () {
             { value: totalCost.toString() }
         );
             
-        expect((await maPool.getCostToReserve(2)).toString()).to.equal('3000000000000000');
+        expect((await maPool.getCostToReserve(2)).toString()).to.equal('1200000000000000');
         await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await maPool.reserve(mockNft.address, 2, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await maPool.reserve(mockNft.address, 3, 2, { value:(await maPool.getCostToReserve(2)).toString() });
@@ -1504,8 +1506,8 @@ describe("MA Vault", function () {
             1_000
         );
 
-        expect((await eVault.getBase()).toString()).to.equal('53605000000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('113');
+        expect((await eVault.getBase()).toString()).to.equal('54405000000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('116');
 
         await maPool.purchase(
             deployer.address,
@@ -1523,7 +1525,7 @@ describe("MA Vault", function () {
             1_000
         );
         
-        expect((await eVault.getBase()).toString()).to.equal('46904375000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('84');
+        expect((await eVault.getBase()).toString()).to.equal('47604375000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('87');
     });
 });

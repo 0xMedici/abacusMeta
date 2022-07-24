@@ -64,10 +64,9 @@ contract Factory is ReentrancyGuard {
     /// [uint256] -> nonce
     mapping(uint256 => MultiAssetVault) public multiAssetMapping;
 
-    /// TODO: REMOVE FOR PROD
-    mapping(address => mapping(uint256 => address)) public recentlyCreatedPool;
-
     mapping(string => address[]) public vaultNames;
+
+    mapping(address => mapping(address => mapping(uint256 => bool))) public nftRemoved;
 
     /* ======== MAPPING ======== */
     /// @notice Store information regarding a multi asset pool
@@ -221,7 +220,10 @@ contract Factory is ReentrancyGuard {
         require(controller.accreditedAddresses(msg.sender));
         require(IVault(mav.pool).getHeldTokenExistence(nftToRemove, idToRemove));
         controller.updateNftUsage(address(0), nftToRemove, idToRemove, false);
-        mav.nftRemoved++;
+        if(!nftRemoved[mav.pool][nftToRemove][idToRemove]) {
+            nftRemoved[mav.pool][nftToRemove][idToRemove] = true;
+            mav.nftRemoved++;
+        }
         IVault(mav.pool).toggleEmissions(nftToRemove, idToRemove, false);
         emit EmissionsStopped(mav.pool);
 
