@@ -9,18 +9,10 @@ describe("Epoch Vault", function () {
         MockNft,
         mockNft,
         user1,
-        VaultFactoryMulti,
-        factoryMulti,
-        VaultMulti,
-        Treasury,
-        treasury,
         AbcToken,
         abcToken,
         Allocator,
         alloc,
-        ClosePoolMulti,
-        NftEth,
-        nEth,
         AbacusController,
         controller,
         EpochVault,
@@ -43,9 +35,6 @@ describe("Epoch Vault", function () {
 
       AbcToken = await ethers.getContractFactory("ABCToken");
       abcToken = await AbcToken.deploy(controller.address);
-
-    //   BribeFactory = await ethers.getContractFactory("BribeFactory");
-    //   bribe = await BribeFactory.deploy(controller.address);
 
       EpochVault = await ethers.getContractFactory("EpochVault");
       eVault = await EpochVault.deploy(controller.address, 86400);

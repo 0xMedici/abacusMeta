@@ -488,7 +488,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                         * ((adjustment == 0 ? 1e18 : 0) + adjustment * 1e18 * 4) 
                             / ((maxTicketPerEpoch[j] * 1e18) ** 2) / 2) 
                                 * (amountTokens * 0.001 ether) / 100e18
-                                    * poolEpoch / 1e18;
+                                    * poolEpoch;
                 bribePayout += 
                     amountTokens * concentratedBribe[j][ticket] 
                     / ticketsPurchased[j][ticket];

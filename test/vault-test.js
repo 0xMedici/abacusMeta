@@ -1506,8 +1506,8 @@ describe("MA Vault", function () {
             1_000
         );
 
-        expect((await eVault.getBase()).toString()).to.equal('54405000000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('116');
+        expect((await eVault.getBase()).toString()).to.equal('55400000000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('119');
 
         await maPool.purchase(
             deployer.address,
@@ -1525,7 +1525,7 @@ describe("MA Vault", function () {
             1_000
         );
         
-        expect((await eVault.getBase()).toString()).to.equal('47604375000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('87');
+        expect((await eVault.getBase()).toString()).to.equal('48475000000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('89');
     });
 });

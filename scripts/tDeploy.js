@@ -23,10 +23,6 @@ async function main() {
     abcToken = await AbcToken.deploy(controller.address);
     console.log("AbcToken:", abcToken.address);
 
-    // BribeFactory = await ethers.getContractFactory("BribeFactory");
-    // bribe = await BribeFactory.deploy(controller.address);
-    // console.log("BribeFactory:", bribe.address);
-
     EpochVault = await ethers.getContractFactory("EpochVault");
     eVault = await EpochVault.deploy(controller.address, 86400);
     console.log("EpochVault:", eVault.address);

@@ -10,18 +10,10 @@ describe("MA Vault", function () {
         mockNft,
         user1,
         user2,
-        VaultFactoryMulti,
-        factoryMulti,
-        VaultMulti,
-        Treasury,
-        treasury,
         AbcToken,
         abcToken,
         Allocator,
         alloc,
-        ClosePoolMulti,
-        NftEth,
-        nEth,
         AbacusController,
         controller,
         EpochVault,
@@ -50,9 +42,6 @@ describe("MA Vault", function () {
 
     Governor = await ethers.getContractFactory("Governor");
     governor = await Governor.deploy(controller.address, abcToken.address);
-
-    // BribeFactory = await ethers.getContractFactory("BribeFactory");
-    // bribe = await BribeFactory.deploy(controller.address);
 
     EpochVault = await ethers.getContractFactory("EpochVault");
     eVault = await EpochVault.deploy(controller.address, 86400 * 30);
