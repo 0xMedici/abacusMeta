@@ -145,6 +145,7 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @param _id NFT ID
     function endAuction(address _nft, uint256 _id) external nonReentrant {
         uint256 _nonce = nonce[_nft][_id] - 1;
+        require(auctionEndTime[_nonce][_nft][_id] != 0);
         require(
             block.timestamp > auctionEndTime[_nonce][_nft][_id]
             && !auctionComplete[_nonce][_nft][_id]
