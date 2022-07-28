@@ -342,14 +342,15 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         uint256 length = holder.listOfEpochs.length;
 
         for(uint256 j = 0; j < length; j++) {
-            if(totalAmountAutoAllocated[j] == 0) {
+            uint256 epochNum = holder.listOfEpochs[j];
+            if(totalAmountAutoAllocated[epochNum] == 0) {
                 totalPayout += 0;
             } else {
-                totalPayout += totalBribesPerEpoch[j] * holder.amountAutoAllocated[j] 
-                    / totalAmountAutoAllocated[j];
+                totalPayout += totalBribesPerEpoch[epochNum] * holder.amountAutoAllocated[epochNum] 
+                    / totalAmountAutoAllocated[epochNum];
             }
-            totalPayout += epochFeesAccumulated[j] * holder.amountAllocated[j] 
-                / totalAllocationPerEpoch[j];
+            totalPayout += epochFeesAccumulated[epochNum] * holder.amountAllocated[epochNum] 
+                / totalAllocationPerEpoch[epochNum];
         }
 
         delete holder.listOfEpochs;
