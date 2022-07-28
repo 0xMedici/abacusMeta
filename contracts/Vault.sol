@@ -839,10 +839,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         Buyer storage trader = traderProfile[_user][_nonce];
         adjustmentsMade[_user][_nonce]++;
 
-        if(
-            trader.unlockEpoch < epochOfClosure[_closureNonce - 1][_nft][_id]
-            || trader.startEpoch > epochOfClosure[_closureNonce - 1][_nft][_id]
-        ) {
+        if(trader.unlockEpoch < epochOfClosure[_closureNonce - 1][_nft][_id]) {
             return true;
         }
         uint256 appLoss = internalAdjustment(
