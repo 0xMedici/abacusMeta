@@ -436,6 +436,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _payoutRatio
     ) external nonReentrant {
         require(startTime != 0);
+        require(msg.sender == _user);
         Buyer storage trader = traderProfile[_user][_nonce];
         require(adjustmentsMade[_user][_nonce] == adjustmentsRequired);
         require(trader.unlockEpoch != 0);
@@ -470,7 +471,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                     rewardCap = 100e18;
                 }
                 if(maxTicketPerEpoch[j] == 0) maxTicketPerEpoch[j] = 1;
-                uint256 adjustment = totAvailFunds[j] / 5e18;
+                uint256 adjustment = payoutPerRes[j] / 5e18;
                 if(adjustment > 25) {
                     adjustment = 25;
                 }
