@@ -213,6 +213,7 @@ contract CreditBonds is ReentrancyGuard {
                 payload = _amount;
                 transferAllowance[currentEpoch][_user][_caller] -= _amount;
             }
+            totalCreditPerEpoch[currentEpoch - 1] -= payload;
             userCredit[currentEpoch - 1][_user] -= payload;
             payable(_vault).transfer(payload);
             emit BondsUsed(_user, _vault, payload);
