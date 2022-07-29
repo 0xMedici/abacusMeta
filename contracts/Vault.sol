@@ -318,9 +318,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 id = _compTokenInfo[i] & (2**95-1);
             uint256 temp = _compTokenInfo[i] >> 95;
             address collection = address(uint160(temp & (2**160-1)));
-            if(controller.beta() == 2) {
-                require(controller.collectionWhitelist(collection));
-            }
+            require(controller.collectionWhitelist(collection));
             require(IERC721(collection).ownerOf(id) != address(0));
             tokenMapping[_compTokenInfo[i]] = true;
         }

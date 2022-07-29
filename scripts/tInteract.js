@@ -8,7 +8,7 @@ async function main() {
     provider = ethers.getDefaultProvider();
 
     AbacusController = await ethers.getContractFactory("AbacusController");
-    controller = await AbacusController.attach('0x75a74d728553327eA71AC5de8Df8B15f4026afE1');
+    controller = await AbacusController.attach('0x389e01A602471C0AC9B2Cb1aFE06c320aC773fa0');
     console.log("Controller:", controller.address);
 
     // Treasury = await ethers.getContractFactory("Treasury");
@@ -39,14 +39,16 @@ async function main() {
     // nEth = await NftEth.deploy(controller.address);
     // console.log("NftEth:", nEth.address);
 
-    const wlCollection = await controller.proposeWLAddresses([
-        '0x61e94ac1fad456810b1b9eb3129c44d338ea18bf'
-    ]);
-    await wlCollection.wait();
+    console.log("Beta:", await controller.beta());
 
-    const approveWl = await controller.approveWLAddresses();
-    await approveWl.wait();
-    console.log("DONE");
+    // const wlCollection = await controller.proposeWLAddresses([
+    //     '0x61e94ac1fad456810b1b9eb3129c44d338ea18bf'
+    // ]);
+    // await wlCollection.wait();
+
+    // const approveWl = await controller.approveWLAddresses();
+    // await approveWl.wait();
+    // console.log("DONE");
 }
 
 main()

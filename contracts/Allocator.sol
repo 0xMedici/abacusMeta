@@ -340,7 +340,6 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         Holder storage holder = holderHistory[_user];
         uint256 totalPayout;
         uint256 length = holder.listOfEpochs.length;
-
         for(uint256 j = 0; j < length; j++) {
             uint256 epochNum = holder.listOfEpochs[j];
             if(totalAmountAutoAllocated[epochNum] == 0) {
@@ -470,15 +469,16 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         Holder storage holder = holderHistory[_user];
         uint256 length = holder.listOfEpochs.length;
         for(uint256 j = length - 1; j >= 0; j--) {
-            if(totalAmountAutoAllocated[j] == 0) {
+            uint256 epochNum = holder.listOfEpochs[j];
+            if(totalAmountAutoAllocated[epochNum] == 0) {
                 rewards += 0;
             } else {
-                rewards += totalBribesPerEpoch[j] * holder.amountAutoAllocated[j] 
-                    / totalAmountAutoAllocated[j];
+                rewards += totalBribesPerEpoch[epochNum] * holder.amountAutoAllocated[epochNum] 
+                    / totalAmountAutoAllocated[epochNum];
             }
-            rewards += epochFeesAccumulated[j] * holder.amountAllocated[j] 
-                / totalAllocationPerEpoch[j];
-            if(j == 0) break;
+            rewards += epochFeesAccumulated[epochNum] * holder.amountAllocated[epochNum] 
+                / totalAllocationPerEpoch[epochNum];
+            if(epochNum == 0) break;
         }
     }
 }
