@@ -8,6 +8,7 @@ import { IFactory } from "./interfaces/IFactory.sol";
 import { IEpochVault } from "./interfaces/IEpochVault.sol";
 import { IAllocator } from "./interfaces/IAllocator.sol";
 import { ICreditBonds } from "./interfaces/ICreditBond.sol";
+import { BitShift } from "./helpers/BitShift.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
@@ -68,7 +69,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     uint256 public amountNftsLinked;
 
     /// @notice Epoch during which the pool was closed
-    uint256 public poolClosureEpoch;
+    uint256 poolClosureEpoch;
 
     uint256 MAPoolNonce;
 
@@ -111,7 +112,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [address] -> NFT collection
     /// [uint256] -> NFT token ID
     /// [uint256] -> Loss experienced from the auction
-    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public loss;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) loss;
 
     /// @notice Track adjustment status of closed NFTs
     /// [address] -> User 
@@ -153,13 +154,13 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [address] -> NFT collection 
     /// [uint256] -> NFT token ID 
     /// [uint256] -> Auction sale value
-    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public auctionSaleValue;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) auctionSaleValue;
 
     /// @notice Amount of tokens purchased within a ticket
     /// [uint256] -> epoch
     /// [uint256] -> ticket
     /// [uint256] -> tokens purchased
-    mapping(uint256 => mapping(uint256 => uint256)) public ticketsPurchased;
+    mapping(uint256 => uint256[]) public ticketsPurchased;
 
     /// @notice Payout size for each reservation during an epoch
     /// [uint256] -> epoch
@@ -365,7 +366,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(startTime != 0);
         require(!poolClosed);
         require(tickets.length == amountPerTicket.length);
-        require(tickets.length <= 10);
+        require(tickets.length <= 100);
         require(startEpoch <= (block.timestamp - startTime) / 1 days + 1);
         require(startEpoch >= (block.timestamp - startTime) / 1 days);
         require(finalEpoch - startEpoch <= 10);
@@ -383,28 +384,19 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         trader.unlockEpoch = uint32(finalEpoch);
         trader.multiplier = uint32(_lockTime / 1 days);
 
-        (trader.comListOfTickets, trader.comAmountPerTicket) = bitShift(
+        uint256 largestTicket;
+        (trader.comListOfTickets, trader.comAmountPerTicket, largestTicket) = BitShift.bitShift(
             tickets,
             amountPerTicket
         );
 
-        require(_lockTime >= 12 hours);
-        for(uint256 i=0; i<tickets.length; i++) {
-            uint256 ticketAmount = amountPerTicket[i];
-            require(ticketAmount <= 300000);
-            uint256 baseCost = ticketAmount * 0.001 ether;
-            totalTokensRequested += ticketAmount;
-            uint256 ticketId = tickets[i];
-            require(ticketId <= 2**24-1);
-            for(uint256 j = startEpoch; j < finalEpoch; j++) {
-                require(ticketAmount >= amountNft);
-                require(ticketsPurchased[j][ticketId] + ticketAmount <= amountNft * 1000);
-                ticketsPurchased[j][ticketId] += ticketAmount;
-                payoutPerRes[j] += baseCost / amountNft;
-                totAvailFunds[j] += baseCost;
-                if(ticketId > maxTicketPerEpoch[j]) maxTicketPerEpoch[j] = ticketId;
-            }
-        }
+        totalTokensRequested = updateProtocol(
+            largestTicket,
+            startEpoch,
+            finalEpoch,
+            tickets,
+            amountPerTicket
+        );
 
         controller.updateTotalVolumeTraversed(totalTokensRequested * 0.001 ether);
         executePayments(_caller, _buyer, _nonce, msg.value, totalTokensRequested);
@@ -490,7 +482,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                                     * poolEpoch;
                 bribePayout += 
                     amountTokens * concentratedBribe[j][ticket] 
-                    / ticketsPurchased[j][ticket];
+                    / this.getTicketInfo(j, ticket);
             }
             // COMMENT HERE FOR CLARITY: REPURPOSING _comAmounts
             _comAmounts = 5 * (
@@ -590,7 +582,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param epoch Epoch in which bribe went unused
     function reclaimGeneralBribe(uint256 epoch) external nonReentrant {
         require(startTime != 0);
-        require(totAvailFunds[epoch] == 0);
+        require(payoutPerRes[epoch] == 0);
         uint256 payout = generalBribeOffered[msg.sender][epoch];
         delete generalBribeOffered[msg.sender][epoch];
         payable(msg.sender).transfer(payout);
@@ -601,7 +593,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param ticket Ticket in which bribe went unused
     function reclaimConcentratedBribe(uint256 epoch, uint256 ticket) external nonReentrant {
         require(startTime != 0);
-        require(ticketsPurchased[epoch][ticket] == 0);
+        require(this.getTicketInfo(epoch, ticket) == 0);
         uint256 payout = concentratedBribeOffered[msg.sender][epoch][ticket];
         delete concentratedBribeOffered[msg.sender][epoch][ticket];
         payable(msg.sender).transfer(payout);
@@ -790,17 +782,17 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             closePoolContract = address(closePoolMultiDeployment);
         }
 
-        IClosure(closePoolContract).startAuction(payoutPerRes[poolEpoch], _nft, _id);
+        IClosure(closePoolContract).startAuction(ppr, _nft, _id);
         IERC721(_nft).transferFrom(msg.sender, address(closePoolContract), _id);
 
         epochOfClosure[closureNonce[_nft][_id]][_nft][_id] = poolEpoch;
-        alloc.receiveFees{value:1 * payoutPerRes[poolEpoch] / 100 }();
-        payable(msg.sender).transfer(99 * payoutPerRes[poolEpoch] / 100);
+        alloc.receiveFees{value:1 * ppr / 100 }();
+        payable(msg.sender).transfer(99 * ppr / 100);
         factory.emitNftClosed(
             msg.sender,
             _nft,
             _id,
-            payoutPerRes[poolEpoch],
+            ppr,
             address(closePoolContract)
         );
     }
@@ -867,17 +859,42 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /* ======== INTERNAL ======== */
-    function bitShift(
+    function updateProtocol(
+        uint256 largestTicket,
+        uint256 startEpoch,
+        uint256 endEpoch,
         uint256[] memory tickets, 
-        uint256[] memory amountPerTicket
-    ) internal pure returns(uint256 comTickets, uint256 comAmounts) {
+        uint256[] memory ticketAmounts
+    ) internal returns(uint256 totalTokens) {
         uint256 length = tickets.length;
-        for(uint256 i = 0; i < length; i++) {
-            comTickets <<= 25;
-            comAmounts <<= 25;
-            comTickets |= tickets[i];
-            comAmounts |= amountPerTicket[i] * 100;
+        uint256 tracker;
+        for(uint256 j = startEpoch; j < endEpoch; j++) {
+            while(ticketsPurchased[j].length == 0 || ticketsPurchased[j].length - 1 < largestTicket / 15) ticketsPurchased[j].push(0);
+            uint256[] memory epochTickets = ticketsPurchased[j];
+            uint256 amount;
+            for(uint256 i = 0; i < length; i++) {
+                uint256 ticket = tickets[i];
+                uint256 ticketAmount = ticketAmounts[i];
+                require(ticket <= largestTicket);
+                if(ticket == largestTicket) tracker = 1;
+                uint256 bitAND = (2**((ticket % 15 + 1)*16) - 1) - (2**(((ticket % 15))*16) - 1);
+                uint256 temp = epochTickets[ticket / 15] & bitAND;
+                uint256 bitSHIFT = ticket % 15;
+                temp >>= bitSHIFT * 16;
+                temp += ticketAmount;
+                require(temp <= amountNft * 1000);
+                epochTickets[ticket / 15] &= ~bitAND;
+                epochTickets[ticket / 15] |= (temp << (bitSHIFT*16));
+                amount += ticketAmount;
+            }
+            payoutPerRes[j] += amount * 0.001 ether / amountNft;
+            totAvailFunds[j] += amount * 0.001 ether;
+            ticketsPurchased[j] = epochTickets;
+            totalTokens = amount;
+            if(maxTicketPerEpoch[j] < largestTicket) maxTicketPerEpoch[j] = largestTicket;
         }
+
+        require(tracker == 1);
     }
 
     function executePayments(
@@ -984,7 +1001,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 alloc.receiveFees{value:appLoss}();
             } else if(_loss + appLoss > payoutPerRes[_epochOfClosure] - _saleValue) {
                 alloc.receiveFees{
-                    value:_loss + appLoss - (payoutPerRes[_epochOfClosure] - _saleValue)
+                    value:_loss + appLoss - payoutPerRes[_epochOfClosure] - _saleValue
                 }();
             }
         }
@@ -994,20 +1011,20 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /* ======== GETTER ======== */
 
     /// @notice Check if the pool is closed
-    function getPoolClosedStatus() external view returns(bool) {
-        return poolClosed;
-    }
+    // function getPoolClosedStatus() external view returns(bool) {
+    //     return poolClosed;
+    // }
 
     /// @notice Get the pool epoch at a specific time
     /// @param _time Time of interest
-    function getEpoch(uint256 _time) external view returns(uint256) {
-        return (_time - startTime) / 1 days; 
-    }
+    // function getEpoch(uint256 _time) external view returns(uint256) {
+    //     return (_time - startTime) / 1 days; 
+    // }
 
     /// @notice Get multi asset pool reference nonce
-    function getNonce() external view returns(uint256) {
-        return MAPoolNonce;
-    }
+    // function getNonce() external view returns(uint256) {
+    //     return MAPoolNonce;
+    // }
 
     /// @notice Get the list of NFT address and corresponding token IDs in by this pool
     function getHeldTokenExistence(address _nft, uint256 _id) external view returns(bool) {
@@ -1018,25 +1035,32 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         return tokenMapping[temp];
     }
 
+    function getTicketInfo(uint256 epoch, uint256 ticket) external view returns(uint256) {
+        uint256[] memory epochTickets = ticketsPurchased[epoch];
+        uint256 temp = epochTickets[ticket / 15];
+        temp &= (2**((ticket % 15 + 1)*16) - 1) - (2**(((ticket % 15))*16) - 1);
+        return temp >> ((ticket % 15) * 16);
+    }
+
     /// @notice Get the total amount of reservations made during an epoch
     /// @param _epoch Epoch of interest
-    function getAmountOfReservations(
-        uint256 _epoch
-    ) external view returns(uint256 amountOfReservations) {
-        amountOfReservations = reservations[_epoch];
-    }
+    // function getAmountOfReservations(
+    //     uint256 _epoch
+    // ) external view returns(uint256 amountOfReservations) {
+    //     amountOfReservations = reservations[_epoch];
+    // }
 
     /// @notice Get the reservation status of an NFT during an epoch
     /// @param nft Address of NFT of interest
     /// @param id Token ID of NFT of interest
     /// @param epoch Epoch of interest
-    function getReservationStatus(
-        address nft, 
-        uint256 id, 
-        uint256 epoch
-    ) external view returns(bool) {
-        return reservationMade[epoch][nft][id];
-    }
+    // function getReservationStatus(
+    //     address nft, 
+    //     uint256 id, 
+    //     uint256 epoch
+    // ) external view returns(bool) {
+    //     return reservationMade[epoch][nft][id];
+    // }
 
     /// @notice Get the cost to reserve an NFT for an amount of epochs
     /// @dev This takes into account the reservation amount premiums
@@ -1044,57 +1068,19 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function getCostToReserve(uint256 _endEpoch) external view returns(uint256) {
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
         return (50_000 + reservations[poolEpoch]**2 * 100_000 / amountNft**2) 
-                * (_endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 250_000_000;
+                    * (_endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 250_000_000;
     }
 
     /// @notice Get total funds available in an epoch
-    function getTotalFunds(uint256 epoch) external view returns(uint256) {
-        return totAvailFunds[epoch];
-    }
+    // function getTotalFunds(uint256 epoch) external view returns(uint256) {
+    //     return ((compPayoutPerRes[epoch] & ((2**(256) - 1) - (2**(128) - 1))) >> 128);
+    // }
 
-    /// @notice Get size of the payout during an epoch
-    /// @param epoch Epoch of interest
-    function getPayoutPerRes(uint256 epoch) external view returns(uint256) {
-        return payoutPerRes[epoch];
-    }
-
-    /// @notice Get a decoded version of an LP position
-    /// @dev This getter decodes the bit shifts used to compress a list of tickets. The two
-    /// lists are returned in reverse order of the original list.
-    /// @param _user LP of interest
-    /// @param _nonce Nonce tag of LP position of interest
-    function getDecodedLPInfo(
-        address _user, 
-        uint256 _nonce
-    ) external view returns(
-        uint256 multiplier,
-        uint256 unlockEpoch,
-        uint256 startEpoch,
-        uint256[10] memory tickets, 
-        uint256[10] memory amounts
-    ) {
-        Buyer storage trader = traderProfile[_user][_nonce];
-        uint256 i;
-        uint256 _comListOfTickets = trader.comListOfTickets;
-        uint256 _comAmounts = trader.comAmountPerTicket;
-        uint256 tracker = 1;
-        while(tracker > 0) {
-            tracker = _comAmounts;
-            uint256 ticket = _comListOfTickets & (2**25 - 1);
-            uint256 amountTokens = _comAmounts & (2**25 - 1);
-            _comListOfTickets >>= 25;
-            _comAmounts >>= 25;
-
-            if(tracker != 0) {
-                tickets[i] = ticket;
-                amounts[i] = amountTokens;
-            }
-            i++;
-        }
-        multiplier = trader.multiplier;
-        startEpoch = trader.startEpoch;
-        unlockEpoch = trader.unlockEpoch;
-    }
+    // /// @notice Get size of the payout during an epoch
+    // /// @param epoch Epoch of interest
+    // function getPayoutPerRes(uint256 epoch) external view returns(uint256) {
+    //     return (compPayoutPerRes[epoch] & (2**(128) - 1));
+    // }
 
     /* ======== FALLBACK FUNCTIONS ======== */
 

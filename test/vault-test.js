@@ -171,18 +171,60 @@ describe("MA Vault", function () {
         );
         
         let costPerToken = 1e15;
-        let totalCost = costPerToken * 5000 * 1.5;
+        let totalCost = costPerToken * 10000 * 1.5;
         await maPool.purchase(
             deployer.address,
             deployer.address,
-            ['0', '1', '2','3','4'],
-            ['1500', '1500', '1500', '1500', '1500'],
+            [
+                '0','1','2','3','4','5','6','7','8','9'
+            ],
+            [
+                '1500', '1500', '1500', '1500', '1500', '1500', '1500', '1500', '1500', '1500',
+            ],
             0,
-            2,
+            10,
             { value: totalCost.toString() }
         );
 
-        await maPool.getDecodedLPInfo(deployer.address, 0);
+        totalCost = costPerToken * 10000 * 1.2;
+        await maPool.purchase(
+            deployer.address,
+            deployer.address,
+            [
+                '0','1','2','3','4','5','6','7','8','9'
+            ],
+            [
+                '1200', '1200', '1200', '1200', '1200', '1200', '1200', '1200', '1200', '1200',
+            ],
+            0,
+            10,
+            { value: totalCost.toString() }
+        );
+
+        totalCost = costPerToken * 300;
+        await maPool.purchase(
+            deployer.address,
+            deployer.address,
+            ['8'],
+            ['300'],
+            0,
+            10,
+            { value: totalCost.toString() }
+        );
+
+        expect(await maPool.getTicketInfo(0, 7)).to.equal(2700);
+        expect(await maPool.getTicketInfo(0, 8)).to.equal(3000);
+
+        totalCost = costPerToken * 9000 * 1.5;
+        await expect(maPool.purchase(
+            deployer.address,
+            deployer.address,
+            ['0', '1', '2','3','4','5','6','7','8','9'],
+            ['1500', '1500', '1500', '1500', '1500', '1500', '1500', '1500', '1500', '1500'],
+            0,
+            10,
+            { value: totalCost.toString() }
+        )).to.reverted;
     });
 
     it("Purchase with credit bond funds", async function () {
@@ -266,16 +308,12 @@ describe("MA Vault", function () {
             2,
             { value: totalCost.toString() }
         );
-
-        await maPool.getDecodedLPInfo(user1.address, 0);
+        
         await maPool.transferFrom(
             deployer.address,
             user1.address,
             0
         );
-        
-        await maPool.getDecodedLPInfo(deployer.address, 0);
-        await maPool.getDecodedLPInfo(user1.address, 0);
     });
 
     it("Sale", async function () {
@@ -1506,8 +1544,8 @@ describe("MA Vault", function () {
             1_000
         );
 
-        expect((await eVault.getBase()).toString()).to.equal('55400000000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('119');
+        expect((await eVault.getBase()).toString()).to.equal('56225000000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('122');
 
         await maPool.purchase(
             deployer.address,
@@ -1525,7 +1563,6 @@ describe("MA Vault", function () {
             1_000
         );
         
-        expect((await eVault.getBase()).toString()).to.equal('48475000000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('89');
+        expect((await eVault.getBase()).toString()).to.equal('49196875000000000000000000');
     });
 });

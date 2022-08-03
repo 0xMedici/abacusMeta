@@ -3,23 +3,9 @@ pragma solidity ^0.8.0;
 
 interface IAllocator {
 
-    function addToWL(address _contract) external;
-
-    function approveWLAddition() external;
-
-    function rejectWLAddition() external;
-
-    function removeFromWL(address _contract) external;
-
-    function approveWLRemoval() external;
-
-    function rejectWLRemoval() external;
-
     function donateToEpoch(uint256 epoch) external payable;
 
     function receiveFees() external payable;
-
-    function distributeToN() external payable;
 
     function depositAbc(uint256 _amount) external;
 
