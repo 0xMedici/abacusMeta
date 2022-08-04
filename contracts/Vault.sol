@@ -65,7 +65,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     address private _closePoolMultiImplementation;
 
     /* ======== UINT ======== */
-
+    /// @notice The amount of NFTs that are linked to the pool during the setup phase
     uint256 public amountNftsLinked;
 
     /// @notice Epoch during which the pool was closed
@@ -95,12 +95,28 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     /* ======== MAPPINGS ======== */
 
+    /// @notice The amount of NFTs from a collection that has signed the pool
+    /// [uint256] -> Epoch
+    /// [address] -> NFT collection
+    /// [uint256] -> Amount NFTs signed
     mapping(uint256 => mapping(address => uint256)) public collectionsSigned;
 
+    /// @notice The current nonce tag connected to the amount of times a specific NFT has been closed
+    /// [address] -> NFT collection
+    /// [uint256] -> NFT token ID
+    /// [uint256] -> Nonce tag for closure number
     mapping(address => mapping(uint256 => uint256)) public closureNonce;
 
+    /// @notice Tracks whether an NFT has started emissions during an epoch
+    /// [address] -> NFT collection
+    /// [uint256] -> NFT token ID
+    /// [uint256] -> Epoch
+    /// [bool] -> Status of if the NFT started emissions during that epoch 
     mapping(address => mapping(uint256 => mapping(uint256 => bool))) public emissionsStarted;
 
+    /// @notice The total amount of times emissions has been toggled during an epoch
+    /// [uint256] -> Epoch
+    /// [uint256] -> Amount of times toggled
     mapping(uint256 => uint256) public emissionStartedCount;
 
     /// @notice Used to track the existence of tokens within the pool
@@ -1053,6 +1069,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         return tokenMapping[temp];
     }
 
+    /// @notice Get the amount of spots in a ticket that have been purchased during an epoch
     function getTicketInfo(uint256 epoch, uint256 ticket) external view returns(uint256) {
         uint256[] memory epochTickets = ticketsPurchased[epoch];
         uint256 temp = epochTickets[ticket / 15];

@@ -5,26 +5,44 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 interface IFactory {
 
+    /// @notice Create a multi asset vault
+    /// @dev The creator will have to pay a creation fee (denominated in ABC)
+    /// @param name Name of the pool
     function initiateMultiAssetVault(
         string memory name
     ) external;
 
     function updateSlotCount(uint256 mavNonce, uint256 slots, uint256 amountNfts) external;
 
+    /// @notice Sign off on starting a vaults emissions
+    /// @dev Each NFT can only have its signature attached to one vault at a time
+    /// @param multiVaultNonce Nonce corresponding to desired vault
+    /// @param nft List of NFTs (must be in the vault and owned by the caller)
+    /// @param id List of NFT IDs (must be in the vault and owned by the caller)
     function signMultiAssetVault(
         uint256 multiVaultNonce,
         address[] calldata nft,
         uint256[] calldata id
     ) external;
 
+    /// @notice Sever ties between an NFT and a pool
+    /// @dev Only callable by an accredited address (an existing pool)
+    /// @param nftToRemove NFT address to be removed
+    /// @param idToRemove NFT ID to be removed
+    /// @param multiVaultNonce Nonce corresponding to desired vault 
     function updateNftInUse(
         address nftToRemove,
         uint256 idToRemove,
         uint256 multiVaultNonce
     ) external;
 
+    /// @notice Update a users pending return count
+    /// @dev Pending returns come from funds that need to be returned from
+    /// various pool contracts
+    /// @param _user The recipient of these returned funds
     function updatePendingReturns(address _user) external payable;
 
+    /// @notice Claim the pending returns that have been sent for the user
     function claimPendingReturns() external;
 
     function emitNftInclusion(
@@ -152,6 +170,6 @@ interface IFactory {
         uint256[10] memory tickets 
     );
 
-    
+
 
 }

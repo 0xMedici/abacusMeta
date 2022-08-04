@@ -369,7 +369,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
 
     /// @notice Used to clear protocol generated fees to treasury
     /// @dev This also includes any fees that have been directed towards an epoch where
-    /// there were no EDC earned. The caller receives 5% of the empty epoch fees
+    /// there were no EDC earned. The caller receives 0.5% of the empty epoch fees
     /// @param _epoch The desired epoch to clear funds from
     function clearToTreasury(uint256 _epoch) external nonReentrant {
         uint256 payout;
@@ -412,6 +412,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         denominator = totalAllocationPerEpoch[recentEpoch];
     }
 
+    /// @notice Returns total ETH fees that have been accumulated during the current epoch
     function getEpochFeesAccumulated() external view returns(uint256) {
         uint256 currentEpoch;
         if(epochVault.getStartTime() == 0) currentEpoch == 0;
