@@ -35,14 +35,6 @@ async function main() {
     alloc = await Allocator.deploy(controller.address, eVault.address);
     console.log("Allocator:", alloc.address);
 
-    NftEth = await ethers.getContractFactory("NftEth");
-    nEth = await NftEth.deploy(controller.address);
-    console.log("NftEth:", nEth.address);
-
-    Lend = await ethers.getContractFactory("Lend");
-    lend = await Lend.deploy(controller.address, nEth.address, eVault.address);
-    console.log("Lend:", lend.address);
-
     const setAdmin = await controller.setAdmin(deployer.address);
     await setAdmin.wait();
     console.log("1");

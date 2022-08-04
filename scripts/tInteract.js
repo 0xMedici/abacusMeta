@@ -35,10 +35,6 @@ async function main() {
     // alloc = await Allocator.attach('0x5b4d72055a8f49C12fe65A62959769f7880D47E8');
     // console.log("Allocator:", alloc.address);
 
-    // NftEth = await ethers.getContractFactory("NftEth");
-    // nEth = await NftEth.deploy(controller.address);
-    // console.log("NftEth:", nEth.address);
-
     console.log("Beta:", await controller.beta());
 
     // const wlCollection = await controller.proposeWLAddresses([

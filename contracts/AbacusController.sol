@@ -42,20 +42,8 @@ contract AbacusController {
     /// @notice contract address for Credit Bonds 
     address public creditBonds;
 
-    /// @notice contract address for Presale
-    address public presale;
-
-    /// @notice proposed address of new admin
-    address public pendingAdmin;
-
     /// @notice controller admin address (controlled by governance)
     address public admin;
-
-    /// @notice proposed Treasury contract
-    address public pendingTreasury;
-
-    /// @notice contract address for Treasury
-    address public abcTreasury;
 
     /// @notice contract address for ABC
     address public abcToken;
@@ -68,9 +56,6 @@ contract AbacusController {
 
     /// @notice proposed address of new Factory contract
     address public pendingFactory;
-
-    /// @notice proposed address of new Multisig
-    address public pendingMultisig;
     
     /// @notice controller multisig address (controlled by council)
     address public multisig;
@@ -138,7 +123,6 @@ contract AbacusController {
     event AdminSet(address _admin);
     event NftEthSet(address _nftEth);
     event CreditBondsSet(address _creditBonds);
-    event PresaleSet(address _presale);
     event TokenSet(address _token);
     event AllocatorSet(address _veToken);
     event EpochVaultSet(address _epochVault);
@@ -201,12 +185,6 @@ contract AbacusController {
         require(creditBonds == address(0), "Already set");
         creditBonds = _creditBonds;
         emit CreditBondsSet(_creditBonds);
-    }
-
-    function setPresale(address _presale) external onlyMultisig {
-        require(presale == address(0), "Already set");
-        presale = _presale;
-        emit PresaleSet(_presale);
     }
 
     function setToken(address _token) external onlyMultisig {

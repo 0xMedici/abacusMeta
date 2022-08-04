@@ -366,6 +366,8 @@ contract Governor {
         require(controller.changeLive());
         require(block.timestamp < controller.voteEndTime());
         require(controller.pendingFactory() != address(0));
+
+        if(challengeUsed) require(controller.voteEndTime() + 10 days > timeVotingCreditsUnlock[msg.sender]);
         if(challengeUsed && amount > votingCredit[msg.sender]) {
             require(
                 token.transferFrom(

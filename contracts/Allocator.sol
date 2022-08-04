@@ -41,12 +41,6 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @notice epoch vault contract address
     IEpochVault immutable epochVault;
 
-    /// @notice proposed addition to whitelist of allowed contract interactors
-    address public pendingWLAddition;
-
-    /// @notice proposed removal from whitelist of allowed contract interactors
-    address public pendingWLRemoval;
-
     /* ======== UINT ======== */
 
     uint256 public fundsSentToT;

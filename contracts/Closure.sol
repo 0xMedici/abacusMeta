@@ -79,11 +79,6 @@ contract Closure is ReentrancyGuard, Initializable {
     /// [bool] -> auction completion status
     mapping(uint256 => mapping(address => mapping(uint256 => bool))) public auctionComplete;
 
-    /// @notice track a users principal calculation status per concluded auction
-    /// [address] -> user
-    /// [bool] -> principal calculation status
-    mapping(address => mapping(uint256 => mapping(address => bool))) public principalCalculated;
-
     /* ======== CONSTRUCTOR ======== */
 
     function initialize(

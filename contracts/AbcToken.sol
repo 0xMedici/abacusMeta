@@ -12,11 +12,6 @@ contract ABCToken is ERC20 {
     /* ======== ADDRESS ======== */
     AbacusController public immutable controller;
 
-    /* ======== MAPPING ======== */
-
-    /// @notice purely for testing
-    mapping(address => uint256) public counterForNextClaim;
-
     /* ======== CONSTRUCTOR ======== */
 
     constructor(address _controller) ERC20("Abacus Token", "ABC") {

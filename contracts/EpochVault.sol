@@ -187,7 +187,7 @@ contract EpochVault is ReentrancyGuard {
     /// @param _epoch The epoch of interest
     /// @return amountClaimed Reward size
     function claimAbcReward(
-        address _user, 
+        address _user,
         uint256 _epoch
     ) external nonReentrant returns(uint256 amountClaimed) {
         require(_epoch < (block.timestamp - startTime) / epochLength);

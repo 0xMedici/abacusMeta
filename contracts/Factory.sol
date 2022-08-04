@@ -7,7 +7,6 @@ import { Vault } from "./Vault.sol";
 import { IVault } from "./interfaces/IVault.sol";
 import { Closure } from "./Closure.sol";
 import { IClosure } from "./interfaces/IClosure.sol";
-import { Treasury } from "./Treasury.sol";
 import { AbacusController } from "./AbacusController.sol";
 
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -91,7 +90,6 @@ contract Factory is ReentrancyGuard {
     event VaultBegun(address _pool);
     event EmissionsToggled(address _pool, address _nft, uint256 _id, bool chosenToggle, uint256 totalToggles);
     event EmissionsStarted(address _pool);
-    event EmissionsStopped(address _pool);
     event SignPoolClosure(address _pool, address _signer,address _collections, uint256 _idSigned);
     event NftRemoved(address _pool, address removedAddress, uint256 removedId);
     event PoolClosed(address _pool); 
@@ -143,7 +141,7 @@ contract Factory is ReentrancyGuard {
     ) external nonReentrant {
         require(
             vaultNames[name].length == 0
-            || IVault(vaultNames[name][vaultNames[name].length - 1]).getPoolClosedStatus()
+            || Vault(payable(vaultNames[name][vaultNames[name].length - 1])).poolClosed()
         );
         uint256 beta = controller.beta();
         if(beta == 1) {
@@ -198,7 +196,7 @@ contract Factory is ReentrancyGuard {
             require(controller.collectionWhitelist(collection));
             require(
                 !controller.nftVaultSigned(collection, _id)
-                || IVault(controller.nftVaultSignedAddress(collection, _id)).getPoolClosedStatus()
+                || Vault(payable(controller.nftVaultSignedAddress(collection, _id))).poolClosed()
             );
             controller.updateNftUsage(pool, collection, _id, true);
             IVault(mav.pool).toggleEmissions(collection, _id, true);
@@ -225,7 +223,6 @@ contract Factory is ReentrancyGuard {
             mav.nftRemoved++;
         }
         IVault(mav.pool).toggleEmissions(nftToRemove, idToRemove, false);
-        emit EmissionsStopped(mav.pool);
 
         if(mav.nftRemoved == mav.nftsInPool) {
             IVault(mav.pool).closePool();
