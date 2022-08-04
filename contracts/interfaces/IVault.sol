@@ -12,17 +12,20 @@ interface IVault {
         address closePoolImplementation_,
         address _creator
     ) external;
-    
+
     function toggleEmissions(address _nft, uint256 _id, bool emissionStatus) external;
+
+    function includeNft(uint256[] calldata _compTokenInfo) external;
+
+    function begin(uint256 slots) external;
 
     function purchase(
         address _caller,
         address _buyer, 
-        uint256[] memory tickets, 
-        uint256[] memory amountPerTicket,
+        uint256[] calldata tickets, 
+        uint256[] calldata amountPerTicket,
         uint256 startEpoch,
-        uint256 finalEpoch,
-        uint256 nonce
+        uint256 finalEpoch
     ) external payable;
 
     function sell(
@@ -31,15 +34,6 @@ interface IVault {
         uint256 _payoutRatio
     ) external;
 
-    function purchase(
-        address _caller,
-        address _buyer, 
-        uint256[] memory tickets, 
-        uint256[] memory amountPerTicket, 
-        uint256 startEpoch,
-        uint256 finalEpoch
-    ) payable external;
-
     function offerGeneralBribe(
         uint256 bribePerEpoch, 
         uint256 startEpoch, 
@@ -47,13 +41,17 @@ interface IVault {
     ) external payable;
 
     function offerConcentratedBribe(
-        uint256 startEpoch, 
-        uint256 endEpoch, 
-        uint256[] memory tickets,
-        uint256[] memory bribePerTicket
+        uint256 startEpoch,
+        uint256 endEpoch,
+        uint256[] calldata tickets,
+        uint256[] calldata bribePerTicket
     ) external payable;
 
-    function remove(address[] memory _nft, uint256[] memory id) external;
+    function reclaimGeneralBribe(uint256 epoch) external;
+
+    function reclaimConcentratedBribe(uint256 epoch, uint256 ticket) external;
+
+    function remove(address[] calldata _nft, uint256[] calldata _id) external;
 
     function updateSaleValue(
         address _nft,
@@ -65,18 +63,17 @@ interface IVault {
 
     function reserve(address _nft, uint256 id, uint256 endEpoch) external payable;
 
-    function grantTransferPermission(
+    function changeTransferPermission(
         address recipient,
-        uint256 nonce
-    ) external returns(bool);
+        uint256 nonce,
+        bool permission
+    ) external;
 
     function transferFrom(
-        address from, 
-        address to, 
-        uint256 nonce, 
-        uint256[] memory _listOfTickets,
-        uint256[] memory _amountPerTicket
-    ) external returns(bool);
+        address from,
+        address to,
+        uint256 nonce
+    ) external;
 
     function closeNft(address _nft, uint256 _id) external;
 
@@ -85,45 +82,16 @@ interface IVault {
     function adjustTicketInfo(
         address _user,
         uint256 _nonce,
-        uint256 _finalNftVal,
         address _nft,
-        uint256 _id
-    ) external returns(bool complete);
-    
-    function getPoolClosedStatus() external view returns(bool);
-
-    function getEpoch(uint256 _time) external view returns(uint256);
+        uint256 _id,
+        uint256 _closureNonce
+    ) external returns(bool);
 
     function getNonce() external view returns(uint256);
 
     function getHeldTokenExistence(address _nft, uint256 _id) external view returns(bool);
 
-    function getAmountOfReservations(
-        uint256 _epoch
-    ) external view returns(uint256 amountOfReservations);
-
-    function getReservationStatus(
-        address nft, 
-        uint256 id, 
-        uint256 epoch
-    ) external view returns(bool);
+    function getTicketInfo(uint256 epoch, uint256 ticket) external view returns(uint256);
 
     function getCostToReserve(uint256 _endEpoch) external view returns(uint256);
-
-    function getTotalFunds(uint256 epoch) external view returns(uint256);
-
-    function getPayoutPerRes(uint256 epoch) external view returns(uint256);
-
-    function getDecodedLPInfo(
-        address _user, 
-        uint256 _nonce
-    ) external view returns(
-        uint256 multiplier,
-        uint256 unlockEpoch,
-        uint256 startEpoch,
-        uint256[10] memory tickets, 
-        uint256[10] memory amounts
-    );
-
-    
 }

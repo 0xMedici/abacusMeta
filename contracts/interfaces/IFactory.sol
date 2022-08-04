@@ -9,17 +9,12 @@ interface IFactory {
         string memory name
     ) external;
 
-    function updateSlotCount(
-        uint256 mavNonce, 
-        uint256 slots,
-        uint256 amountNfts
-    ) external;
+    function updateSlotCount(uint256 mavNonce, uint256 slots, uint256 amountNfts) external;
 
     function signMultiAssetVault(
         uint256 multiVaultNonce,
-        address[] memory nft,
-        uint256[] memory id,
-        address boostedCollection
+        address[] calldata nft,
+        uint256[] calldata id
     ) external;
 
     function updateNftInUse(
@@ -32,7 +27,9 @@ interface IFactory {
 
     function claimPendingReturns() external;
 
-    function emitNftInclusion(uint256[] memory encodedNfts) external;
+    function emitNftInclusion(
+        uint256[] calldata encodedNfts
+    ) external;
 
     function emitPoolBegun() external;
 
@@ -45,8 +42,8 @@ interface IFactory {
 
     function emitPurchase(
         address _buyer, 
-        uint256[] memory tickets,
-        uint256[] memory amountPerTicket,
+        uint256[] calldata tickets,
+        uint256[] calldata amountPerTicket,
         uint256 nonce,
         uint256 _startEpoch,
         uint256 _finalEpoch
@@ -68,8 +65,8 @@ interface IFactory {
 
     function emitConcentratedBribe(
         address _briber,
-        uint256[] memory tickets,
-        uint256[] memory bribePerTicket,
+        uint256[] calldata tickets,
+        uint256[] calldata bribePerTicket,
         uint256 _startEpoch,
         uint256 _endEpoch
     ) external;
@@ -138,16 +135,23 @@ interface IFactory {
     function getSqrt(uint x) external pure returns (uint y);
 
     function encodeCompressedValue(
-        address[] memory nft,
-        uint256[] memory id
+        address[] calldata nft,
+        uint256[] calldata id
     ) external pure returns(
         uint256[] memory _compTokenInfo
     );
 
     function decodeCompressedValue(
+        uint256 _compTokenInfo
+    ) external pure returns(address _nft, uint256 _id);
+
+    function decodeCompressedTickets(
         uint256 comTickets
     ) external pure returns(
         uint256 stopIndex,
         uint256[10] memory tickets 
     );
+
+    
+
 }

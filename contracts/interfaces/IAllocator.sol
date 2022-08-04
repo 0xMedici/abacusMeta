@@ -15,13 +15,15 @@ interface IAllocator {
 
     function changeAllocation(
         address _oldCollection, 
-        address _newCollection, 
+        address _newCollection,
         uint256 _amount
     ) external;
 
     function addAutoAllocation(uint256 _amount) external;
 
     function bribeAuto(address _collection) external payable;
+
+    function claimReward(address _user) external;
 
     function reclaimUnusedBribe(uint256 _epoch) external;
 

@@ -184,8 +184,8 @@ contract Factory is ReentrancyGuard {
     /// @param id List of NFT IDs (must be in the vault and owned by the caller)
     function signMultiAssetVault(
         uint256 multiVaultNonce,
-        address[] memory nft,
-        uint256[] memory id
+        address[] calldata nft,
+        uint256[] calldata id
     ) external nonReentrant {
         MultiAssetVault storage mav = multiAssetMapping[multiVaultNonce];
         uint256 length = id.length;
@@ -258,7 +258,7 @@ contract Factory is ReentrancyGuard {
     /* ======== EVENT PROPAGATION ======== */
 
     function emitNftInclusion(
-        uint256[] memory encodedNfts
+        uint256[] calldata encodedNfts
     ) external onlyAccredited {
         emit NftInclusion(msg.sender, encodedNfts);
     }
@@ -278,8 +278,8 @@ contract Factory is ReentrancyGuard {
 
     function emitPurchase(
         address _buyer, 
-        uint256[] memory tickets,
-        uint256[] memory amountPerTicket,
+        uint256[] calldata tickets,
+        uint256[] calldata amountPerTicket,
         uint256 nonce,
         uint256 _startEpoch,
         uint256 _finalEpoch
@@ -327,8 +327,8 @@ contract Factory is ReentrancyGuard {
 
     function emitConcentratedBribe(
         address _briber,
-        uint256[] memory tickets,
-        uint256[] memory bribePerTicket,
+        uint256[] calldata tickets,
+        uint256[] calldata bribePerTicket,
         uint256 _startEpoch,
         uint256 _endEpoch
     ) external onlyAccredited {
@@ -485,8 +485,8 @@ contract Factory is ReentrancyGuard {
     }
 
     function encodeCompressedValue(
-        address[] memory nft,
-        uint256[] memory id
+        address[] calldata nft,
+        uint256[] calldata id
     ) external pure returns(
         uint256[] memory _compTokenInfo
     ) {

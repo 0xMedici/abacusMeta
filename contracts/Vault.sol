@@ -426,6 +426,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _payoutRatio
     ) external nonReentrant {
         require(startTime != 0);
+        require(msg.sender == _user);
         Buyer storage trader = traderProfile[_user][_nonce];
         require(adjustmentsMade[_user][_nonce] == adjustmentsRequired);
         require(trader.unlockEpoch != 0);

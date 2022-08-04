@@ -8,12 +8,10 @@ interface IEpochVault {
     function adjustBase() external;
 
     function updateEpoch(
-        address _nft, 
-        address _user, 
+        address _nft,
+        address _user,
         uint256 _amountCredits
     ) external;
-
-    function receiveAbc(address _user, uint256 _amount) external;
 
     function claimAbcReward(
         address _user, 
@@ -33,8 +31,6 @@ interface IEpochVault {
     function getTotalDistributionCredits() external view returns(uint256);
 
     function getCollectionBoost(address nft) external view returns(uint256);
-
-    function getPastAbcEmission(uint256 _epoch) external view returns(uint256);
 
     function getEpochEndTime(uint256 _epoch) external view returns(uint256 endTime);
 

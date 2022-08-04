@@ -38,7 +38,7 @@ contract ABCToken is ERC20 {
         address sender,
         address recipient,
         uint256 amount
-    ) public returns(bool) {
+    ) external returns(bool) {
         require(
             msg.sender == controller.epochVault()
             || msg.sender == controller.allocator()

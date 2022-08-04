@@ -17,8 +17,6 @@ interface IClosure {
 
     function endAuction(address _nft, uint256 _id) external;
 
-    function calculatePrincipal(address _user, uint256 _nonce, address _nft, uint256 _id) external;
-
     function getHighestBid(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 bid);
 
     function getAuctionPremium(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 premium);
