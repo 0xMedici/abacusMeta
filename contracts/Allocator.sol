@@ -164,14 +164,14 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         } else {
             treasuryRate = 10_000 - 500 * (controller.multisig()).balance / 10_000e18;
         }
-
-        epochFeesAccumulated[epochVault.getCurrentEpoch()] += 
-            (100_000 - treasuryRate) * msg.value / 100_000;
-        fundsForTreasury += treasuryRate * msg.value / 100_000;
-        fundsSentToT += treasuryRate * msg.value / 100_000;
+    
+        uint256 payout = (100_000 - treasuryRate) * msg.value / 100_000;
+        epochFeesAccumulated[epochVault.getCurrentEpoch()] += payout;
+        fundsForTreasury += msg.value - payout;
+        fundsSentToT += msg.value - payout;
         emit ReceivedFees(
             epochVault.getCurrentEpoch(), 
-            (100_000 - treasuryRate) * msg.value / 100_000
+            payout
         );
     }
 
@@ -371,8 +371,10 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
             payout = epochFeesAccumulated[_epoch];
             epochFeesAccumulated[_epoch] = 0;
         }
-        payable(controller.multisig()).transfer(995 * (payout + fundsForTreasury) / 1000);
-        payable(msg.sender).transfer(5 * (payout + fundsForTreasury) / 1000);
+
+        uint256 multisigPayout = 995 * (payout + fundsForTreasury) / 1000;
+        payable(controller.multisig()).transfer(multisigPayout);
+        payable(msg.sender).transfer(payout + fundsForTreasury - multisigPayout);
         fundsForTreasury = 0;
 
         emit FundsClearedToTreasury(msg.sender, _epoch, payout);

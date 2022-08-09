@@ -359,6 +359,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(startEpoch >= (block.timestamp - startTime) / 1 days);
         require(finalEpoch - startEpoch <= 10);
 
+        console.log(1);
+
         uint256 totalTokensRequested;
         uint256 largestTicket;
         uint256 _lockTime = 
@@ -571,6 +573,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function reclaimGeneralBribe(uint256 epoch) external nonReentrant {
         require(startTime != 0);
         require(payoutPerRes[epoch] == 0);
+        require(epoch > (block.timestamp - startTime) / 1 days);
         uint256 payout = generalBribeOffered[msg.sender][epoch];
         delete generalBribeOffered[msg.sender][epoch];
         payable(msg.sender).transfer(payout);
@@ -582,6 +585,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function reclaimConcentratedBribe(uint256 epoch, uint256 ticket) external nonReentrant {
         require(startTime != 0);
         require(this.getTicketInfo(epoch, ticket) == 0);
+        require(epoch > (block.timestamp - startTime) / 1 days);
         uint256 payout = concentratedBribeOffered[msg.sender][epoch][ticket];
         delete concentratedBribeOffered[msg.sender][epoch][ticket];
         payable(msg.sender).transfer(payout);
@@ -774,8 +778,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         IERC721(_nft).transferFrom(msg.sender, address(closePoolContract), _id);
 
         epochOfClosure[closureNonce[_nft][_id]][_nft][_id] = poolEpoch;
-        alloc.receiveFees{value:1 * ppr / 100 }();
-        payable(msg.sender).transfer(99 * ppr / 100);
+        uint256 payout = 1 * ppr / 100;
+        alloc.receiveFees{value:payout }();
+        payable(msg.sender).transfer(ppr - payout);
         factory.emitNftClosed(
             msg.sender,
             _nft,

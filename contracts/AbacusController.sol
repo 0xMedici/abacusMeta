@@ -248,8 +248,10 @@ contract AbacusController {
     }
 
     function proposeWLUserRemoval(address[] memory users) external onlyMultisig {
-        require(beta == 1);
-        pendingWLUserRemoval = users;
+        uint256 length = users.length;
+        for(uint256 i = 0; i < length; i++) {
+            delete userWhitelist[users[i]];
+        }
         emit ProposeWLUserRemoval(users);
     }
 
@@ -317,6 +319,7 @@ contract AbacusController {
     }
 
     function proposeFactoryAddition(address _newFactory) external onlyAdmin {
+        require(!factoryWhitelist[_newFactory]);
         require(pendingFactory == address(0), "Must vote first");
         require(_newFactory != address(0), "Address is zero");
         require(!changeLive);

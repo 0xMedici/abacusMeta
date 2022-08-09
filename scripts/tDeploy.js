@@ -11,10 +11,6 @@ async function main() {
     controller = await AbacusController.deploy(deployer.address);
     console.log("Controller:", controller.address);
 
-    Treasury = await ethers.getContractFactory("Treasury");
-    treasury = await Treasury.deploy(deployer.address);
-    console.log("Treasury:", treasury.address);
-
     Factory = await ethers.getContractFactory("Factory");
     factory = await Factory.deploy(controller.address);
     console.log("VaultFactoryMulti:", factory.address);
@@ -59,15 +55,9 @@ async function main() {
     const setEpochVault = await controller.setEpochVault(eVault.address);
     await setEpochVault.wait();
     console.log("8");
-    const sendABC1 = await abcToken.transfer('0x15441e298a22BA6d4E95B77a3F511e76dbAde87f', '1000000000000000000000000000');
-    await sendABC1.wait();
-    console.log("9");
-    const sendABC2 = await abcToken.transfer('0xd365Ae104DA3E86EA36f268050D6e5212a42e360', '1000000000000000000000000000');
-    await sendABC2.wait();
-    console.log("10");
     const begin = await eVault.begin();
     await begin.wait();
-    console.log("11");
+    console.log("9");
 
     const wlCollection = await controller.proposeWLAddresses([
       '0x16baf0de678e52367adc69fd067e5edd1d33e3bf',

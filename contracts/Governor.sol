@@ -176,8 +176,8 @@ contract Governor {
         require(pendingPositionalMovement != 0);
         require(block.timestamp > voteEndTime);
         require(
-            voteAgainst > voteFor
-            || voteFor + voteAgainst < 250_000_000e18 + 25_000_000e18 * positionalChanges
+            voteAgainst >= voteFor
+            || voteFor + voteAgainst <= 250_000_000e18 + 25_000_000e18 * positionalChanges
         );
         delete voteFor;
         delete voteAgainst;
@@ -195,10 +195,12 @@ contract Governor {
             size := extcodesize(_addr)
         }
         require(size == 0);
+        require(collections.length > 0);
         require(block.timestamp > controller.voteEndTime() + 7 days);
         require(!controller.changeLive());
         require(pendingPositionalMovement == 0);
         require(credit[msg.sender] >= 20_000_000e18);
+        require(collections[0] != address(0));
         uint256 currentEpoch;
         if(IEpochVault(controller.epochVault()).getStartTime() == 0) currentEpoch == 0;
         else currentEpoch = IEpochVault(controller.epochVault()).getCurrentEpoch();
@@ -249,7 +251,8 @@ contract Governor {
         require(controller.changeLive());
         require(controller.pendingWLAdditions(0) != address(0));
         require(block.timestamp > controller.voteEndTime());
-        require(voteAgainst > voteFor);
+        require(voteFor + voteAgainst <= (100_000_000e18 > (2 * token.totalSupply() / 100) ? 100_000_000e18 : (2 * token.totalSupply() / 100)));
+        require(voteAgainst >= voteFor);
         delete voteFor;
         delete voteAgainst;
         controller.rejectWLAddresses();
@@ -270,6 +273,7 @@ contract Governor {
         require(!controller.changeLive());
         require(pendingPositionalMovement == 0);
         require(credit[msg.sender] >= 20_000_000e18);
+        require(collections[0] != address(0));
         uint256 currentEpoch;
         if(IEpochVault(controller.epochVault()).getStartTime() == 0) currentEpoch == 0;
         else currentEpoch = IEpochVault(controller.epochVault()).getCurrentEpoch();
@@ -321,8 +325,8 @@ contract Governor {
         require(controller.pendingWLRemoval(0) != address(0));
         require(block.timestamp > controller.voteEndTime());
         require(
-            voteFor + voteAgainst < (100_000_000e18 > (2 * token.totalSupply() / 100) ? 100_000_000e18 : (2 * token.totalSupply() / 100))
-            || voteAgainst > voteFor
+            voteFor + voteAgainst <= (100_000_000e18 > (2 * token.totalSupply() / 100) ? 100_000_000e18 : (2 * token.totalSupply() / 100))
+            || voteAgainst >= voteFor
         );
         delete voteFor;
         delete voteAgainst;
@@ -429,7 +433,12 @@ contract Governor {
             require(block.timestamp > controller.voteEndTime());
         }
         require(voteFor + voteAgainst > 500_000_000e18 + totalPositionalMovement);
-        require(voteAgainst < 300_000_000e18);
+        require(
+            voteAgainst < (
+                (20 * token.totalSupply() / 100) >= 300_000_000e18 ? 
+                    (20 * token.totalSupply() / 100) : 300_000_000e18
+            )
+        );
         require(voteFor > voteAgainst);
         delete voteFor;
         delete voteAgainst;
@@ -469,9 +478,12 @@ contract Governor {
         require(controller.pendingFactory() != address(0));
         require(block.timestamp > controller.voteEndTime());
         require(
-            voteAgainst > voteFor
-            || voteAgainst > 20 * token.totalSupply() / 100
-            || voteFor + voteAgainst < 500_000_000e18 + totalPositionalMovement
+            voteAgainst >= voteFor
+            || voteAgainst >= (
+                (20 * token.totalSupply() / 100) >= 300_000_000e18 ? 
+                    (20 * token.totalSupply() / 100) : 300_000_000e18
+            )
+            || voteFor + voteAgainst <= 500_000_000e18 + totalPositionalMovement
         );
         delete voteFor;
         delete voteAgainst;

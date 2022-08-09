@@ -211,11 +211,6 @@ contract EpochVault is ReentrancyGuard {
         return (_time - startTime) / epochLength;
     }
 
-    /// @notice Get the protocols start time
-    function getStartTime() external view returns(uint256) {
-        return startTime;
-    }
-
     /// @notice Get base adjustment status for the current epoch
     function getBaseAdjustmentStatus() external view returns(bool) {
         uint256 currentEpoch = (block.timestamp - startTime) / epochLength;

@@ -157,9 +157,10 @@ contract CreditBonds is ReentrancyGuard {
         delete totalCreditPerEpoch[_epoch];
 
         require(_epoch < currentEpoch - modVal);
+        uint256 callerPayout = 5 * payout / 1000;
         payable(msg.sender).transfer(5 * payout / 1000);
         IAllocator(controller.allocator())
-            .donateToEpoch{ value: 995 * payout / 1000 }(
+            .donateToEpoch{ value: payout - callerPayout }(
                 currentEpoch - modVal
             );
         emit BondsCleared(_epoch, payout);
