@@ -129,7 +129,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [bool] -> Status of adjustment
     mapping(address => mapping(uint256 => mapping(uint256 => mapping(address => mapping(uint256 => bool))))) public adjustCompleted;
 
-    mapping(address => uint256) positionNonce;
+    mapping(address => uint256) public positionNonce;
 
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) epochOfClosure;
 
@@ -358,9 +358,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(startEpoch <= (block.timestamp - startTime) / 1 days + 1);
         require(startEpoch >= (block.timestamp - startTime) / 1 days);
         require(finalEpoch - startEpoch <= 10);
-
-        console.log(1);
-
         uint256 totalTokensRequested;
         uint256 largestTicket;
         uint256 _lockTime = 
@@ -395,7 +392,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             tickets,
             amountPerTicket
         );
-
         controller.updateTotalVolumeTraversed(totalTokensRequested * 0.001 ether);
         executePayments(_caller, _buyer, msg.value, totalTokensRequested);
     }
@@ -937,7 +933,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             cost
             ) == cost
         );
-        
         if(_caller != _buyer) {
             factory.updatePendingReturns{ 
                 value:100 * (base) / 10_000

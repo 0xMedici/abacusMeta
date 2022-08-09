@@ -206,6 +206,11 @@ contract EpochVault is ReentrancyGuard {
     }
 
     /* ======== GETTERS ======== */
+    /// @notice Get the protocols start time
+    function getStartTime() external view returns(uint256) {
+        return startTime;
+    }
+
     /// @notice Get the epoch at a certain time
     function getEpoch(uint256 _time) external view returns(uint256) {
         return (_time - startTime) / epochLength;
