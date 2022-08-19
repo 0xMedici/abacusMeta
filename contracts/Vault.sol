@@ -93,6 +93,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     /* ======== MAPPINGS ======== */
 
+    mapping(address => address) public togglePermission;
+
     /// @notice The amount of NFTs from a collection that has signed the pool
     /// [uint256] -> Epoch
     /// [address] -> NFT collection
@@ -244,6 +246,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /* ======== USER ADJUSTMENTS ======== */
+    function delegateTogglePowers(address _togglePermission) external nonReentrant {
+        togglePermission[msg.sender] = _togglePermission;
+    }
+
     /// @notice Turn the emissions on and off
     /// @dev Only callable by the factory contract
     /// @param _nft Address of NFT collection
@@ -266,6 +272,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             require(
                 msg.sender == address(factory)
                 || IERC721(_nft).ownerOf(_id) == msg.sender
+                || togglePermission[IERC721(_nft).ownerOf(_id)] == msg.sender
                 || msg.sender == address(this)
             );
             require(controller.nftVaultSignedAddress(_nft, _id) == address(this));
@@ -816,8 +823,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             block.timestamp > IClosure(closePoolContract).getAuctionEndTime(_closureNonce - 1, _nft, _id)
         );
         Buyer storage trader = traderProfile[_user][_nonce];
+        require(trader.startEpoch < epochOfClosure[_closureNonce - 1][_nft][_id]);
         adjustmentsMade[_user][_nonce]++;
-
         if(trader.unlockEpoch < epochOfClosure[_closureNonce - 1][_nft][_id]) {
             return true;
         }
