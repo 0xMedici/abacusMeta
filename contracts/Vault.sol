@@ -244,6 +244,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         vaultVersion = uint8(_vaultVersion);
         MAPoolNonce = nonce;
         _closePoolMultiImplementation = closePoolImplementation_;
+        adjustmentsRequired = 1;
     }
 
     /* ======== USER ADJUSTMENTS ======== */
@@ -611,8 +612,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _saleValue
     ) external payable nonReentrant {
         require(msg.sender == closePoolContract);
-        closureNonce[_nft][_id]++;
         auctionSaleValue[closureNonce[_nft][_id]][_nft][_id] = _saleValue;
+        closureNonce[_nft][_id]++;
     }
 
     /// @notice Reset the value of 'payoutPerRes' size and the total allowed reservations
@@ -714,6 +715,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             || msg.sender == from
         );
         require(adjustmentsMade[from][nonce] == adjustmentsRequired);
+        adjustmentsMade[to][positionNonce[to]] = adjustmentsMade[from][nonce];
         traderProfile[to][positionNonce[to]] = traderProfile[from][nonce];
         positionNonce[to]++;
         delete traderProfile[from][nonce];
@@ -811,12 +813,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(!adjustCompleted[_user][_nonce][_closureNonce][_nft][_id]);
         require(adjustmentsMade[_user][_nonce] < adjustmentsRequired);
         require(
-            block.timestamp > IClosure(closePoolContract).getAuctionEndTime(_closureNonce - 1, _nft, _id)
+            block.timestamp > IClosure(closePoolContract).getAuctionEndTime(_closureNonce, _nft, _id)
         );
         Buyer storage trader = traderProfile[_user][_nonce];
-        require(adjustmentsMade[_user][_nonce] == adjustmentNonce[_nft][_id][_closureNonce - 1] - 1);
+        require(adjustmentsMade[_user][_nonce] == adjustmentNonce[_nft][_id][_closureNonce] - 1);
         adjustmentsMade[_user][_nonce]++;
-        if(trader.unlockEpoch < epochOfClosure[_closureNonce - 1][_nft][_id]) {
+        if(trader.unlockEpoch < epochOfClosure[_closureNonce][_nft][_id]) {
             return true;
         }
         uint256 appLoss = internalAdjustment(
@@ -1008,15 +1010,15 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _closureNonce,
         uint256 appLoss
     ) internal {
-        uint256 _epochOfClosure = epochOfClosure[_closureNonce - 1][_nft][_id];
-        uint256 _saleValue = auctionSaleValue[_closureNonce - 1][_nft][_id];
+        uint256 _epochOfClosure = epochOfClosure[_closureNonce][_nft][_id];
+        uint256 _saleValue = auctionSaleValue[_closureNonce][_nft][_id];
         uint256 _loss = loss[_closureNonce][_nft][_id];
         if(payoutPerRes[_epochOfClosure] > _saleValue) {
             if(_loss > payoutPerRes[_epochOfClosure] - _saleValue) {
                 alloc.receiveFees{value:appLoss}();
             } else if(_loss + appLoss > payoutPerRes[_epochOfClosure] - _saleValue) {
                 alloc.receiveFees{
-                    value:_loss + appLoss - payoutPerRes[_epochOfClosure] - _saleValue
+                    value:_loss + appLoss - (payoutPerRes[_epochOfClosure] - _saleValue)
                 }();
             }
         }
