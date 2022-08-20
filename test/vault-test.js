@@ -10,18 +10,16 @@ describe("MA Vault", function () {
         mockNft,
         user1,
         user2,
-        VaultFactoryMulti,
-        factoryMulti,
-        VaultMulti,
-        Treasury,
-        treasury,
+        Factory,
+        factory,
+        CreditBonds,
+        bonds,
+        Vault,
+        Closure,
         AbcToken,
         abcToken,
         Allocator,
         alloc,
-        ClosePoolMulti,
-        NftEth,
-        nEth,
         AbacusController,
         controller,
         EpochVault,
@@ -41,9 +39,6 @@ describe("MA Vault", function () {
 
     AbcToken = await ethers.getContractFactory("ABCToken");
     abcToken = await AbcToken.deploy(controller.address);
-
-    // BribeFactory = await ethers.getContractFactory("BribeFactory");
-    // bribe = await BribeFactory.deploy(controller.address);
 
     EpochVault = await ethers.getContractFactory("EpochVault");
     eVault = await EpochVault.deploy(controller.address, 86400 * 4);
@@ -129,9 +124,7 @@ describe("MA Vault", function () {
             [3]
         );
         expect(await maPool.emissionStartedCount(0)).to.equal(3);
-        expect(await maPool.collectionsSigned(0, mockNft.address)).to.equal(3);
         await maPool.remove([mockNft.address, mockNft.address, mockNft.address], [1, 2, 3]);
-        expect(await maPool.collectionsSigned(0, mockNft.address)).to.equal(0);
         expect(await maPool.emissionStartedCount(0)).to.equal(0);
         expect(await maPool.boostCollection()).to.equal("0x0000000000000000000000000000000000000000");
 

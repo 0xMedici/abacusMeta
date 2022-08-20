@@ -80,8 +80,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Pool creation time
     uint256 public startTime;
 
-    /// @notice Vault version (corresponds to the factory version that created this)
-    uint8 public vaultVersion;
+    uint8 vaultVersion;
 
     /// @notice Total amount of adjustments required (every time an NFT is 
     /// closed this value increments)
@@ -99,13 +98,15 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> Epoch
     /// [address] -> NFT collection
     /// [uint256] -> Amount NFTs signed
-    mapping(uint256 => mapping(address => uint256)) public collectionsSigned;
+    mapping(uint256 => mapping(address => uint256)) collectionsSigned;
 
     /// @notice The current nonce tag connected to the amount of times a specific NFT has been closed
     /// [address] -> NFT collection
     /// [uint256] -> NFT token ID
     /// [uint256] -> Nonce tag for closure number
     mapping(address => mapping(uint256 => uint256)) public closureNonce;
+
+    mapping(address => mapping(uint256 => mapping(uint256 => uint256))) adjustmentNonce;
 
     /// @notice Tracks whether an NFT has started emissions during an epoch
     /// [address] -> NFT collection
@@ -159,7 +160,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> epoch
     /// [uint256] -> ticket
     /// [uint256] -> tokens purchased
-    mapping(uint256 => uint256[]) public ticketsPurchased;
+    mapping(uint256 => uint256[]) ticketsPurchased;
 
     /// @notice Payout size for each reservation during an epoch
     /// [uint256] -> epoch
@@ -573,23 +574,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     /// @notice Reclaim unused general bribes offered
     /// @param epoch Epoch in which bribe went unused
-    function reclaimGeneralBribe(uint256 epoch) external nonReentrant {
+    function reclaimGeneralBribe(uint256 epoch, uint256 ticket) external nonReentrant {
         require(startTime != 0);
         require(payoutPerRes[epoch] == 0);
         require(epoch > (block.timestamp - startTime) / 1 days);
-        uint256 payout = generalBribeOffered[msg.sender][epoch];
+        uint256 payout = generalBribeOffered[msg.sender][epoch] + concentratedBribeOffered[msg.sender][epoch][ticket];
         delete generalBribeOffered[msg.sender][epoch];
-        payable(msg.sender).transfer(payout);
-    }
-
-    /// @notice Reclaim unused concentrated bribes offered
-    /// @param epoch Epoch in which bribe went unused
-    /// @param ticket Ticket in which bribe went unused
-    function reclaimConcentratedBribe(uint256 epoch, uint256 ticket) external nonReentrant {
-        require(startTime != 0);
-        require(this.getTicketInfo(epoch, ticket) == 0);
-        require(epoch > (block.timestamp - startTime) / 1 days);
-        uint256 payout = concentratedBribeOffered[msg.sender][epoch][ticket];
         delete concentratedBribeOffered[msg.sender][epoch][ticket];
         payable(msg.sender).transfer(payout);
     }
@@ -746,6 +736,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(reservationMade[poolEpoch][_nft][_id]);
         require(!poolClosed);
         adjustmentsRequired++;
+        adjustmentNonce[_nft][_id][closureNonce[_nft][_id]] = adjustmentsRequired;
         controller.updateNftUsage(address(this), _nft, _id, false);
         this.toggleEmissions(_nft, _id, false);
         reservationsAvailable--;
@@ -823,7 +814,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             block.timestamp > IClosure(closePoolContract).getAuctionEndTime(_closureNonce - 1, _nft, _id)
         );
         Buyer storage trader = traderProfile[_user][_nonce];
-        require(trader.startEpoch < epochOfClosure[_closureNonce - 1][_nft][_id]);
+        require(adjustmentsMade[_user][_nonce] == adjustmentNonce[_nft][_id][_closureNonce - 1] - 1);
         adjustmentsMade[_user][_nonce]++;
         if(trader.unlockEpoch < epochOfClosure[_closureNonce - 1][_nft][_id]) {
             return true;
