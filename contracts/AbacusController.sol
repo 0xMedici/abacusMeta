@@ -27,12 +27,6 @@ contract AbacusController {
 
     /* ======== ADDRESS ======== */
 
-    /// @notice proposed list of users to be whitelisted for beta stage 1 
-    address[] public pendingWLUserAddition;
-
-    /// @notice proposed list of user to be removed from the whitelist for beta stage 1
-    address[] public pendingWLUserRemoval;
-
     /// @notice proposed list of collection to be added to the collection whitelist
     address[] public pendingWLAdditions;
 
@@ -68,9 +62,6 @@ contract AbacusController {
 
     /// @notice amount of live factories that can create emission producing spot pools 
     uint256 public amountOfFactories;
-
-    /// @notice proposed beta stage
-    uint256 public pendingBeta;
 
     /// @notice beta stage
     uint256 public beta;
@@ -256,7 +247,6 @@ contract AbacusController {
     }
 
     function setBeta(uint256 _stage) external onlyMultisig {
-        require(pendingBeta == 0, "Must vote first");
         require(_stage > beta);
         beta = _stage;
         emit BetaStageApproved(_stage);

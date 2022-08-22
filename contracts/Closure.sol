@@ -117,7 +117,7 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @param _id NFT ID
     function newBid(address _nft, uint256 _id) external payable nonReentrant {
         uint256 _nonce = nonce[_nft][_id] - 1;
-        require(msg.value > highestBid[_nonce][_nft][_id]);
+        require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100);
         require(block.timestamp < auctionEndTime[_nonce][_nft][_id]);
         factory.updatePendingReturns{ 
             value:highestBid[_nonce][_nft][_id]

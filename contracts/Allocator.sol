@@ -215,12 +215,11 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         if(holder.listOfEpochs.length == 25) {
             this.claimReward(msg.sender);
         }
+        //TODO: change to new pattern everywhere
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) {
-            currentEpoch == 0;
-        } else {
+        if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch();
-        }
+        } 
         uint256 boost = ICreditBonds(payable(controller.creditBonds())).getPersonalBoost(
             msg.sender, 
             currentEpoch
@@ -258,11 +257,9 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
 
         Holder storage holder = holderHistory[msg.sender];
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) {
-            currentEpoch == 0;
-        } else {
+        if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch();
-        }
+        } 
         require(holder.allocationPerCollection[currentEpoch][_oldCollection] >= _amount);
         
         holder.allocationPerCollection[currentEpoch][_oldCollection] -= _amount;
@@ -281,11 +278,9 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     function addAutoAllocation(uint256 _amount) external nonReentrant {
         Holder storage holder = holderHistory[msg.sender];
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) {
-            currentEpoch == 0;
-        } else {
+        if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch();
-        }
+        } 
         uint256 boost = ICreditBonds(payable(controller.creditBonds())).getPersonalBoost(
             msg.sender, 
             currentEpoch
@@ -316,8 +311,9 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     function bribeAuto(address _collection) external payable nonReentrant {
         require(controller.collectionWhitelist(_collection));
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) currentEpoch == 0;
-        else currentEpoch = epochVault.getCurrentEpoch();
+        if(epochVault.getStartTime() != 0) {
+            currentEpoch = epochVault.getCurrentEpoch();
+        } 
 
         bribeOffered[msg.sender][currentEpoch] += msg.value;
         bribesPerCollectionPerEpoch[currentEpoch][_collection] += msg.value;
@@ -336,7 +332,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         uint256 length = holder.listOfEpochs.length;
         for(uint256 j = 0; j < length; j++) {
             uint256 epochNum = holder.listOfEpochs[j];
-            if(totalAmountAutoAllocated[epochNum] == 0) {
+            if(holder.amountAutoAllocated[epochNum] == 0) {
                 totalPayout += 0;
             } else {
                 totalPayout += totalBribesPerEpoch[epochNum] * holder.amountAutoAllocated[epochNum] 
@@ -411,8 +407,9 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @notice Returns total ETH fees that have been accumulated during the current epoch
     function getEpochFeesAccumulated() external view returns(uint256) {
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) currentEpoch == 0;
-        else currentEpoch = epochVault.getCurrentEpoch();
+        if(epochVault.getStartTime() != 0) {
+            currentEpoch = epochVault.getCurrentEpoch();
+        } 
         return epochFeesAccumulated[currentEpoch];
     }
 

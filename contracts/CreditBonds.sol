@@ -107,11 +107,9 @@ contract CreditBonds is ReentrancyGuard {
     /// @param allowance The amount to be added to the allowance size
     function allowTransferAddress(address allowee, uint256 allowance) external nonReentrant {
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) {
-            currentEpoch == 0;
-        } else {
+        if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch() + modVal;
-        }
+        } 
 
         transferAllowance[currentEpoch][msg.sender][allowee] += allowance;
 
@@ -126,11 +124,9 @@ contract CreditBonds is ReentrancyGuard {
     /// @param allowee The user targeted with the allowance reset 
     function resetAllowance(address allowee) external nonReentrant {
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) {
-            currentEpoch == 0;
-        } else {
+        if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch() + modVal;
-        }
+        }  
 
         delete transferAllowance[currentEpoch][msg.sender][allowee];
         emit AllowanceIncreased(
@@ -146,11 +142,9 @@ contract CreditBonds is ReentrancyGuard {
     /// @param _epoch The epoch of interest
     function clearUnusedBond(uint256 _epoch) external nonReentrant {
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) {
-            currentEpoch == 0;
-        } else {
+        if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch() + modVal;
-        }
+        }  
         require(!epochCleared[_epoch]);
         epochCleared[_epoch] = true;
         uint256 payout = totalCreditPerEpoch[_epoch];
@@ -171,11 +165,9 @@ contract CreditBonds is ReentrancyGuard {
     /// upcoming epoch
     function bond() external payable nonReentrant {
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) {
-            currentEpoch == 0;
-        } else {
+        if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch() + modVal;
-        }
+        }  
 
         userCredit[currentEpoch][msg.sender] += msg.value;
         finalUserCredit[currentEpoch][msg.sender] += msg.value;
@@ -199,11 +191,9 @@ contract CreditBonds is ReentrancyGuard {
     ) external returns(uint256) {
         require(controller.accreditedAddresses(msg.sender));
         uint256 currentEpoch;
-        if(epochVault.getStartTime() == 0) {
-            currentEpoch == 0;
-        } else {
+        if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch() + modVal;
-        }
+        }  
         uint256 payload;
         if(_caller != _user) {
             if(transferAllowance[currentEpoch][_user][_caller] < _amount) {

@@ -354,7 +354,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param finalEpoch The first epoch during which the LP position unlocks
     function purchase(
         address _caller,
-        address _buyer, 
+        address _buyer,
         uint256[] calldata tickets, 
         uint256[] calldata amountPerTicket,
         uint256 startEpoch,

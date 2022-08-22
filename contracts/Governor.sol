@@ -165,6 +165,7 @@ contract Governor {
         require(pendingPositionalMovement != 0);
         require(block.timestamp > voteEndTime);
         require(voteFor + voteAgainst > 250_000_000e18 + 25_000_000e18 * positionalChanges);
+        require(voteFor > voteAgainst);
         delete voteFor;
         delete voteAgainst;
         positionalMovement = pendingPositionalMovement;
@@ -251,8 +252,10 @@ contract Governor {
         require(controller.changeLive());
         require(controller.pendingWLAdditions(0) != address(0));
         require(block.timestamp > controller.voteEndTime());
-        require(voteFor + voteAgainst <= (100_000_000e18 > (2 * token.totalSupply() / 100) ? 100_000_000e18 : (2 * token.totalSupply() / 100)));
-        require(voteAgainst >= voteFor);
+        require(
+            voteFor + voteAgainst <= (100_000_000e18 > (2 * token.totalSupply() / 100) ? 100_000_000e18 : (2 * token.totalSupply() / 100))
+            || voteAgainst >= voteFor
+        );
         delete voteFor;
         delete voteAgainst;
         controller.rejectWLAddresses();
