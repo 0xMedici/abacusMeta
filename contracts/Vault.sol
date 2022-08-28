@@ -596,8 +596,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 id = _id[i];
             require(msg.sender == IERC721(nft).ownerOf(id));
             require(controller.nftVaultSignedAddress(nft, id) == address(this));
-            require(!reservationMade[(block.timestamp - startTime) / 1 days][nft][id]);
             factory.updateNftInUse(nft, id, MAPoolNonce);
+            uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
+            while(reservationMade[poolEpoch][nft][id]) {
+                delete reservationMade[poolEpoch][nft][id];
+                totalReservationValue[poolEpoch] -= payoutPerRes[poolEpoch];
+                reservations[poolEpoch]--;
+                poolEpoch++;
+            }
         }
     }
 
