@@ -486,11 +486,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             );
 
             // COMMENT HERE FOR CLARITY: REPURPOSING _comListOfTickets
-            _comListOfTickets = emissionStartedCount[j] > 0 ? 
+            _comListOfTickets = emissionStartedCount[j] >= reservations[j] ? emissionStartedCount[j] : reservations[j];
+
+            // COMMENT HERE FOR CLARITY: REPURPOSING _comListOfTickets
+            _comListOfTickets = _comListOfTickets > 0 ? 
                 (
-                    emissionStartedCount[j] > amountNft
-                    ? factory.getSqrt(amountNft) : factory.getSqrt(emissionStartedCount[j])
-                ) : 1;
+                    _comListOfTickets > amountNft
+                    ? factory.getSqrt(amountNft) : factory.getSqrt(_comListOfTickets)
+                ) : 0;
             finalCreditCount += amount * rewardCap * (_comListOfTickets) * 
                     (reservations[j] > 0 ? (_comAmounts == 0 ? 1 : _comAmounts) : 1) / 1e18;
             bribePayout += trader.ethLocked * generalBribe[j] / totAvailFunds[j];
