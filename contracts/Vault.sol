@@ -65,6 +65,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     address private _closePoolMultiImplementation;
 
     /* ======== UINT ======== */
+    uint256 public ticketLimit;
+
     uint256 amountNftsLinked;
 
     uint256 poolClosureEpoch;
@@ -121,6 +123,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     mapping(uint256 => uint256) public emissionStartedCount;
 
     mapping(uint256 => bool) tokenMapping;
+
+    mapping(uint256 => uint256) totalTokensPurchased;
 
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) loss;
 
@@ -327,10 +331,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     /// @notice [setup phase] Start the pools operation
     /// @param slots The amount of collateral slots the pool will offer
-    function begin(uint256 slots) external {
+    function begin(uint256 slots, uint256 _ticketSize) external {
         require(startTime == 0);
         require(msg.sender == creator);
         amountNft = slots;
+        ticketLimit = _ticketSize;
         reservationsAvailable = slots;
         factory.updateSlotCount(MAPoolNonce, slots, amountNftsLinked);
         startTime = block.timestamp;
@@ -505,7 +510,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             trader.comListOfTickets,
             _payoutRatio * finalCreditCount / 1_000
         );
-
         unlock(
             _user, 
             _nonce, 
@@ -830,9 +834,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         if(trader.unlockEpoch < epochOfClosure[_closureNonce][_nft][_id]) {
             return true;
         }
+
         uint256 appLoss = internalAdjustment(
             _user,
             _nonce,
+            totalTokensPurchased[epochOfClosure[_closureNonce][_nft][_id]],
             payoutPerRes[epochOfClosure[_closureNonce][_nft][_id]],
             auctionSaleValue[_closureNonce][_nft][_id],
             trader.comListOfTickets,
@@ -912,7 +918,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 uint256 bitSHIFT = ticket % 15;
                 temp >>= bitSHIFT * 16;
                 temp += ticketAmount;
-                require(temp <= amountNft * 1000);
+                require(temp <= amountNft * ticketLimit);
                 epochTickets[ticket / 15] &= ~bitAND;
                 epochTickets[ticket / 15] |= (temp << (bitSHIFT*16));
                 amount += ticketAmount;
@@ -922,6 +928,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             ticketsPurchased[j] = epochTickets;
             totalTokens = amount;
             if(maxTicketPerEpoch[j] < largestTicket) maxTicketPerEpoch[j] = largestTicket;
+            totalTokensPurchased[j] += amount;
         }
 
         require(tracker == 1);
@@ -976,6 +983,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function internalAdjustment(
         address _user,
         uint256 _nonce,
+        uint256 _totalTokenAmount,
         uint256 _payout,
         uint256 _finalNftVal,
         uint256 _comTickets,
@@ -984,33 +992,42 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         Buyer storage trader = traderProfile[_user][_nonce];
         uint256 ethRemoval;
         uint256 payout;
-        uint256 tPrem;
         uint256 premium = _finalNftVal > _payout ? _finalNftVal - _payout : 0;
         while(_comAmounts > 0) {
             uint256 ticket = _comTickets & (2**25 - 1);
             uint256 amountTokens = _comAmounts & (2**25 - 1);
-            tPrem += amountTokens * 0.001 ether / amountNft * premium / _payout / 100;
+            uint256 monetaryTicketSize = 1e18 * ticketLimit / 1000;
+            // tPrem += amountTokens * 0.001 ether * premium / amountNft / _payout / 100;
             _comTickets >>= 25;
             _comAmounts >>= 25;
-            if(ticket * 1e18 + 1e18 <= _finalNftVal) {
+            if(ticket * monetaryTicketSize + monetaryTicketSize <= _finalNftVal) {
                 payout += amountTokens * 0.001 ether / amountNft / 100;
-            } else if(ticket * 1e18 > _finalNftVal) {
+            } else if(ticket * monetaryTicketSize > _finalNftVal) {
                 appLoss += amountTokens * 0.001 ether / amountNft / 100;
-            } else if(ticket * 1e18 + 1e18 > _finalNftVal) {
+            } else if(ticket * monetaryTicketSize + monetaryTicketSize > _finalNftVal) {
                 payout += 
                     (
-                        amountTokens - amountTokens * (ticket * 1e18 + 1e18 - _finalNftVal) / 1e18
-                    ) * 0.001 ether / amountNft / 100;
-                appLoss += amountTokens * (ticket * 1e18 + 1e18 - _finalNftVal)
-                        / amountNft / 1e18 * 0.001 ether / 100;
+                        amountTokens - amountTokens * 
+                            (
+                                ticket * monetaryTicketSize 
+                                    + monetaryTicketSize - _finalNftVal
+                            ) 
+                                / (monetaryTicketSize)
+                    ) / amountNft * 0.001 ether / 100;
+                appLoss += amountTokens * 
+                    (ticket * monetaryTicketSize + monetaryTicketSize - _finalNftVal) 
+                        / monetaryTicketSize
+                            / amountNft * 0.001 ether / 100;
             }
 
             ethRemoval += amountTokens * 0.001 ether / amountNft;
         }
 
-        trader.ethLocked -= ethRemoval / 100;
-        payable(_user).transfer(payout + payout * tPrem / (payout + appLoss));
-        appLoss += appLoss * tPrem / (payout + appLoss);
+        uint256 tPrem = (ethRemoval / 100) * premium / _payout;
+        premium = (_payout * amountNft) * ethRemoval / 100 / (_totalTokenAmount * 0.001 ether);
+        trader.ethLocked -= premium;
+        payable(_user).transfer(premium + premium * tPrem / (payout + appLoss));
+        appLoss += appLoss * tPrem / (premium + appLoss);
     }
 
     function lossCalculator(
