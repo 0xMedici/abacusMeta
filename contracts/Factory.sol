@@ -192,8 +192,10 @@ contract Factory is ReentrancyGuard {
             address collection = nft[i];
             uint256 _id = id[i];
             require(IVault(pool).getHeldTokenExistence(collection, _id));
-            //TODO: create proxy registry
-            require(msg.sender == IERC721(collection).ownerOf(_id));
+            require(
+                msg.sender == IERC721(collection).ownerOf(_id)
+                || msg.sender == controller.registry(IERC721(collection).ownerOf(_id))
+            );
             require(controller.collectionWhitelist(collection));
             require(
                 !controller.nftVaultSigned(collection, _id)

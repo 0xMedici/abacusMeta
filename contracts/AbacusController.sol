@@ -72,6 +72,8 @@ contract AbacusController {
 
     /* ======== MAPPING ======== */
 
+    mapping(address => address) public registry;
+
     /// @notice track if an NFT has already been used to sign a pool
     /// [address] -> NFT collection address
     /// [uint256] -> NFT token ID
@@ -334,5 +336,14 @@ contract AbacusController {
         delete changeLive;
         emit FactoryAdditionRejected(pendingFactory);
         delete pendingFactory;
+    }
+
+    /* ======== PROXY REGISTRY ======== */
+    function setProxy(address _proxy) external {
+        registry[msg.sender] = _proxy;
+    }
+
+    function clearProxy() external {
+        delete registry[msg.sender];
     }
 }

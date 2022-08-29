@@ -54,7 +54,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     IAllocator alloc;
 
     /// @notice Address of deployer
-    address public creator;
+    address creator;
 
     /// @notice Address of the deployed closure contract
     address public closePoolContract;
@@ -92,10 +92,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Status of pool closure
     bool public poolClosed;
 
+    bool public whitelistPool;
+
     /* ======== MAPPINGS ======== */
-
-    mapping(address => address) public togglePermission;
-
     /// @notice The amount of NFTs from a collection that has signed the pool
     /// [uint256] -> Epoch
     /// [address] -> NFT collection
@@ -106,7 +105,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [address] -> NFT collection
     /// [uint256] -> NFT token ID
     /// [uint256] -> Nonce tag for closure number
-    mapping(address => mapping(uint256 => uint256)) public closureNonce;
+    mapping(address => mapping(uint256 => uint256)) closureNonce;
 
     mapping(address => mapping(uint256 => mapping(uint256 => uint256))) adjustmentNonce;
 
@@ -252,10 +251,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /* ======== USER ADJUSTMENTS ======== */
-    function delegateTogglePowers(address _togglePermission) external nonReentrant {
-        togglePermission[msg.sender] = _togglePermission;
-    }
-
     /// @notice Turn the emissions on and off
     /// @dev Only callable by the factory contract
     /// @param _nft Address of NFT collection
@@ -278,32 +273,34 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             require(
                 msg.sender == address(factory)
                 || IERC721(_nft).ownerOf(_id) == msg.sender
-                || togglePermission[IERC721(_nft).ownerOf(_id)] == msg.sender
+                || controller.registry(IERC721(_nft).ownerOf(_id)) == msg.sender
                 || msg.sender == address(this)
             );
             require(controller.nftVaultSignedAddress(_nft, _id) == address(this));
         }
         if(emissionStatus) {
-            (uint256 currentBoostNum, uint256 currentBoostDen) = alloc.calculateBoost(boostCollection);
-            (uint256 newBoostNum, uint256 newBoostDen) = alloc.calculateBoost(_nft);
-            uint256 currentBoost = (currentBoostDen == 0 ? 100 : (100 + 100 * currentBoostNum / currentBoostDen));
-            uint256 newBoost = (newBoostDen == 0 ? 100 : (100 + 100 * newBoostNum / newBoostDen));
-            collectionsSigned[poolEpoch][_nft]++;
-            if(
-                emissionStartedCount[poolEpoch] == 0
-                || newBoost > currentBoost
-            ) {
-                boostCollection = _nft;
+            if(whitelistPool) {
+                (uint256 currentBoostNum, uint256 currentBoostDen) = alloc.calculateBoost(boostCollection);
+                (uint256 newBoostNum, uint256 newBoostDen) = alloc.calculateBoost(_nft);
+                uint256 currentBoost = (currentBoostDen == 0 ? 100 : (100 + 100 * currentBoostNum / currentBoostDen));
+                uint256 newBoost = (newBoostDen == 0 ? 100 : (100 + 100 * newBoostNum / newBoostDen));
+                if(
+                    emissionStartedCount[poolEpoch] == 0
+                    || newBoost > currentBoost
+                ) {
+                    boostCollection = _nft;
+                }
             }
+            collectionsSigned[poolEpoch][_nft]++;
             emissionsStarted[_nft][_id][poolEpoch] = true;
             emissionStartedCount[poolEpoch]++;
         } else if(emissionsStarted[_nft][_id][poolEpoch]) {
-            emissionsStarted[_nft][_id][poolEpoch] = false;
             collectionsSigned[poolEpoch][_nft]--;
-            if(collectionsSigned[poolEpoch][_nft] == 0 && _nft == boostCollection) {
-                boostCollection = address(0);
-            } 
+            emissionsStarted[_nft][_id][poolEpoch] = false;
             emissionStartedCount[poolEpoch]--;
+            if(collectionsSigned[poolEpoch][_nft] == 0 && _nft == boostCollection) {
+                delete boostCollection;
+            } 
         }
 
         factory.emitToggle(_nft, _id, emissionStatus, emissionStartedCount[poolEpoch]);
@@ -320,7 +317,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 id = _compTokenInfo[i] & (2**95-1);
             uint256 temp = _compTokenInfo[i] >> 95;
             address collection = address(uint160(temp & (2**160-1)));
-            require(controller.collectionWhitelist(collection));
+            if(amountNftsLinked == 0 && i == 0) {
+                whitelistPool = controller.collectionWhitelist(collection) ? true : false;  
+            }
+            if(whitelistPool) {
+                require(controller.collectionWhitelist(collection));
+            }
             require(IERC721(collection).ownerOf(id) != address(0));
             tokenMapping[_compTokenInfo[i]] = true;
         }
@@ -498,7 +500,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 (
                     _comListOfTickets > amountNft
                     ? factory.getSqrt(amountNft) : factory.getSqrt(_comListOfTickets)
-                ) : 0;
+                ) : 1;
             finalCreditCount += amount * rewardCap * (_comListOfTickets) * 
                     (reservations[j] > 0 ? (_comAmounts == 0 ? 1 : _comAmounts) : 1) / 1e18;
             bribePayout += trader.ethLocked * generalBribe[j] / totAvailFunds[j];

@@ -176,8 +176,8 @@ contract EpochVault is ReentrancyGuard {
         uint256 creditsToAdd = 
             _amountCredits * (10_000e18 + boost * 1e18)
             * (denominator == 0 ? 100 : (100 + 100 * numerator / denominator)) / 1_000_000e18;
-        epochTracker[currentEpoch].totalCredits += creditsToAdd;
-        epochTracker[currentEpoch].userCredits[_user] += creditsToAdd;
+        epochTracker[currentEpoch].totalCredits += controller.collectionWhitelist(_nft) ? creditsToAdd : (creditsToAdd / 5);
+        epochTracker[currentEpoch].userCredits[_user] += controller.collectionWhitelist(_nft) ? creditsToAdd : (creditsToAdd / 5);
         emit EpochUpdated(_user,  _nft, creditsToAdd);
     }
 
