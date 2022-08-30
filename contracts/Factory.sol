@@ -196,7 +196,6 @@ contract Factory is ReentrancyGuard {
                 msg.sender == IERC721(collection).ownerOf(_id)
                 || msg.sender == controller.registry(IERC721(collection).ownerOf(_id))
             );
-            require(controller.collectionWhitelist(collection));
             require(
                 !controller.nftVaultSigned(collection, _id)
                 || Vault(payable(controller.nftVaultSignedAddress(collection, _id))).poolClosed()
