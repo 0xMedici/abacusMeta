@@ -26,7 +26,7 @@ interface IVault {
 
     /// @notice [setup phase] Start the pools operation
     /// @param slots The amount of collateral slots the pool will offer
-    function begin(uint256 slots) external;
+    function begin(uint256 slots, uint256 _ticketSize) external;
 
     /// @notice Purchase an LP position in a spot pool
     /// @dev Each position that is held by a user is tagged by a nonce which allows each 
