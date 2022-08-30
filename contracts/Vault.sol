@@ -500,9 +500,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 (
                     _comListOfTickets > amountNft
                     ? factory.getSqrt(amountNft) : factory.getSqrt(_comListOfTickets)
-                ) : 1;
-            finalCreditCount += amount * rewardCap * (_comListOfTickets) * 
-                    (reservations[j] > 0 ? (_comAmounts == 0 ? 1 : _comAmounts) : 1) / 1e18;
+                ) : 0;
+            finalCreditCount += amount * rewardCap * (_comListOfTickets)
+                    * (reservations[j] > 0 ? (_comAmounts == 0 ? 1 : _comAmounts) : 1) / 1e18;
             bribePayout += trader.ethLocked * generalBribe[j] / totAvailFunds[j];
         }
 
