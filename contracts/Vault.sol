@@ -92,7 +92,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Status of pool closure
     bool public poolClosed;
 
-    bool public whitelistPool;
+    bool public nonWhitelistPool;
 
     /* ======== MAPPINGS ======== */
     /// @notice The amount of NFTs from a collection that has signed the pool
@@ -279,17 +279,15 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             require(controller.nftVaultSignedAddress(_nft, _id) == address(this));
         }
         if(emissionStatus) {
-            if(whitelistPool) {
-                (uint256 currentBoostNum, uint256 currentBoostDen) = alloc.calculateBoost(boostCollection);
-                (uint256 newBoostNum, uint256 newBoostDen) = alloc.calculateBoost(_nft);
-                uint256 currentBoost = (currentBoostDen == 0 ? 100 : (100 + 100 * currentBoostNum / currentBoostDen));
-                uint256 newBoost = (newBoostDen == 0 ? 100 : (100 + 100 * newBoostNum / newBoostDen));
-                if(
-                    emissionStartedCount[poolEpoch] == 0
-                    || newBoost > currentBoost
-                ) {
-                    boostCollection = _nft;
-                }
+            (uint256 currentBoostNum, uint256 currentBoostDen) = alloc.calculateBoost(boostCollection);
+            (uint256 newBoostNum, uint256 newBoostDen) = alloc.calculateBoost(_nft);
+            uint256 currentBoost = (currentBoostDen == 0 ? 100 : (100 + 100 * currentBoostNum / currentBoostDen));
+            uint256 newBoost = (newBoostDen == 0 ? 100 : (100 + 100 * newBoostNum / newBoostDen));
+            if(
+                emissionStartedCount[poolEpoch] == 0
+                || newBoost > currentBoost
+            ) {
+                boostCollection = _nft;
             }
             collectionsSigned[poolEpoch][_nft]++;
             emissionsStarted[_nft][_id][poolEpoch] = true;
@@ -317,11 +315,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 id = _compTokenInfo[i] & (2**95-1);
             uint256 temp = _compTokenInfo[i] >> 95;
             address collection = address(uint160(temp & (2**160-1)));
-            if(amountNftsLinked == 0 && i == 0) {
-                whitelistPool = controller.collectionWhitelist(collection) ? true : false;  
-            }
-            if(whitelistPool) {
-                require(controller.collectionWhitelist(collection));
+            if(!controller.collectionWhitelist(collection)) {
+                nonWhitelistPool = true;
             }
             require(IERC721(collection).ownerOf(id) != address(0));
             tokenMapping[_compTokenInfo[i]] = true;
@@ -341,7 +336,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         reservationsAvailable = slots;
         factory.updateSlotCount(MAPoolNonce, slots, amountNftsLinked);
         startTime = block.timestamp;
-        factory.emitPoolBegun();
+        factory.emitPoolBegun(_ticketSize);
     }
 
     /* ======== TRADING ======== */

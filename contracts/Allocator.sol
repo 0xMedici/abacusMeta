@@ -210,12 +210,10 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @param _collection The collection to allocate the ABC credit towards
     /// @param _amount The amount of ABC to allocate towards the chosen collection
     function allocateToCollection(address _collection, uint256 _amount) external nonReentrant {
-        require(controller.collectionWhitelist(_collection));
         Holder storage holder = holderHistory[msg.sender];
         if(holder.listOfEpochs.length == 25) {
             this.claimReward(msg.sender);
         }
-        //TODO: change to new pattern everywhere
         uint256 currentEpoch;
         if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch();
@@ -253,8 +251,6 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         address _newCollection,
         uint256 _amount
     ) external nonReentrant {
-        require(controller.collectionWhitelist(_newCollection));
-
         Holder storage holder = holderHistory[msg.sender];
         uint256 currentEpoch;
         if(epochVault.getStartTime() != 0) {
@@ -309,7 +305,6 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @dev If there are no auto allocators, the briber can reclaim the submitted bribe
     /// @param _collection The collection to direct auto allocated ABC towards
     function bribeAuto(address _collection) external payable nonReentrant {
-        require(controller.collectionWhitelist(_collection));
         uint256 currentEpoch;
         if(epochVault.getStartTime() != 0) {
             currentEpoch = epochVault.getCurrentEpoch();

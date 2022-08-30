@@ -49,7 +49,7 @@ interface IFactory {
         uint256[] calldata encodedNfts
     ) external;
 
-    function emitPoolBegun() external;
+    function emitPoolBegun(uint256 ticketSize) external;
 
     function emitToggle(
         address _nft,

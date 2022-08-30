@@ -5,6 +5,7 @@ import { ABCToken } from "./AbcToken.sol";
 import { AbacusController } from "./AbacusController.sol";
 import { IAllocator } from "./interfaces/IAllocator.sol";
 import { ICreditBonds } from "./interfaces/ICreditBond.sol";
+import { Vault } from "./Vault.sol";
 
 import "./helpers/ReentrancyGuard.sol";
 import "hardhat/console.sol";
@@ -146,8 +147,8 @@ contract EpochVault is ReentrancyGuard {
         }
         if(basePercentage < 50) {
             basePercentage = 50;
-        } else if(basePercentage > 10_000) {
-            basePercentage = 10_000;
+        } else if(basePercentage > 500) {
+            basePercentage = 500;
         }
 
         baseAdjusted[currentEpoch] = true;
@@ -176,8 +177,8 @@ contract EpochVault is ReentrancyGuard {
         uint256 creditsToAdd = 
             _amountCredits * (10_000e18 + boost * 1e18)
             * (denominator == 0 ? 100 : (100 + 100 * numerator / denominator)) / 1_000_000e18;
-        epochTracker[currentEpoch].totalCredits += controller.collectionWhitelist(_nft) ? creditsToAdd : (creditsToAdd / 5);
-        epochTracker[currentEpoch].userCredits[_user] += controller.collectionWhitelist(_nft) ? creditsToAdd : (creditsToAdd / 5);
+        epochTracker[currentEpoch].totalCredits += Vault(payable(msg.sender)).nonWhitelistPool() ? (creditsToAdd / 5) : creditsToAdd;
+        epochTracker[currentEpoch].userCredits[_user] += Vault(payable(msg.sender)).nonWhitelistPool() ? (creditsToAdd / 5) : creditsToAdd;
         emit EpochUpdated(_user,  _nft, creditsToAdd);
     }
 
