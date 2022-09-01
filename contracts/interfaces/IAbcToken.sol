@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-interface IAllocator {
+interface IAbcToken {
 
     /// @notice allows the epoch vault to mint ABC for post-epoch emissions
     function mint(address _user, uint _amount) external;

@@ -1650,25 +1650,7 @@ describe("MA Vault", function () {
             1_000
         );
 
-        expect((await eVault.getBase()).toString()).to.equal('56225000000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('122');
-
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            [0, '1', '2'],
-            ['50000', '50000', '50000'],
-            5,
-            6,
-            { value: totalCost.toString() }
-        );
-        await network.provider.send("evm_increaseTime", [86401 * 10]);
-        await maPool.sell(
-            deployer.address,
-            5,
-            1_000
-        );
-        
-        expect((await eVault.getBase()).toString()).to.equal('49196875000000000000000000');
+        expect((await eVault.getBase()).toString()).to.equal('55400000000000000000000000');
+        expect((await eVault.getBasePercentage()).toString()).to.equal('119');
     });
 });

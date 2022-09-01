@@ -375,7 +375,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             finalEpoch * 1 days + startTime - 
                 ((block.timestamp > startEpoch * 1 days + startTime) ? 
                             block.timestamp : (startEpoch * 1 days + startTime));
-    
+
         for(uint256 i = 0; i < tickets.length / 10 + 1; i++) {
             if(tickets.length % 10 == 0 && i == tickets.length / 10) break;
             uint256 tempVal;
@@ -403,6 +403,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             tickets,
             amountPerTicket
         );
+
         controller.updateTotalVolumeTraversed(totalTokensRequested * 0.001 ether);
         executePayments(_caller, _buyer, msg.value, totalTokensRequested);
     }
@@ -458,7 +459,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                     rewardCap = 100e18;
                 }
                 if(maxTicketPerEpoch[j] == 0) maxTicketPerEpoch[j] = 1;
-                uint256 adjustment = payoutPerRes[j] / 5e18;
+                uint256 adjustment = payoutPerRes[j] / (5 * ticketLimit);
                 if(adjustment > 25) {
                     adjustment = 25;
                 }
@@ -1067,6 +1068,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Get the amount of spots in a ticket that have been purchased during an epoch
     function getTicketInfo(uint256 epoch, uint256 ticket) external view returns(uint256) {
         uint256[] memory epochTickets = ticketsPurchased[epoch];
+        if(epochTickets.length <= ticket / 15) {
+            return 0;
+        }
         uint256 temp = epochTickets[ticket / 15];
         temp &= (2**((ticket % 15 + 1)*16) - 1) - (2**(((ticket % 15))*16) - 1);
         return temp >> ((ticket % 15) * 16);

@@ -503,8 +503,9 @@ contract Factory is ReentrancyGuard {
     function decodeCompressedValue(
         uint256 _compTokenInfo
     ) external pure returns(address _nft, uint256 _id) {
-        _nft = address(uint160(_compTokenInfo & (2**160-1)));
-        _id = _compTokenInfo >> 160;
+        _id = _compTokenInfo & (2**95-1);
+        uint256 temp = _compTokenInfo >> 95;
+        _nft = address(uint160(temp & (2**160-1)));
     }
 
     function decodeCompressedTickets(
@@ -517,8 +518,8 @@ contract Factory is ReentrancyGuard {
         uint256 tracker = 1;
         while(tracker > 0) {
             tracker = comTickets;
-            uint256 ticket = comTickets & 0x7fff;
-            comTickets >>= 16;
+            uint256 ticket = comTickets & (2**25 - 1);
+            comTickets >>= 25;
 
             if(tracker != 0) {
                 tickets[i] = ticket;

@@ -346,6 +346,11 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @notice For bribers to reclaim any unused bribes (if auto allocation was 0)
     /// @param _epoch The desired epoch to claim unused bribes from
     function reclaimUnusedBribe(uint256 _epoch) external nonReentrant {
+        uint256 currentEpoch;
+        if(epochVault.getStartTime() != 0) {
+            currentEpoch = epochVault.getCurrentEpoch();
+        } 
+        require(_epoch < currentEpoch);
         require(totalAmountAutoAllocated[_epoch] == 0);
         uint256 payout = bribeOffered[msg.sender][_epoch];
         delete bribeOffered[msg.sender][_epoch];
@@ -357,6 +362,11 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// there were no EDC earned. The caller receives 0.5% of the empty epoch fees
     /// @param _epoch The desired epoch to clear funds from
     function clearToTreasury(uint256 _epoch) external nonReentrant {
+        uint256 currentEpoch;
+        if(epochVault.getStartTime() != 0) {
+            currentEpoch = epochVault.getCurrentEpoch();
+        } 
+        require(_epoch < currentEpoch);
         uint256 payout;
         if(totalAllocationPerEpoch[_epoch] == 0) {
             payout = epochFeesAccumulated[_epoch];
