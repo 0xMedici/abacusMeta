@@ -583,7 +583,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function reclaimGeneralBribe(uint256 epoch, uint256 ticket) external nonReentrant {
         require(startTime != 0);
         require(payoutPerRes[epoch] == 0);
-        require(epoch > (block.timestamp - startTime) / 1 days);
+        require(epoch < (block.timestamp - startTime) / 1 days);
         uint256 payout = generalBribeOffered[msg.sender][epoch] + concentratedBribeOffered[msg.sender][epoch][ticket];
         delete generalBribeOffered[msg.sender][epoch];
         delete concentratedBribeOffered[msg.sender][epoch][ticket];
@@ -599,7 +599,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         for(uint256 i = 0; i < length; i++) {
             address nft = _nft[i];
             uint256 id = _id[i];
-            require(msg.sender == IERC721(nft).ownerOf(id));
+            require(
+                msg.sender == IERC721(nft).ownerOf(id)
+            );
             require(controller.nftVaultSignedAddress(nft, id) == address(this));
             factory.updateNftInUse(nft, id, MAPoolNonce);
             uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
@@ -665,7 +667,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(startTime != 0);
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
         require(!poolClosed);
-        require(msg.sender == IERC721(_nft).ownerOf(id));
+        require(
+            msg.sender == IERC721(_nft).ownerOf(id)
+        );
         require(controller.nftVaultSignedAddress(_nft, id) == address(this));
         require(reservations[poolEpoch] + 1 <= reservationsAvailable);
         require(endEpoch - poolEpoch <= 20);
@@ -836,7 +840,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 appLoss = internalAdjustment(
             _user,
             _nonce,
-            totalTokensPurchased[epochOfClosure[_closureNonce][_nft][_id]],
             payoutPerRes[epochOfClosure[_closureNonce][_nft][_id]],
             auctionSaleValue[_closureNonce][_nft][_id],
             trader.comListOfTickets,
@@ -981,21 +984,18 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function internalAdjustment(
         address _user,
         uint256 _nonce,
-        uint256 _totalTokenAmount,
         uint256 _payout,
         uint256 _finalNftVal,
         uint256 _comTickets,
         uint256 _comAmounts
     ) internal returns(uint256 appLoss) {
         Buyer storage trader = traderProfile[_user][_nonce];
-        uint256 ethRemoval;
         uint256 payout;
         uint256 premium = _finalNftVal > _payout ? _finalNftVal - _payout : 0;
         while(_comAmounts > 0) {
             uint256 ticket = _comTickets & (2**25 - 1);
             uint256 amountTokens = _comAmounts & (2**25 - 1);
             uint256 monetaryTicketSize = 1e18 * ticketLimit / 1000;
-            // tPrem += amountTokens * 0.001 ether * premium / amountNft / _payout / 100;
             _comTickets >>= 25;
             _comAmounts >>= 25;
             if(ticket * monetaryTicketSize + monetaryTicketSize <= _finalNftVal) {
@@ -1014,18 +1014,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                     ) / amountNft * 0.001 ether / 100;
                 appLoss += amountTokens * 
                     (ticket * monetaryTicketSize + monetaryTicketSize - _finalNftVal) 
-                        / monetaryTicketSize
-                            / amountNft * 0.001 ether / 100;
+                        * 0.001 ether / monetaryTicketSize
+                            / amountNft / 100;
             }
-
-            ethRemoval += amountTokens * 0.001 ether / amountNft;
         }
 
-        uint256 tPrem = (ethRemoval / 100) * premium / _payout;
-        premium = (_payout * amountNft) * ethRemoval / 100 / (_totalTokenAmount * 0.001 ether);
-        trader.ethLocked -= premium;
-        payable(_user).transfer(premium + premium * tPrem / (payout + appLoss));
-        appLoss += appLoss * tPrem / (premium + appLoss);
+        trader.ethLocked -= appLoss;
+        payable(_user).transfer(payout * premium / (payout + appLoss));
+        appLoss += appLoss * premium / (payout + appLoss);
     }
 
     function lossCalculator(

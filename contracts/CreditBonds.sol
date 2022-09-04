@@ -74,6 +74,7 @@ contract CreditBonds is ReentrancyGuard {
     /* ======== EVENTS ======== */
 
     event AllowanceIncreased(address _holder, address _allowee, uint256 _allowance);
+    event AllowanceReset(address _holder, address _allowee);
     event BondsCleared(uint256 _epoch, uint256 _amount);
     event EthBonded(address _user, uint256 _epoch, uint256 _amount);
     event BondsUsed(address _user, address _vault, uint256 _amount);
@@ -129,10 +130,9 @@ contract CreditBonds is ReentrancyGuard {
         }  
 
         delete transferAllowance[currentEpoch][msg.sender][allowee];
-        emit AllowanceIncreased(
+        emit AllowanceReset(
             msg.sender, 
-            allowee, 
-            transferAllowance[currentEpoch][msg.sender][allowee]
+            allowee
         );
     }
 

@@ -142,13 +142,13 @@ contract EpochVault is ReentrancyGuard {
                         / 10_000;
         }
 
-        if(base < 30_000_000e18) {
-            base = 30_000_000e18;
+        if(base < 1_000_000e18) {
+            base = 1_000_000e18;
         }
-        if(basePercentage < 50) {
-            basePercentage = 50;
-        } else if(basePercentage > 500) {
-            basePercentage = 500;
+        if(basePercentage < 25) {
+            basePercentage = 25;
+        } else if(basePercentage > 175) {
+            basePercentage = 175;
         }
 
         baseAdjusted[currentEpoch] = true;

@@ -888,6 +888,63 @@ describe("MA Vault", function () {
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
     });
 
+    it("Adjust ticket info - loss", async function () {
+        let nftIds = new Array();
+        let nftAddresses = new Array();
+        for(let i = 0; i < 6; i++) {
+            await mockNft.mintNew();
+            nftIds[i] = i + 1;
+            nftAddresses[i] = mockNft.address;
+        }
+
+        await factory.initiateMultiAssetVault(
+            "HelloWorld"
+        );
+
+        let vaultAddress = await factory.vaultNames("HelloWorld", 0);
+        let maPool = await Vault.attach(vaultAddress);
+
+        await maPool.includeNft(
+            await factory.encodeCompressedValue(nftAddresses, nftIds)
+        );
+
+        await maPool.begin(3, 100);
+        await factory.signMultiAssetVault(
+            0,
+            [mockNft.address, mockNft.address, mockNft.address],
+            [1,2,3]
+        );
+        
+        let costPerToken = 1e15;
+        let totalCost = costPerToken * 100 * 3;
+        await maPool.purchase(
+            deployer.address,
+            deployer.address,
+            [0],
+            ['300'],
+            0,
+            2,
+            { value: totalCost.toString() }
+        );
+
+        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
+        await mockNft.approve(maPool.address, 1);
+        await maPool.closeNft(mockNft.address, 1);
+
+        let closureMulti = await Closure.attach(await maPool.closePoolContract());
+        await closureMulti.newBid(mockNft.address, 1, { value:(1).toString() });
+        await network.provider.send("evm_increaseTime", [43200]);
+        await closureMulti.endAuction(mockNft.address, 1);
+        await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
+        await network.provider.send("evm_increaseTime", [86400 * 5]);
+
+        await maPool.sell(
+            deployer.address,
+            0,
+            1000
+        );
+    });
+
     it("Close single NFT multiple times", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
@@ -1146,7 +1203,6 @@ describe("MA Vault", function () {
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
         await maPool.restore();
-        
         await network.provider.send("evm_increaseTime", [43200 * 3 + 1]);
         await maPool.sell(
             deployer.address,
@@ -1180,7 +1236,6 @@ describe("MA Vault", function () {
         await closureMulti.endAuction(mockNft.address, 3);
         await maPool.adjustTicketInfo(deployer.address, 1, mockNft.address, 3, 0);
         await maPool.restore();
-
         await network.provider.send("evm_increaseTime", [43200 * 50]);
         await maPool.sell(
             deployer.address,
@@ -1649,6 +1704,9 @@ describe("MA Vault", function () {
             4,
             1_000
         );
+
+        await maPool.reclaimGeneralBribe(2, 0);
+        await maPool.reclaimGeneralBribe(3, 0);
 
         expect((await eVault.getBase()).toString()).to.equal('55400000000000000000000000');
         expect((await eVault.getBasePercentage()).toString()).to.equal('119');
