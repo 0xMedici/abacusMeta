@@ -324,11 +324,20 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @dev If fees go unclaimed for 25 epochs of allocation, this will be automagically called
     /// @param _user The user that is claiming rewards
     function claimReward(address _user) external nonReentrant2 {
+        uint256 currentEpoch;
+        if(epochVault.getStartTime() != 0) {
+            currentEpoch = epochVault.getCurrentEpoch();
+        } 
+        require(
+            msg.sender == _user
+            || msg.sender == address(this)
+        );
         Holder storage holder = holderHistory[_user];
         uint256 totalPayout;
         uint256 length = holder.listOfEpochs.length;
         for(uint256 j = 0; j < length; j++) {
             uint256 epochNum = holder.listOfEpochs[j];
+            require(currentEpoch > epochNum);
             if(holder.amountAutoAllocated[epochNum] == 0) {
                 totalPayout += 0;
             } else {
