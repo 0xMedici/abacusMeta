@@ -85,7 +85,7 @@ contract EpochVault is ReentrancyGuard {
     constructor(address _controller, uint256 _epochLength) {
         epochLength = _epochLength;
         controller = AbacusController(_controller);
-        base = 50_000_000e18;
+        base = 100_000_000e18;
         basePercentage = 100;
         baseAdjusted[0] = true;
     }
@@ -145,8 +145,8 @@ contract EpochVault is ReentrancyGuard {
         if(base < 1_000_000e18) {
             base = 1_000_000e18;
         }
-        if(basePercentage < 25) {
-            basePercentage = 25;
+        if(basePercentage < 75) {
+            basePercentage = 75;
         } else if(basePercentage > 175) {
             basePercentage = 175;
         }
@@ -177,6 +177,7 @@ contract EpochVault is ReentrancyGuard {
         uint256 creditsToAdd = 
             _amountCredits * (10_000e18 + boost * 1e18)
             * (denominator == 0 ? 100 : (100 + 100 * numerator / denominator)) / 1_000_000e18;
+        
         epochTracker[currentEpoch].totalCredits += Vault(payable(msg.sender)).nonWhitelistPool() ? (creditsToAdd / 5) : creditsToAdd;
         epochTracker[currentEpoch].userCredits[_user] += Vault(payable(msg.sender)).nonWhitelistPool() ? (creditsToAdd / 5) : creditsToAdd;
         emit EpochUpdated(_user,  _nft, creditsToAdd);

@@ -210,6 +210,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @param _collection The collection to allocate the ABC credit towards
     /// @param _amount The amount of ABC to allocate towards the chosen collection
     function allocateToCollection(address _collection, uint256 _amount) external nonReentrant {
+        require(_amount != 0);
         Holder storage holder = holderHistory[msg.sender];
         if(holder.listOfEpochs.length == 25) {
             this.claimReward(msg.sender);
@@ -272,6 +273,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// once added. 
     /// @param _amount The amount of ABC to be auto allocated
     function addAutoAllocation(uint256 _amount) external nonReentrant {
+        require(_amount != 0);
         Holder storage holder = holderHistory[msg.sender];
         uint256 currentEpoch;
         if(epochVault.getStartTime() != 0) {
@@ -321,7 +323,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     /// @notice Claim accrued fees (from bribes and protocol generated fees)
     /// @dev If fees go unclaimed for 25 epochs of allocation, this will be automagically called
     /// @param _user The user that is claiming rewards
-    function claimReward(address _user) external nonReentrant {
+    function claimReward(address _user) external nonReentrant2 {
         Holder storage holder = holderHistory[_user];
         uint256 totalPayout;
         uint256 length = holder.listOfEpochs.length;
@@ -467,7 +469,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     function getRewards(address _user) external view returns(uint256 rewards) {
         Holder storage holder = holderHistory[_user];
         uint256 length = holder.listOfEpochs.length;
-        for(uint256 j = length - 1; j >= 0; j--) {
+        for(uint256 j = 0; j < length; j++) {
             uint256 epochNum = holder.listOfEpochs[j];
             if(totalAmountAutoAllocated[epochNum] == 0) {
                 rewards += 0;

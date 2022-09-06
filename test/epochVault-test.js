@@ -124,34 +124,39 @@ describe("Epoch Vault", function () {
         )
     );
 
-    await maPool.begin(3);
+    await maPool.begin(3, 1000);
     await factory.signMultiAssetVault(
         0,
         [mockNft.address, mockNft.address, mockNft.address],
         [1,2,3]
     );
-
-    let costPerToken = 1e15;
-    let totalCost = costPerToken * 3000 * 3;
-    await maPool.purchase(
-        deployer.address,
-        deployer.address,
-        [0, '1', '2'],
-        ['3000', '3000', '3000'],
-        0,
-        2,
-        { value: totalCost.toString() }
-    );
-    await network.provider.send("evm_increaseTime", [86400 * 2]);
-    await maPool.sell(
-      deployer.address,
-      0,
-      1000
-    );
+    
+    for(let i = 0; i < 30; i++) {
+      let costPerToken = 1e15;
+      let totalCost = costPerToken * 3000 * 3;
+      await maPool.connect(user1).purchase(
+          user1.address,
+          user1.address,
+          [0, '1', '2'],
+          ['3000', '3000', '3000'],
+          i,
+          i+1,
+          { value: totalCost.toString() }
+      );
+      await network.provider.send("evm_increaseTime", [86400]);
+      await maPool.connect(user1).sell(
+        user1.address,
+        i,
+        1000
+      );
+      await maPool.toggleEmissions(mockNft.address, 1, true);
+    }
 
     await network.provider.send("evm_increaseTime", [86400]);
-    await eVault.claimAbcReward(deployer.address, 0);
-    await eVault.claimAbcReward(deployer.address, 1);
-    await eVault.claimAbcReward(deployer.address, 2);
+    for(let i = 0; i < 30; i++) {
+      await eVault.connect(user1).claimAbcReward(user1.address, i);
+    }
+
+    console.log((await abcToken.balanceOf(user1.address)).toString());
   });
 });

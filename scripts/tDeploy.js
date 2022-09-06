@@ -34,9 +34,12 @@ async function main() {
     const setAdmin = await controller.setAdmin(deployer.address);
     await setAdmin.wait();
     console.log("1");
-    const setBeta = await controller.setBeta(3);
-    await setBeta.wait();
+    const addUserWl = await controller.proposeWLUser([deployer.address]);
+    await addUserWl.wait();
     console.log("2");
+    // const setBeta = await controller.setBeta(3);
+    // await setBeta.wait();
+    // console.log("2");
     const setCreditBonds = await controller.setCreditBonds(bonds.address);
     await setCreditBonds.wait();
     console.log("3");

@@ -94,6 +94,18 @@ describe("Allocator", function () {
       await alloc.allocateToCollection(mockNft.address, '100000000000000000000');
     });
 
+    it("Allocate to collection - edge", async function () {
+      await abcToken.transfer(user1.address, '20000000000000000000000');
+      await abcToken.transfer(user2.address, '20000000000000000000000');
+      await alloc.depositAbc('100000000000000000000');
+      expect(await alloc.getTokensLocked(deployer.address)).to.equal('100000000000000000000');
+      for(let i = 0; i < 30; i++) {
+        await alloc.allocateToCollection(mockNft.address, '100000000000000000000');
+        await network.provider.send("evm_increaseTime", [86400]);
+        console.log("Current epoch:", (await eVault.getCurrentEpoch()).toString());
+      }
+    });
+
     it("Change collection allocation", async function () {
       await abcToken.transfer(user1.address, '20000000000000000000000');
       await abcToken.transfer(user2.address, '20000000000000000000000');
@@ -134,7 +146,7 @@ describe("Allocator", function () {
         )
       );
 
-      await maPool.begin(1);
+      await maPool.begin(1, 1000);
 
       await network.provider.send("evm_increaseTime", [86400]);
       await alloc.allocateToCollection(mockNft.address, '100000000000000000000');
@@ -172,7 +184,8 @@ describe("Allocator", function () {
         { value: totalCost.toString() }
       );
       console.log("Payout:", (await alloc.getRewards(deployer.address)).toString());
-      await alloc.claimReward(deployer.address);
+      await network.provider.send("evm_increaseTime", [86400 * 10]);
+      await alloc.withdrawAbc();
     });
 
     it("Calculate proper boost - bribe based", async function () {

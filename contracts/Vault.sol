@@ -328,9 +328,13 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     /// @notice [setup phase] Start the pools operation
     /// @param slots The amount of collateral slots the pool will offer
-    function begin(uint256 slots, uint256 _ticketSize) external {
+    function begin(uint256 slots, uint256 _ticketSize) external payable {
         require(startTime == 0);
         require(msg.sender == creator);
+        // if(controller.beta() > 1 && (slots * _ticketSize / 1000 * 5e15) > tx.gasprice) {
+        //     require(msg.value == slots * _ticketSize / 1000 * 5e15);
+        //     alloc.receiveFees{value:msg.value}();
+        // }
         amountNft = slots;
         ticketLimit = _ticketSize;
         reservationsAvailable = slots;
@@ -459,7 +463,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                     rewardCap = 100e18;
                 }
                 if(maxTicketPerEpoch[j] == 0) maxTicketPerEpoch[j] = 1;
-                uint256 adjustment = payoutPerRes[j] / (5 * ticketLimit);
+                uint256 adjustment = payoutPerRes[j] / (5 * ticketLimit * 0.001 ether);
                 if(adjustment > 25) {
                     adjustment = 25;
                 }
@@ -469,15 +473,15 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                         * ((adjustment == 0 ? 1e18 : 0) + adjustment * 1e18 * 4) 
                             / ((maxTicketPerEpoch[j] * 1e18) ** 2) / 2) < 100e18 ?
                                 (
-                                    1 + (1000 * amountNft * 1e18 - amountTokens) * 1 
+                                    10000 + (1000 * amountNft * 1e18 - amountTokens) * 10000
                                         / (1000 * amountNft * 1e18)
-                                ) : 1;
+                                ) : 10000;
                 amount += 
                     ((100e18 - adjustment * 1e18) + ((1e18 * ticket) ** 2) 
                         * ((adjustment == 0 ? 1e18 : 0) + adjustment * 1e18 * 4) 
                             / ((maxTicketPerEpoch[j] * 1e18) ** 2) / 2) 
                                 * (amountTokens * 0.001 ether) / 100e18
-                                    * poolEpoch;
+                                    * poolEpoch / 10000;
                 bribePayout += 
                     amountTokens * concentratedBribe[j][ticket] 
                     / this.getTicketInfo(j, ticket);
@@ -497,6 +501,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                     _comListOfTickets > amountNft
                     ? factory.getSqrt(amountNft) : factory.getSqrt(_comListOfTickets)
                 ) : 0;
+
             finalCreditCount += amount * rewardCap * (_comListOfTickets)
                     * (reservations[j] > 0 ? (_comAmounts == 0 ? 1 : _comAmounts) : 1) / 1e18;
             bribePayout += trader.ethLocked * generalBribe[j] / totAvailFunds[j];
@@ -674,7 +679,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(reservations[poolEpoch] + 1 <= reservationsAvailable);
         require(endEpoch - poolEpoch <= 20);
         require(
-            msg.value == (50_000 + reservations[poolEpoch]**2 * 100_000 / amountNft**2) 
+            msg.value == (100_000 + reservations[poolEpoch]**2 * 100_000 / amountNft**2) 
                 * (endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 250_000_000
         );
         alloc.receiveFees{value:msg.value}();
@@ -840,6 +845,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 appLoss = internalAdjustment(
             _user,
             _nonce,
+            totalTokensPurchased[epochOfClosure[_closureNonce][_nft][_id]],
             payoutPerRes[epochOfClosure[_closureNonce][_nft][_id]],
             auctionSaleValue[_closureNonce][_nft][_id],
             trader.comListOfTickets,
@@ -879,7 +885,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         adjustmentsMade[_buyer][_nonce] = adjustmentsRequired;
         trader.startEpoch = uint32(startEpoch);
         trader.unlockEpoch = uint32(finalEpoch);
-        trader.multiplier = uint32(_lockTime / 1 days);
+        trader.multiplier = uint32(_lockTime / 12 hours);
         (trader.comListOfTickets, trader.comAmountPerTicket, largestTicket, base) = BitShift.bitShift(
             tickets,
             amountPerTicket
@@ -984,6 +990,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function internalAdjustment(
         address _user,
         uint256 _nonce,
+        uint256 _totalTokens,
         uint256 _payout,
         uint256 _finalNftVal,
         uint256 _comTickets,
@@ -992,6 +999,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         Buyer storage trader = traderProfile[_user][_nonce];
         uint256 payout;
         uint256 premium = _finalNftVal > _payout ? _finalNftVal - _payout : 0;
+        uint256 userTokens;
         while(_comAmounts > 0) {
             uint256 ticket = _comTickets & (2**25 - 1);
             uint256 amountTokens = _comAmounts & (2**25 - 1);
@@ -1017,10 +1025,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                         * 0.001 ether / monetaryTicketSize
                             / amountNft / 100;
             }
+
+            userTokens += amountTokens / 100;
         }
 
         trader.ethLocked -= appLoss;
-        payable(_user).transfer(payout * premium / (payout + appLoss));
+        payable(_user).transfer(payout * (userTokens * premium / _totalTokens) / (payout + appLoss));
         appLoss += appLoss * premium / (payout + appLoss);
     }
 
@@ -1077,8 +1087,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param _endEpoch The epoch after the final reservation epoch
     function getCostToReserve(uint256 _endEpoch) external view returns(uint256) {
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
-        return (50_000 + reservations[poolEpoch]**2 * 100_000 / amountNft**2) 
-                    * (_endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 250_000_000;
+        return (100_000 + reservations[poolEpoch]**2 * 100_000 / amountNft**2) 
+                * (_endEpoch - poolEpoch) * payoutPerRes[poolEpoch] / 250_000_000;
     }
 
     /* ======== FALLBACK FUNCTIONS ======== */
