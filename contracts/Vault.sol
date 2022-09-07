@@ -1062,6 +1062,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         return MAPoolNonce;
     }
 
+    function getPosition(
+        address _user, 
+        uint256 _nonce
+    ) external view returns(uint256 tickets, uint256 amounts) {
+        tickets = traderProfile[_user][_nonce].comListOfTickets;
+        amounts = traderProfile[_user][_nonce].comAmountPerTicket;
+    }
+
     /// @notice Get the list of NFT address and corresponding token IDs in by this pool
     function getHeldTokenExistence(address _nft, uint256 _id) external view returns(bool) {
         uint256 temp; 
