@@ -426,7 +426,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         address _user,
         uint256 _nonce,
         uint256 _payoutRatio
-    ) external nonReentrant {
+    ) external nonReentrant returns(uint256 creditsEarned) {
         require(startTime != 0);
         require(msg.sender == _user);
         Buyer storage trader = traderProfile[_user][_nonce];
@@ -513,7 +513,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             trader.comListOfTickets,
             _payoutRatio * finalCreditCount / 1_000
         );
-        unlock(
+        creditsEarned = unlock(
             _user, 
             _nonce, 
             bribePayout, 
@@ -969,7 +969,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _bribeReward,
         uint256 _finalCreditCount,
         uint256 _payoutRatio
-    ) internal {
+    ) internal returns(uint256 creditsPurchased) {
         if(
             !epochVault.getBaseAdjustmentStatus()
             && epochVault.getCurrentEpoch() != 0
@@ -984,6 +984,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         alloc.receiveFees{value: (cost)}();
         payable(_user).transfer(trader.ethLocked + _bribeReward - cost);
         epochVault.updateEpoch(boostCollection, _user, amountCreditsDesired * trader.multiplier);
+        creditsPurchased = amountCreditsDesired * trader.multiplier;
         delete traderProfile[_user][_nonce];
     }
 
@@ -1065,9 +1066,19 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function getPosition(
         address _user, 
         uint256 _nonce
-    ) external view returns(uint256 tickets, uint256 amounts) {
-        tickets = traderProfile[_user][_nonce].comListOfTickets;
-        amounts = traderProfile[_user][_nonce].comAmountPerTicket;
+    ) external view returns(
+        uint32 startEpoch,
+        uint32 endEpoch,
+        uint256 tickets, 
+        uint256 amounts,
+        uint256 ethLocked
+    ) {
+        Buyer memory trader = traderProfile[_user][_nonce];
+        startEpoch = trader.startEpoch;
+        endEpoch = trader.unlockEpoch;
+        tickets = trader.comListOfTickets;
+        amounts = trader.comAmountPerTicket;
+        ethLocked = trader.ethLocked;
     }
 
     /// @notice Get the list of NFT address and corresponding token IDs in by this pool
