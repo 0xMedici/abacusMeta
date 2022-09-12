@@ -37,12 +37,6 @@ contract EpochVault is ReentrancyGuard {
     AbacusController public immutable controller;
 
     /* ======== UINT ======== */
-    /// @notice Target epoch distribution credit count to be reached in an epoch
-    uint256 public base;
-
-    /// @notice Percentage of liquidity used to farm epoch distribution credits required to
-    /// purchase those credits
-    uint256 public basePercentage;
 
     /// @notice Protocol start time
     uint256 public startTime;
@@ -51,11 +45,6 @@ contract EpochVault is ReentrancyGuard {
     uint256 public immutable epochLength;
 
     /* ======== MAPPING ======== */
-    /// @notice Track if the base has been adjusted during an epoch
-    /// [uint256] -> epoch
-    /// [bool] -> adjustment status
-    mapping(uint256 => bool) public baseAdjusted;
-
     /// @notice Track epoch details
     /// [uint256] -> epoch
     /// [Epoch] -> struct of epoch details
@@ -75,7 +64,6 @@ contract EpochVault is ReentrancyGuard {
     /* ======== EVENTS ======== */
 
     event PaymentMade(uint256 _epoch, uint256 _amount);
-    event BaseAdjusted(uint256 _epoch, uint256 _base, uint256 _basePercentage);
     event EpochUpdated(address _user, address nft, uint256 _amountCredits);
     event AbcRewardClaimed(address _user, uint256 _epoch, uint256 _amount);
     event AbcReceived(uint256 _amountReceived, uint256 _totalEmissionSize);
@@ -85,9 +73,6 @@ contract EpochVault is ReentrancyGuard {
     constructor(address _controller, uint256 _epochLength) {
         epochLength = _epochLength;
         controller = AbacusController(_controller);
-        base = 100_000_000e18;
-        basePercentage = 100;
-        baseAdjusted[0] = true;
     }
 
     /* ======== MANUAL EPOCH INTERACTION ======== */
@@ -102,59 +87,6 @@ contract EpochVault is ReentrancyGuard {
     }
 
     /* ======== AUTOMATED EPOCH INTERACTION (ACCREDITED ONLY) ======== */
-    /// @notice Adjust the base tracker and base percentage
-    /// @dev This function adjusts the base and base percentage based on the following criterea:
-    /// 1) If total EDC purchased >= base 
-        /// => base * (1 + 0.125) | base percentage * (1 + 0.25)
-    /// 2) If total EDC purchased >= 0.5 * base
-        /// => base * (1 + 0.125 * (base - EDC) / base) | 
-            /// base percentage * (1 + 0.25 * (base - EDC) / base)
-    /// 3) If total EDC purchased < 0.5 * base
-        /// => base * (1 - 0.125 * (1 - (base - EDC) / base)) |
-            /// => base percentage * (1 - 0.25 * (1 - (base - EDC) / base))
-    /// HOWEVER base can never go below 1000e18 (1000 EDC) and base percentage 50 (0.5%)
-    function adjustBase() external {
-        require(controller.accreditedAddresses(msg.sender));
-        uint256 currentEpoch = (block.timestamp - startTime) / epochLength;
-        Epoch storage tracker = epochTracker[currentEpoch - 1];
-        if(epochTracker[currentEpoch - 1].totalCredits > base) {
-            base = 
-                base * (10_000 + 1_250) / 10_000;
-            basePercentage = 
-                basePercentage * (10_000 + 2_500) / 10_000;
-        } else if(tracker.totalCredits > 50 * base / 100) {
-            base = 
-                base 
-                    * (10_000 + 1_250 * tracker.totalCredits / base) 
-                        / 10_000;
-            basePercentage = 
-                basePercentage 
-                    * (10_000 + 2_500 * tracker.totalCredits / base) 
-                        / 10_000;
-        } else if(tracker.totalCredits < 50 * base / 100) {
-            base = 
-                base 
-                    * (10_000 - 1_250 * (1_000 - tracker.totalCredits * 1_000 / base) / 1_000)
-                        / 10_000;
-            basePercentage = 
-                basePercentage 
-                    * (10_000 - 2_500 * (1_000 - tracker.totalCredits * 1_000 / base) / 1_000)
-                        / 10_000;
-        }
-
-        if(base < 1_000_000e18) {
-            base = 1_000_000e18;
-        }
-        if(basePercentage < 75) {
-            basePercentage = 75;
-        } else if(basePercentage > 175) {
-            basePercentage = 175;
-        }
-
-        baseAdjusted[currentEpoch] = true;
-        emit BaseAdjusted(currentEpoch, base, basePercentage);
-    }
-
     /// @notice Update the EDC counts of the current epoch
     /// @dev The received nft address will be checked for level of boost to apply before
     /// logging the EDC
@@ -165,7 +97,7 @@ contract EpochVault is ReentrancyGuard {
         address _nft,
         address _user,
         uint256 _amountCredits
-    ) external nonReentrant {
+    ) external nonReentrant returns(uint256) {
         require(controller.accreditedAddresses(msg.sender));
         (uint256 numerator, uint256 denominator) = 
             IAllocator(controller.allocator()).calculateBoost(_nft);
@@ -181,6 +113,8 @@ contract EpochVault is ReentrancyGuard {
         epochTracker[currentEpoch].totalCredits += Vault(payable(msg.sender)).nonWhitelistPool() ? (creditsToAdd / 5) : creditsToAdd;
         epochTracker[currentEpoch].userCredits[_user] += Vault(payable(msg.sender)).nonWhitelistPool() ? (creditsToAdd / 5) : creditsToAdd;
         emit EpochUpdated(_user,  _nft, creditsToAdd);
+
+        return Vault(payable(msg.sender)).nonWhitelistPool() ? (creditsToAdd / 5) : creditsToAdd;
     }
 
     /* ======== ABC REWARDS ======== */
@@ -218,26 +152,9 @@ contract EpochVault is ReentrancyGuard {
         return (_time - startTime) / epochLength;
     }
 
-    /// @notice Get base adjustment status for the current epoch
-    function getBaseAdjustmentStatus() external view returns(bool) {
-        uint256 currentEpoch = (block.timestamp - startTime) / epochLength;
-        return(baseAdjusted[currentEpoch]);
-    }
-
-    /// @notice Get the base value
-    function getBase() external view returns(uint256) {
-        return base;
-    }
-
-    /// @notice Get the base percentage
-    function getBasePercentage() external view returns(uint256) {
-        return basePercentage;
-    }
-
     /// @notice Get the total distribution credits in the current epoch 
-    function getTotalDistributionCredits() external view returns(uint256) {
-        uint256 currentEpoch = (block.timestamp - startTime) / epochLength;
-        return epochTracker[currentEpoch].totalCredits;
+    function getTotalDistributionCredits(uint256 _epoch) external view returns(uint256) {
+        return epochTracker[_epoch].totalCredits;
     }
 
     /// @notice Get a collections boost

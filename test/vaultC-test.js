@@ -482,112 +482,6 @@ describe("MA Vault", function () {
         );
     });
 
-    it("General bribe", async function () {
-        let nftIds = new Array();
-        let nftAddresses = new Array();
-        for(let i = 0; i < 6; i++) {
-            await mockNft.mintNew();
-            nftIds[i] = i + 1;
-            nftAddresses[i] = mockNft.address;
-        }
-
-        await factory.initiateMultiAssetVault(
-            "HelloWorld"
-        );
-
-        let vaultAddress = await factory.vaultNames("HelloWorld", 0);
-        let maPool = await Vault.attach(vaultAddress);
-
-        await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
-        );
-
-        await maPool.begin(3, 100);
-        await factory.signMultiAssetVault(
-            0,
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
-        
-        let costPerToken = 1e15;
-        let totalCost = costPerToken * 300 * 3;
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            [0, '1', '2'],
-            ['300', '300', '300'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-
-        await maPool.offerGeneralBribe(
-            (1e18).toString(), 
-            1, 
-            4, 
-            { value: (3e18).toString() }
-        );
-
-        expect(await maPool.generalBribe(1)).to.equal(1e18.toString());
-        expect(await maPool.generalBribe(2)).to.equal(1e18.toString());
-        expect(await maPool.generalBribe(3)).to.equal(1e18.toString());
-    });
-
-    it("Concentrated bribe", async function () {
-        let nftIds = new Array();
-        let nftAddresses = new Array();
-        for(let i = 0; i < 6; i++) {
-            await mockNft.mintNew();
-            nftIds[i] = i + 1;
-            nftAddresses[i] = mockNft.address;
-        }
-
-        await factory.initiateMultiAssetVault(
-            "HelloWorld"
-        );
-
-        let vaultAddress = await factory.vaultNames("HelloWorld", 0);
-        let maPool = await Vault.attach(vaultAddress);
-
-        await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
-        );
-
-        await maPool.begin(3, 100);
-        await factory.signMultiAssetVault(
-            0,
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
-        
-        let costPerToken = 1e15;
-        let totalCost = costPerToken * 300 * 3;
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            [0, '1', '2'],
-            ['300', '300', '300'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-
-        await maPool.offerConcentratedBribe(
-            1, 
-            4, 
-            ['1000000000000000000', '2000000000000000000'], 
-            [(1e18).toString(), (1e18).toString()],
-            { value:(6e18).toString() }
-        );
-
-        expect(await maPool.concentratedBribe(1, '1000000000000000000')).to.equal(1e18.toString());
-        expect(await maPool.concentratedBribe(2, '1000000000000000000')).to.equal(1e18.toString());
-        expect(await maPool.concentratedBribe(3, '1000000000000000000')).to.equal(1e18.toString());
-        expect(await maPool.concentratedBribe(1, '2000000000000000000')).to.equal(1e18.toString());
-        expect(await maPool.concentratedBribe(2, '2000000000000000000')).to.equal(1e18.toString());
-        expect(await maPool.concentratedBribe(3, '2000000000000000000')).to.equal(1e18.toString());
-    });
-
     it("Reserve for closure", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
@@ -1488,6 +1382,7 @@ describe("MA Vault", function () {
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
         expect((await maPool.payoutPerRes(1)).toString()).to.equal('300000000000000000');
+        await network.provider.send("evm_increaseTime", [43200]);
         await maPool.restore();
         expect((await maPool.payoutPerRes(1)).toString()).to.equal('200000000000000000');
 
@@ -1548,6 +1443,7 @@ describe("MA Vault", function () {
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
+        await network.provider.send("evm_increaseTime", [43200]);
         await maPool.restore();
         await network.provider.send("evm_increaseTime", [43200 * 3 + 1]);
         await maPool.sell(
@@ -1572,6 +1468,7 @@ describe("MA Vault", function () {
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 2);
         await maPool.adjustTicketInfo(deployer.address, 1, mockNft.address, 2, 0);
+        await network.provider.send("evm_increaseTime", [43200]);
         await maPool.restore();
 
         await maPool.reserve(mockNft.address, 3, 6, { value:(await maPool.getCostToReserve(6)).toString() });
@@ -1581,6 +1478,7 @@ describe("MA Vault", function () {
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 3);
         await maPool.adjustTicketInfo(deployer.address, 1, mockNft.address, 3, 0);
+        await network.provider.send("evm_increaseTime", [43200]);
         await maPool.restore();
         await network.provider.send("evm_increaseTime", [43200 * 50]);
         await maPool.sell(
@@ -1651,6 +1549,7 @@ describe("MA Vault", function () {
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
+        await network.provider.send("evm_increaseTime", [43200]);
         await maPool.restore();
     });
 
@@ -1702,359 +1601,10 @@ describe("MA Vault", function () {
         await network.provider.send("evm_increaseTime", [43200]);
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
+        await network.provider.send("evm_increaseTime", [43200]);
         await maPool.restore();
 
         await factory.claimPendingReturns();
         expect(await factory.pendingReturns(deployer.address)).to.equal(0);
-    });
-
-    it("Base movement - absolute", async function () {
-        let nftIds = new Array();
-        let nftAddresses = new Array();
-        let signatureIds = new Array();
-        let signatureAddresses = new Array();
-        for(let i = 0; i < 1000; i++) {
-            await mockNft.mintNew();
-            nftIds[i] = i + 1;
-            nftAddresses[i] = mockNft.address;
-            signatureIds[i] = i + 1;
-            signatureAddresses[i] = mockNft.address;
-        }
-        await factory.initiateMultiAssetVault(
-            "HelloWorld"
-        );
-        let vaultAddress = await factory.vaultNames("HelloWorld", 0);
-        let maPool = await Vault.attach(vaultAddress);
-        await maPool.includeNft(
-            await factory.encodeCompressedValue(
-                nftAddresses.slice(0, 100), 
-                nftIds.slice(0, 100)
-            )
-        );
-        await factory.signMultiAssetVault(
-            0,
-            signatureAddresses.slice(0, 100), 
-            signatureIds.slice(0, 100)
-        );
-
-        await factory.initiateMultiAssetVault(
-            "HelloWorld1"
-        );
-        vaultAddress = await factory.vaultNames("HelloWorld1", 0);
-        let maPool1 = await Vault.attach(vaultAddress);
-        await maPool1.includeNft(
-            await factory.encodeCompressedValue(
-                nftAddresses.slice(100, 200), 
-                nftIds.slice(100, 200)
-            )
-        );
-        await factory.signMultiAssetVault(
-            1,
-            signatureAddresses.slice(100, 200), 
-            signatureIds.slice(100, 200)
-        );
-        
-        await maPool.begin(51, 1000);
-        await maPool1.begin(51, 1000);
-
-        await maPool.offerGeneralBribe(
-            (1e18).toString(), 
-            1, 
-            4, 
-            { value: (3e18).toString() }
-        );
-        await maPool1.offerGeneralBribe(
-            (1e18).toString(), 
-            1, 
-            4, 
-            { value: (3e18).toString() }
-        );
-        
-        let costPerToken = 1e15;
-        let totalCost = costPerToken * 50000 * 6;
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            [0, '1', '2', '3', '4', '5'],
-            ['50000', '50000', '50000', '50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() } 
-        );
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            ['6', '7', '8', '9', '10', '11'],
-            ['50000', '50000', '50000', '50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            ['12', '13', '14', '15', '16', '17'],
-            ['50000', '50000', '50000', '50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-
-        await maPool1.purchase(
-            deployer.address,
-            deployer.address,
-            [0, '1', '2', '3', '4', '5'],
-            ['50000', '50000', '50000', '50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-        await maPool1.purchase(
-            deployer.address,
-            deployer.address,
-            ['6', '7', '8', '9', '10', '11'],
-            ['50000', '50000', '50000', '50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-        await maPool1.purchase(
-            deployer.address,
-            deployer.address,
-            ['12', '13', '14', '15', '16', '17'],
-            ['50000', '50000', '50000', '50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 2, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 3, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool1.reserve(mockNft.address, 101, 2, { value:(await maPool1.getCostToReserve(2)).toString() });
-        await maPool1.reserve(mockNft.address, 102, 2, { value:(await maPool1.getCostToReserve(2)).toString() });
-        await maPool1.reserve(mockNft.address, 103, 2, { value:(await maPool1.getCostToReserve(2)).toString() });
-
-        await network.provider.send("evm_increaseTime", [86400]);
-        for(let i = 1; i < 101; i++) {
-            await maPool.toggleEmissions(mockNft.address, i, true);
-            await maPool1.toggleEmissions(mockNft.address, i + 100, true);
-        }
-
-        await network.provider.send("evm_increaseTime", [86400]);
-        for(let i = 1; i < 101; i++) {
-            await maPool.toggleEmissions(mockNft.address, i, true);
-            await maPool1.toggleEmissions(mockNft.address, i + 100, true);
-        }
-
-        await maPool.sell(
-            deployer.address,
-            0,
-            1_000
-        );
-        await maPool.sell(
-            deployer.address,
-            1,
-            1_000
-        );
-        await maPool.sell(
-            deployer.address,
-            2,
-            1_000
-        );
-
-        await maPool1.sell(
-            deployer.address,
-            0,
-            1_000
-        );
-        await maPool1.sell(
-            deployer.address,
-            1,
-            1_000
-        );
-        await maPool1.sell(
-            deployer.address,
-            2,
-            1_000
-        );
-
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            [0, '1', '2', '3', '4', '5'],
-            ['50000', '50000', '50000', '50000', '50000', '50000'],
-            3,
-            4,
-            { value: totalCost.toString() }
-        );
-
-        await network.provider.send("evm_increaseTime", [86401 * 2]);
-        await maPool.sell(
-            deployer.address,
-            3,
-            1_000
-        );
-
-        expect((await eVault.getBase()).toString()).to.equal('112500000000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('125');
-    });
-
-    it("Base movement - partial", async function () {
-        let nftIds = new Array();
-        let nftAddresses = new Array();
-        let signatureIds = new Array();
-        let signatureAddresses = new Array();
-        for(let i = 0; i < 1000; i++) {
-            await mockNft.mintNew();
-            nftIds[i] = i + 1;
-            nftAddresses[i] = mockNft.address;
-            signatureIds[i] = i + 1;
-            signatureAddresses[i] = mockNft.address;
-        }
-
-        await factory.initiateMultiAssetVault(
-            "HelloWorld"
-        );
-        let vaultAddress = await factory.vaultNames("HelloWorld", 0);
-        let maPool = await Vault.attach(vaultAddress);
-        await maPool.includeNft(
-            await factory.encodeCompressedValue(
-                nftAddresses.slice(0, 100), 
-                nftIds.slice(0, 100)
-            )
-        );
-        await factory.signMultiAssetVault(
-            0,
-            signatureAddresses.slice(0, 100), 
-            signatureIds.slice(0, 100)
-        );
-
-        await factory.initiateMultiAssetVault(
-            "HelloWorld1"
-        );
-        vaultAddress = await factory.vaultNames("HelloWorld1", 0);
-        let maPool1 = await Vault.attach(vaultAddress);
-        await maPool1.includeNft(
-            await factory.encodeCompressedValue(
-                nftAddresses.slice(100, 200), 
-                nftIds.slice(100, 200)
-            )
-        );
-        await factory.signMultiAssetVault(
-            1,
-            signatureAddresses.slice(100, 200), 
-            signatureIds.slice(100, 200)
-        );
-        
-        await maPool.begin(51, 1000);
-        await maPool1.begin(51, 1000);
-
-        await maPool.offerGeneralBribe(
-            (1e18).toString(), 
-            1, 
-            4, 
-            { value: (3e18).toString() }
-        );
-        
-        let costPerToken = 1e15;
-        let totalCost = costPerToken * 50000 * 3;
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            [0, '1', '2'],
-            ['50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() } 
-        );
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            ['3', '4', '5'],
-            ['50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            ['6', '7', '8'],
-            ['50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            ['9', '10', '11'],
-            ['50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-        await maPool.purchase(
-            deployer.address,
-            deployer.address,
-            ['12', '13', '14'],
-            ['50000', '50000', '50000'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 2, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 3, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        
-        await network.provider.send("evm_increaseTime", [86400]);
-        for(let i = 1; i < 101; i++) {
-            await maPool.toggleEmissions(mockNft.address, i, true);
-            await maPool1.toggleEmissions(mockNft.address, i + 100, true);
-        }
-
-        await network.provider.send("evm_increaseTime", [86400]);
-        for(let i = 1; i < 101; i++) {
-            await maPool.toggleEmissions(mockNft.address, i, true);
-            await maPool1.toggleEmissions(mockNft.address, i + 100, true);
-        }
-
-        await maPool.sell(
-            deployer.address,
-            0,
-            1_000
-        );
-
-        await maPool.sell(
-            deployer.address,
-            1,
-            1_000
-        );
-
-        await maPool.sell(
-            deployer.address,
-            2,
-            1_000
-        );
-
-        await maPool.sell(
-            deployer.address,
-            3,
-            1_000
-        );
-
-        await network.provider.send("evm_increaseTime", [86401 * 2]);
-        await maPool.sell(
-            deployer.address,
-            4,
-            1_000
-        );
-
-        await maPool.reclaimGeneralBribe(2, 0);
-        await maPool.reclaimGeneralBribe(3, 0);
-
-        expect((await eVault.getBase()).toString()).to.equal('111400000000000000000000000');
-        expect((await eVault.getBasePercentage()).toString()).to.equal('120');
     });
 });

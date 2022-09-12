@@ -95,18 +95,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     bool public nonWhitelistPool;
 
     /* ======== MAPPINGS ======== */
-    /// @notice The amount of NFTs from a collection that has signed the pool
-    /// [uint256] -> Epoch
-    /// [address] -> NFT collection
-    /// [uint256] -> Amount NFTs signed
     mapping(uint256 => mapping(address => uint256)) collectionsSigned;
-
-    /// @notice The current nonce tag connected to the amount of times a specific NFT has been closed
-    /// [address] -> NFT collection
-    /// [uint256] -> NFT token ID
-    /// [uint256] -> Nonce tag for closure number
     mapping(address => mapping(uint256 => uint256)) closureNonce;
-
     mapping(address => mapping(uint256 => mapping(uint256 => uint256))) adjustmentNonce;
 
     /// @notice Tracks whether an NFT has started emissions during an epoch
@@ -123,7 +113,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     mapping(uint256 => bool) tokenMapping;
 
-    mapping(uint256 => uint256) totalTokensPurchased;
+    mapping(uint256 => bool) closureOccured;
+
+    mapping(uint256 => uint256) public totalTokensPurchased;
 
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) loss;
 
@@ -155,14 +147,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> amount of reservations
     mapping(uint256 => uint256) public reservations;
 
-    mapping(uint256 => uint256) totalReservationValue;
+    mapping(uint256 => uint256) public totalReservationValue;
 
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) auctionSaleValue;
-
-    /// @notice Amount of tokens purchased within a ticket
-    /// [uint256] -> epoch
-    /// [uint256] -> ticket
-    /// [uint256] -> tokens purchased
     mapping(uint256 => uint256[]) ticketsPurchased;
 
     /// @notice Payout size for each reservation during an epoch
@@ -187,28 +174,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [bool] -> status of whether a reservation was made
     mapping(uint256 => mapping(address => mapping(uint256 => bool))) public reservationMade;
 
-    /// @notice Track general bribe size during an epoch (paid out to all tickets on 
-    /// risk adjusted basis)
-    /// [uint256] -> epoch 
-    /// [uint256] -> amount of bribes offered
-    mapping(uint256 => uint256) public generalBribe;
-
-    mapping(address => mapping(uint256 => uint256)) generalBribeOffered;
-
-    /// @notice Track concentrated bribes offered to specific tickets during an epoch
-    /// [uint256] -> epoch
-    /// [uint256] -> ticket
-    /// [uint256] -> bribe amount
-    mapping(uint256 => mapping(uint256 => uint256)) public concentratedBribe;
-
-    mapping(address => mapping(uint256 => mapping(uint256 => uint256))) concentratedBribeOffered;
-
     /// @notice Track an addresses allowance status to trade another addresses position
     /// [address] allower
     /// [address] allowee
     /// [uint256] nonce
     /// [bool] allowance status
-    mapping(address => mapping(address => mapping(uint256 => bool))) public allowanceTracker;
+    mapping(address => address) public allowanceTracker;
     
     /* ======== STRUCTS ======== */
     /// @notice Holds core metrics for each trader
@@ -220,6 +191,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// of tokens purchased in each tranche
     /// [ethLocked] -> total amount of eth locked in the position
     struct Buyer {
+        bool closed;
         uint32 multiplier;
         uint32 startEpoch;
         uint32 unlockEpoch;
@@ -300,7 +272,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 delete boostCollection;
             } 
         }
-
         factory.emitToggle(_nft, _id, emissionStatus, emissionStartedCount[poolEpoch]);
     }
 
@@ -416,9 +387,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @dev Users ticket balances are counted on a risk adjusted basis in comparison to the
     /// maximum purchased ticket tranche. The lowest discounted EDC payout is 75% and the 
     /// highest premium is 125% for the highest ticket holders. This rate effects the portion of
-    /// EDC that a user receives per EDC emitted from a pool each epoch. Furthermore, upon unlock
-    /// any concentrated or general bribes during the users LP time is distributed on a risk
-    /// adjusted basis. Revenues from an EDC sale are distributed among allocators.
+    /// EDC that a user receives per EDC emitted from a pool each epoch.
+    /// Revenues from an EDC sale are distributed among allocators.
     /// @param _user Address of the LP
     /// @param _nonce Held nonce to close 
     /// @param _payoutRatio Ratio of mined EDC that the user would like to purchase 
@@ -427,13 +397,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _nonce,
         uint256 _payoutRatio
     ) external nonReentrant returns(uint256 creditsEarned) {
-        require(startTime != 0);
         require(msg.sender == _user);
         Buyer storage trader = traderProfile[_user][_nonce];
+        require(!trader.closed);
         require(adjustmentsMade[_user][_nonce] == adjustmentsRequired);
         require(trader.unlockEpoch != 0);
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
-        uint256 bribePayout;
         uint256 finalCreditCount;
         uint256 finalEpoch;
         uint256 totalAmountTokens;
@@ -457,8 +426,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 totalAmountTokens += amountTokens;
                 _comListOfTickets >>= 25;
                 _comAmounts >>= 25;
-                if(totAvailFunds[j] < 100e18) {
-                    rewardCap = totAvailFunds[j];
+                if(payoutPerRes[j] * amountNft < 100e18) {
+                    rewardCap = payoutPerRes[j] * amountNft;
                 } else {
                     rewardCap = 100e18;
                 }
@@ -482,9 +451,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                             / ((maxTicketPerEpoch[j] * 1e18) ** 2) / 2) 
                                 * (amountTokens * 0.001 ether) / 100e18
                                     * poolEpoch / 10000;
-                bribePayout += 
-                    amountTokens * concentratedBribe[j][ticket] 
-                    / this.getTicketInfo(j, ticket);
             }
             // COMMENT HERE FOR CLARITY: REPURPOSING _comAmounts
             _comAmounts = 5 * (
@@ -504,7 +470,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
             finalCreditCount += amount * rewardCap * (_comListOfTickets)
                     * (reservations[j] > 0 ? (_comAmounts == 0 ? 1 : _comAmounts) : 1) / 1e18;
-            bribePayout += trader.ethLocked * generalBribe[j] / totAvailFunds[j];
         }
 
         factory.emitSaleComplete(
@@ -516,83 +481,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         creditsEarned = unlock(
             _user, 
             _nonce, 
-            bribePayout, 
             finalCreditCount * totalAmountTokens * 0.001 ether / trader.ethLocked, 
             _payoutRatio
         );
-    }
-
-    /// @notice Offer a bribe to all LPs during a set of epochs
-    /// @param bribePerEpoch Bribe size during each desired epoch
-    /// @param startEpoch First epoch where bribes will be distributed
-    /// @param endEpoch Epoch in which bribe distribution from this general
-    /// bribe concludes
-    function offerGeneralBribe(
-        uint256 bribePerEpoch, 
-        uint256 startEpoch, 
-        uint256 endEpoch
-    ) external payable nonReentrant {
-        require(startTime != 0);
-        uint256 cost;
-        for(uint256 i = startEpoch; i < endEpoch; i++) {
-            generalBribe[i] += bribePerEpoch;
-            generalBribeOffered[msg.sender][i] += bribePerEpoch;
-            cost += bribePerEpoch;
-        }
-
-        factory.emitGeneralBribe(
-            msg.sender,
-            bribePerEpoch,
-            startEpoch,
-            endEpoch
-        );
-        require(msg.value == cost);
-    }
-
-    /// @notice Offer a concentrated bribe
-    /// @dev Concentrated bribes are offered to specific tranches during specific epochs 
-    /// @param startEpoch First epoch where bribes will be distributed
-    /// @param endEpoch Epoch in which bribe distribution from this general
-    /// @param tickets Tranches for bribe to be applied
-    /// @param bribePerTicket Size of the bribe offered to each tranche LP
-    function offerConcentratedBribe(
-        uint256 startEpoch,
-        uint256 endEpoch,
-        uint256[] calldata tickets,
-        uint256[] calldata bribePerTicket
-    ) external payable nonReentrant {
-        require(startTime != 0);
-        uint256 cost;
-        uint256 length = tickets.length;
-        require(length == bribePerTicket.length);
-        for(uint256 i = startEpoch; i < endEpoch; i++) {
-            for(uint256 j = 0; j < length; j++) {
-                concentratedBribe[i][tickets[j]] += bribePerTicket[j];
-                concentratedBribeOffered[msg.sender][i][tickets[j]] += bribePerTicket[j];
-                cost += bribePerTicket[j];
-            }
-        }
-
-        factory.emitConcentratedBribe(
-            msg.sender,
-            tickets,
-            bribePerTicket,
-            startEpoch,
-            endEpoch
-        );
-        require(msg.value == cost);
-    }
-
-    /// @notice Reclaim unused general bribes offered
-    /// @param epoch Epoch in which bribe went unused
-    function reclaimGeneralBribe(uint256 epoch, uint256 ticket) external nonReentrant {
-        require(startTime != 0);
-        require(payoutPerRes[epoch] == 0);
-        require(epoch < (block.timestamp - startTime) / 1 days);
-        uint256 payout = generalBribeOffered[msg.sender][epoch] + concentratedBribeOffered[msg.sender][epoch][ticket];
-        delete generalBribeOffered[msg.sender][epoch];
-        delete concentratedBribeOffered[msg.sender][epoch][ticket];
-        payable(msg.sender).transfer(payout);
     }
 
     /// @notice Revoke an NFTs connection to a pool
@@ -638,12 +529,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @dev This rebalances the payout per reservation value dependent on the total 
     /// available funds count. 
     function restore() external nonReentrant returns(bool) {
-        require(startTime != 0);
         uint256 startingEpoch = (block.timestamp - startTime) / 1 days;
         require(!poolClosed);
         require(reservations[startingEpoch] == 0);
         require(reservationsAvailable < amountNft);
         require(IClosure(closePoolContract).getLiveAuctionCount() == 0);
+        require(!closureOccured[startingEpoch]);
 
         reservationsAvailable = amountNft;
         while(totAvailFunds[startingEpoch] > 0) {
@@ -669,7 +560,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param id Token ID of the NFT that is being reserved
     /// @param endEpoch The epoch during which the reservation wears off
     function reserve(address _nft, uint256 id, uint256 endEpoch) external payable nonReentrant {
-        require(startTime != 0);
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
         require(!poolClosed);
         require(
@@ -689,7 +579,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             reservationMade[i][_nft][id] = true;
             reservations[i]++;
         }
-
         factory.emitSpotReserved(
             id,
             poolEpoch,
@@ -700,19 +589,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /* ======== POSITION TRANSFER ======== */
     /// @notice Allow another user permission to execute a single 'transferFrom' call
     /// @param recipient Allowee address
-    /// @param nonce Nonce of allowance 
     function changeTransferPermission(
-        address recipient,
-        uint256 nonce,
-        bool permission
+        address recipient
     ) external nonReentrant returns(bool) {
-        require(startTime != 0);
-        allowanceTracker[msg.sender][recipient][nonce] = permission;
+        allowanceTracker[msg.sender] = recipient;
 
         factory.emitPositionAllowance(
             msg.sender, 
-            recipient,
-            permission
+            recipient
         );
         return true;
     }
@@ -729,9 +613,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         address to,
         uint256 nonce
     ) external nonReentrant returns(bool) {
-        require(startTime != 0);
         require(
-            allowanceTracker[from][msg.sender][nonce] 
+            msg.sender == allowanceTracker[from] 
             || msg.sender == from
         );
         require(adjustmentsMade[from][nonce] == adjustmentsRequired);
@@ -753,7 +636,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param _nft NFT that is being closed
     /// @param _id Token ID of the NFT that is being closed
     function closeNft(address _nft, uint256 _id) external nonReentrant2 {
-        require(startTime != 0);
         uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
         require(reservationMade[poolEpoch][_nft][_id]);
         require(!poolClosed);
@@ -770,10 +652,15 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         }
 
         i = poolEpoch;
+        closureOccured[i] = true;
         uint256 ppr = payoutPerRes[i];
         uint256 propTrack = totAvailFunds[i];
+        uint256 mod;
+        if(totAvailFunds[i + 1] > propTrack) {
+            mod = totAvailFunds[i + 1] - propTrack;
+        }
         while(totAvailFunds[i] > 0) {
-            totAvailFunds[i] -= ppr * totAvailFunds[i] / propTrack;
+            totAvailFunds[i] -= ppr * (totAvailFunds[i] - mod) / propTrack;
             i++;
         }
 
@@ -829,7 +716,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _id,
         uint256 _closureNonce
     ) external nonReentrant returns(bool) {
-        require(startTime != 0);
         require(!adjustCompleted[_user][_nonce][_closureNonce][_nft][_id]);
         require(adjustmentsMade[_user][_nonce] < adjustmentsRequired);
         require(
@@ -966,26 +852,18 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function unlock(
         address _user,
         uint256 _nonce,
-        uint256 _bribeReward,
         uint256 _finalCreditCount,
         uint256 _payoutRatio
     ) internal returns(uint256 creditsPurchased) {
-        if(
-            !epochVault.getBaseAdjustmentStatus()
-            && epochVault.getCurrentEpoch() != 0
-        ) epochVault.adjustBase();
         Buyer storage trader = traderProfile[_user][_nonce];
-        uint256 basePercentage = epochVault.getBasePercentage();
         uint256 amountCreditsDesired = 
             _payoutRatio * _finalCreditCount / 1_000;
         uint256 cost = 
-            _payoutRatio * trader.ethLocked / 1_000
-                * basePercentage / 10_000;
+            _payoutRatio * trader.ethLocked / 100_000;
         alloc.receiveFees{value: (cost)}();
-        payable(_user).transfer(trader.ethLocked + _bribeReward - cost);
-        epochVault.updateEpoch(boostCollection, _user, amountCreditsDesired * trader.multiplier);
-        creditsPurchased = amountCreditsDesired * trader.multiplier;
-        delete traderProfile[_user][_nonce];
+        payable(_user).transfer(trader.ethLocked - cost);
+        creditsPurchased = epochVault.updateEpoch(boostCollection, _user, amountCreditsDesired * trader.multiplier);
+        trader.closed = true;
     }
 
     function internalAdjustment(
@@ -1067,6 +945,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         address _user, 
         uint256 _nonce
     ) external view returns(
+        uint32 multiplier,
         uint32 startEpoch,
         uint32 endEpoch,
         uint256 tickets, 
@@ -1074,6 +953,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 ethLocked
     ) {
         Buyer memory trader = traderProfile[_user][_nonce];
+        multiplier = trader.multiplier;
         startEpoch = trader.startEpoch;
         endEpoch = trader.unlockEpoch;
         tickets = trader.comListOfTickets;

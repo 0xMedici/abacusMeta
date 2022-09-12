@@ -107,7 +107,7 @@ contract Factory is ReentrancyGuard {
     event AuctionEnded(address _pool, address _closePoolContract, address _collection, uint256 _id, address _winner, uint256 _highestBid);
     event PrincipalCalculated(address _pool, address _closePoolContract, address _collection, uint256 _id, address _user, uint256 _nonce, uint256 _closureNonce);
     event Payout(address _pool, address _closePoolContract, address _user, uint256 _payoutAmount);
-    event LPTransferAllowanceChanged(address _pool, address from, address to, bool status);
+    event LPTransferAllowanceChanged(address _pool, address from, address to);
     event LPTransferred(address _pool, address from, address to, uint256 nonce);
 
 
@@ -186,6 +186,7 @@ contract Factory is ReentrancyGuard {
         uint256[] calldata id
     ) external nonReentrant {
         MultiAssetVault storage mav = multiAssetMapping[multiVaultNonce];
+        require(Vault(payable(mav.pool)).startTime() != 0);
         uint256 length = id.length;
         address pool = mav.pool;
         for(uint256 i = 0; i < length; i++) {
@@ -461,14 +462,12 @@ contract Factory is ReentrancyGuard {
 
     function emitPositionAllowance(
         address from,
-        address to,
-        bool status
+        address to
     ) external onlyAccredited {
         emit LPTransferAllowanceChanged(
             msg.sender, 
             from, 
-            to,
-            status
+            to
         );
     }
 

@@ -9,19 +9,6 @@ interface IEpochVault {
     /// tracker by 1
     function begin() external;
 
-    /// @notice Adjust the base tracker and base percentage
-    /// @dev This function adjusts the base and base percentage based on the following criterea:
-    /// 1) If total EDC purchased >= base 
-        /// => base * (1 + 0.125) | base percentage * (1 + 0.25)
-    /// 2) If total EDC purchased >= 0.5 * base
-        /// => base * (1 + 0.125 * (base - EDC) / base) | 
-            /// base percentage * (1 + 0.25 * (base - EDC) / base)
-    /// 3) If total EDC purchased < 0.5 * base
-        /// => base * (1 - 0.125 * (1 - (base - EDC) / base)) |
-            /// => base percentage * (1 - 0.25 * (1 - (base - EDC) / base))
-    /// HOWEVER base can never go below 1000e18 (1000 EDC) and base percentage 50 (0.5%)
-    function adjustBase() external;
-
     /// @notice Update the EDC counts of the current epoch
     /// @dev The received nft address will be checked for level of boost to apply before
     /// logging the EDC
@@ -32,7 +19,7 @@ interface IEpochVault {
         address _nft,
         address _user,
         uint256 _amountCredits
-    ) external;
+    ) external returns(uint256);
 
     /// @notice Claim abc reward from an epoch
     /// @param _user The reward recipient
@@ -49,17 +36,8 @@ interface IEpochVault {
     /// @notice Get the protocols start time
     function getStartTime() external view returns(uint256);
 
-    /// @notice Get base adjustment status for the current epoch
-    function getBaseAdjustmentStatus() external view returns(bool);
-
-    /// @notice Get the base value
-    function getBase() external view returns(uint256);
-
-    /// @notice Get the base percentage
-    function getBasePercentage() external view returns(uint256);
-
     /// @notice Get the total distribution credits in the current epoch 
-    function getTotalDistributionCredits() external view returns(uint256);
+    function getTotalDistributionCredits(uint256 _epoch) external view returns(uint256);
 
     /// @notice Get a collections boost
     /// @param nft Collection of interest

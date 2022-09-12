@@ -146,8 +146,7 @@ interface IFactory {
 
     function emitPositionAllowance(
         address from,
-        address to,
-        bool status
+        address to
     ) external;
 
     function getSqrt(uint x) external pure returns (uint y);
