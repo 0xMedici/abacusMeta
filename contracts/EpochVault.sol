@@ -63,10 +63,8 @@ contract EpochVault is ReentrancyGuard {
 
     /* ======== EVENTS ======== */
 
-    event PaymentMade(uint256 _epoch, uint256 _amount);
     event EpochUpdated(address _user, address nft, uint256 _amountCredits);
     event AbcRewardClaimed(address _user, uint256 _epoch, uint256 _amount);
-    event AbcReceived(uint256 _amountReceived, uint256 _totalEmissionSize);
 
     /* ======== CONSTRUCTOR ======== */
 

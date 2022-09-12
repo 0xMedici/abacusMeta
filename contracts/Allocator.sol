@@ -118,18 +118,9 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
 
     /* ======== STRUCT ======== */
 
-    event ProposeWLAddition(address _contract);
-    event WLAdditionApproved(address _contract);
-    event WLAdditionRejected(address _contract);
-    event ProposeWLRemoval(address _contract);
-    event WLRemovalApproved(address _contract);
-    event WLRemovalRejected(address _contract);
     event DonatedToEpoch(uint256 _epoch, uint256 _amount);
     event ReceivedFees(uint256 _epoch, uint256 _amount);
     event TokensLocked(address _user, uint256 epochsLocked, uint256 _amount);
-    event TokensAdded(address _user, uint256 unlockEpoch, uint256 _amount);
-    event TokensUnlocked(address _user, uint256 _amount);
-    event UpdatedVeCount(address _user, uint256 _epoch, uint256 _newCount);
     event AllocatedToCollection(address _user, address _collection, uint256 _epoch, uint256 _amount);
     event AllocationChanged(address _user, address _oldCollection, address _newCollection, uint256 _epoch, uint256 _amount);
     event AutoAllocate(address _user, uint256 _epoch, uint256 _amount);

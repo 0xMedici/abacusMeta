@@ -74,21 +74,6 @@ interface IFactory {
         uint256 _creditsPurchased
     ) external;
 
-    function emitGeneralBribe(
-        address _briber,
-        uint256 _bribeAmount,
-        uint256 _startEpoch,
-        uint256 _endEpoch
-    ) external;
-
-    function emitConcentratedBribe(
-        address _briber,
-        uint256[] calldata tickets,
-        uint256[] calldata bribePerTicket,
-        uint256 _startEpoch,
-        uint256 _endEpoch
-    ) external;
-
     function emitPoolRestored(
         uint256 _payoutPerReservation
     ) external;
@@ -130,12 +115,6 @@ interface IFactory {
         address _user,
         uint256 _nonce,
         uint256 _closureNonce
-    ) external;
-
-    function emitPayout(
-        address _pool,
-        address _user,
-        uint256 _payoutAmount
     ) external;
 
     function emitLPTransfer(

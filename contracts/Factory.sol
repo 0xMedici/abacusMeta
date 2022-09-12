@@ -1,17 +1,12 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import { ABCToken } from "./AbcToken.sol";
-import { IEpochVault } from "./interfaces/IEpochVault.sol";
 import { Vault } from "./Vault.sol";
 import { IVault } from "./interfaces/IVault.sol";
 import { Closure } from "./Closure.sol";
-import { IClosure } from "./interfaces/IClosure.sol";
 import { AbacusController } from "./AbacusController.sol";
 
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "hardhat/console.sol";
@@ -84,22 +79,16 @@ contract Factory is ReentrancyGuard {
     /* ======== EVENT ======== */
 
     event VaultCreated(string name, address _creator, address _pool);
-    event VaultStarted(string name, address _pool, uint256 slots);
     event VaultSigned(address _pool, address _signer, address[] nftAddress, uint256[] ids);
     event NftInclusion(address _pool, uint256[] nfts);
     event VaultBegun(address _pool, uint256 _ticketSize);
     event EmissionsToggled(address _pool, address _nft, uint256 _id, bool chosenToggle, uint256 totalToggles);
-    event EmissionsStarted(address _pool);
-    event SignPoolClosure(address _pool, address _signer,address _collections, uint256 _idSigned);
     event NftRemoved(address _pool, address removedAddress, uint256 removedId);
     event PoolClosed(address _pool); 
     event PendingReturnsUpdated(address _user, uint256 _amount);
     event PendingReturnsClaimed(address _user, uint256 _amount);
-    event PayoutRatioAdjusted(address _pool, address _user, uint256 _ratio);
     event Purchase(address _pool, address _buyer, uint256[] tickets, uint256[] amountPerTicket, uint256 nonce, uint256 startEpoch, uint256 finalEpoch);
     event SaleComplete(address _pool,  address _seller, uint256 nonce, uint256 ticketsSold, uint256 creditsPurchased);
-    event GeneralBribeOffered(address _pool, address _briber, uint256 _bribeAmount, uint256 startEpoch, uint256 endEpoch);
-    event ConcentratedBribeOffered(address _pool, address _briber, uint256[] tickets, uint256[] bribePerTicket, uint256 startEpoch, uint256 endEpoch);
     event PoolRestored(address _pool, uint256 newPayoutPerReservation);
     event SpotReserved(address _pool, uint256 reservationId, uint256 startEpoch, uint256 endEpoch);
     event NftClosed(address _pool, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
@@ -310,38 +299,6 @@ contract Factory is ReentrancyGuard {
         );
     }
 
-    function emitGeneralBribe(
-        address _briber,
-        uint256 _bribeAmount,
-        uint256 _startEpoch,
-        uint256 _endEpoch
-    ) external onlyAccredited {
-        emit GeneralBribeOffered(
-            msg.sender, 
-            _briber,
-            _bribeAmount, 
-            _startEpoch, 
-            _endEpoch
-        );
-    }
-
-    function emitConcentratedBribe(
-        address _briber,
-        uint256[] calldata tickets,
-        uint256[] calldata bribePerTicket,
-        uint256 _startEpoch,
-        uint256 _endEpoch
-    ) external onlyAccredited {
-        emit ConcentratedBribeOffered(
-            msg.sender, 
-            _briber, 
-            tickets, 
-            bribePerTicket, 
-            _startEpoch, 
-            _endEpoch
-        );
-    }
-
     function emitPoolRestored(
         uint256 _payoutPerReservation
     ) external onlyAccredited {
@@ -431,19 +388,6 @@ contract Factory is ReentrancyGuard {
             _user, 
             _nonce,
             _closureNonce
-        );
-    }
-
-    function emitPayout(
-        address _pool,
-        address _user,
-        uint256 _payoutAmount
-    ) external onlyAccredited {
-        emit Payout(
-            _pool, 
-            msg.sender, 
-            _user, 
-            _payoutAmount
         );
     }
 

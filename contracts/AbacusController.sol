@@ -114,43 +114,23 @@ contract AbacusController {
     /* ======== EVENTS ======== */
 
     event AdminSet(address _admin);
-    event NftEthSet(address _nftEth);
     event CreditBondsSet(address _creditBonds);
     event TokenSet(address _token);
     event AllocatorSet(address _veToken);
     event EpochVaultSet(address _epochVault);
     event UpdateNftInUse(address pool, address nft, uint256 id, bool status);
-    event ProposeWLUserAddition(address[] _user);
-    event WLLpApproved(address[] _user);
     event WLUserApproved(address[] _user);
-    event WLUserRejected(address[] _user);
     event ProposeWLUserRemoval(address[] _user);
-    event WLUserRemovalApproved(address[] _user);
-    event WLUserRemovalRejected(address[] _user);
     event ProposeWLAddressesAddition(address[] collections);
     event WLAddressesAdditionApproved(address[] collections);
     event WLAddressesAdditionRejected(address[] collections);
     event ProposeWLAddressesRemoval(address[] collections);
     event WLAddressesRemovalApproved(address[] collections);
     event WLAddressesRemovalRejected(address[] collections);
-    event ProposeBetaStage(uint256 stage);
     event BetaStageApproved(uint256 stage);
-    event BetaStageRejected(uint256 stage);
     event ProposeFactoryAddition(address _newFactory);
     event FactoryAdditionApproved(address _newFactory);
     event FactoryAdditionRejected(address _newAddress);
-    event ProposePoolSizeLimit(uint256 limit);
-    event PoolSizeLimitApproved(uint256 prev, uint256 limit);
-    event PoolSizeLimitRejected(uint256 limit);
-    event ProposeNewMultisig(address _multisig);
-    event MultisigApproved(address previous, address _multisig);
-    event MultisigRejected(address _multisig);
-    event ProposeNewAdmin(address _admin);
-    event AdminApproved(address previous, address _admin);
-    event AdminRejected(address _admin);
-    event ProposeNewTreasury(address _treasury);
-    event TreasuryApproved(address previous, address _treasury);
-    event TreasuryRejected(address _treasury);
 
     /* ======== MODIFIERS ======== */
 

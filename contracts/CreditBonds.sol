@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import { AbacusController } from "./AbacusController.sol";
-import { ABCToken } from "./AbcToken.sol";
 import { IEpochVault } from "./interfaces/IEpochVault.sol";
 import { IAllocator } from "./interfaces/IAllocator.sol";
 
