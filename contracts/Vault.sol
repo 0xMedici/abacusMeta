@@ -44,17 +44,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /* ======== ADDRESS ======== */
 
     IFactory factory;
-
     AbacusController controller;
-
     ABCToken abcToken;
-
     IEpochVault epochVault;
-
     IAllocator alloc;
-
-    /// @notice Address of deployer
     address creator;
+    address private _closePoolMultiImplementation;
 
     /// @notice Address of the deployed closure contract
     address public closePoolContract;
@@ -62,15 +57,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Address of the chosen boost collection
     address public boostCollection;
 
-    address private _closePoolMultiImplementation;
-
     /* ======== UINT ======== */
-    uint256 public ticketLimit;
-
+    uint8 vaultVersion;
     uint256 amountNftsLinked;
-
     uint256 poolClosureEpoch;
-
     uint256 MAPoolNonce;
 
     /// @notice The amount of available NFT closures
@@ -82,7 +72,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Pool creation time
     uint256 public startTime;
 
-    uint8 vaultVersion;
+    /// @notice Pool tranche size
+    uint256 public ticketLimit;
 
     /// @notice Total amount of adjustments required (every time an NFT is 
     /// closed this value increments)
@@ -92,50 +83,34 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Status of pool closure
     bool public poolClosed;
 
+    /// @notice Whether or not a pool is a whitelisted pool
     bool public nonWhitelistPool;
 
     /* ======== MAPPINGS ======== */
-    mapping(uint256 => mapping(address => uint256)) collectionsSigned;
+    mapping(uint256 => bool) tokenMapping;
+    mapping(uint256 => bool) closureOccured;
+    mapping(uint256 => uint256[]) ticketsPurchased;
     mapping(address => mapping(uint256 => uint256)) closureNonce;
+    mapping(uint256 => mapping(address => uint256)) collectionsSigned;
     mapping(address => mapping(uint256 => mapping(uint256 => uint256))) adjustmentNonce;
-
-    /// @notice Tracks whether an NFT has started emissions during an epoch
-    /// [address] -> NFT collection
-    /// [uint256] -> NFT token ID
-    /// [uint256] -> Epoch
-    /// [bool] -> Status of if the NFT started emissions during that epoch 
-    mapping(address => mapping(uint256 => mapping(uint256 => bool))) public emissionsStarted;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) loss;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) epochOfClosure;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) auctionSaleValue;
 
     /// @notice The total amount of times emissions has been toggled during an epoch
     /// [uint256] -> Epoch
     /// [uint256] -> Amount of times toggled
     mapping(uint256 => uint256) public emissionStartedCount;
 
-    mapping(uint256 => bool) tokenMapping;
-
-    mapping(uint256 => bool) closureOccured;
-
+    /// @notice The total amount of tokens purchased during an epoch
+    /// [uint256] -> Epoch
+    /// [uint256] -> Amount of tokens purchased
     mapping(uint256 => uint256) public totalTokensPurchased;
 
-    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) loss;
-
-    /// @notice Track adjustment status of closed NFTs
-    /// [address] -> User 
-    /// [uint256] -> nonce
-    /// [address] -> NFT collection
-    /// [uint256] -> NFT ID
-    /// [bool] -> Status of adjustment
-    mapping(address => mapping(uint256 => mapping(uint256 => mapping(address => mapping(uint256 => bool))))) public adjustCompleted;
-
+    /// @notice A users position nonce
+    /// [address] -> User address
+    /// [uint256] -> Next nonce value 
     mapping(address => uint256) public positionNonce;
-
-    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) epochOfClosure;
-
-    /// @notice Tracking the adjustments made by each user for each open nonce
-    /// [address] -> user
-    /// [uint256] -> nonce
-    /// [uint256] -> amount of adjustments made
-    mapping(address => mapping(uint256 => uint256)) public adjustmentsMade;
 
     /// @notice Largest ticket in an epoch
     /// [uint256] -> epoch
@@ -147,10 +122,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> amount of reservations
     mapping(uint256 => uint256) public reservations;
 
+    /// @notice Total payout amount reserved during an epoch
+    /// [uint256] -> Epoch
+    /// [uint256] -> Value of payouts reserved
     mapping(uint256 => uint256) public totalReservationValue;
-
-    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) auctionSaleValue;
-    mapping(uint256 => uint256[]) ticketsPurchased;
 
     /// @notice Payout size for each reservation during an epoch
     /// [uint256] -> epoch
@@ -162,10 +137,27 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> available funds
     mapping(uint256 => uint256) public totAvailFunds;
 
+    /// @notice Track an addresses allowance status to trade another addresses position
+    /// [address] allowance recipient
+    mapping(address => address) public allowanceTracker;
+
+    /// @notice Tracking the adjustments made by each user for each open nonce
+    /// [address] -> user
+    /// [uint256] -> nonce
+    /// [uint256] -> amount of adjustments made
+    mapping(address => mapping(uint256 => uint256)) public adjustmentsMade;
+
     /// @notice Track a traders profile for each epoch
     /// [address] -> user
     /// [uint256] -> epoch
     mapping(address => mapping(uint256 => Buyer)) public traderProfile;
+
+    /// @notice Tracks whether an NFT has started emissions during an epoch
+    /// [address] -> NFT collection
+    /// [uint256] -> NFT token ID
+    /// [uint256] -> Epoch
+    /// [bool] -> Status of if the NFT started emissions during that epoch 
+    mapping(address => mapping(uint256 => mapping(uint256 => bool))) public emissionsStarted;
 
     /// @notice Track status of reservations made by an NFT during an epoch 
     /// [uint256] -> epoch
@@ -174,15 +166,17 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [bool] -> status of whether a reservation was made
     mapping(uint256 => mapping(address => mapping(uint256 => bool))) public reservationMade;
 
-    /// @notice Track an addresses allowance status to trade another addresses position
-    /// [address] allower
-    /// [address] allowee
-    /// [uint256] nonce
-    /// [bool] allowance status
-    mapping(address => address) public allowanceTracker;
+    /// @notice Track adjustment status of closed NFTs
+    /// [address] -> User 
+    /// [uint256] -> nonce
+    /// [address] -> NFT collection
+    /// [uint256] -> NFT ID
+    /// [bool] -> Status of adjustment
+    mapping(address => mapping(uint256 => mapping(uint256 => mapping(address => mapping(uint256 => bool))))) public adjustCompleted;
     
     /* ======== STRUCTS ======== */
     /// @notice Holds core metrics for each trader
+    /// [closed] -> track if a position is closed
     /// [multiplier] -> the multiplier applied to a users credit intake when closing a position
     /// [startEpoch] -> epoch that the position was opened
     /// [unlockEpoch] -> epoch that the position can be closed
@@ -709,6 +703,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param _nonce Nonce of the LP
     /// @param _nft Address of the auctioned NFT
     /// @param _id Token ID of the auctioned NFT
+    /// @param _closureNonce Closure nonce of the NFT being adjusted for
     function adjustTicketInfo(
         address _user,
         uint256 _nonce,
