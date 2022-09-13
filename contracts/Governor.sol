@@ -122,7 +122,6 @@ contract Governor {
             size := extcodesize(_addr)
         }
         require(size == 0);
-        require(block.timestamp > voteEndTime + 7 days);
         require(!controller.changeLive());
         require(credit[msg.sender] >= 50_000_000e18);
         require(_proposedSize > positionalMovement);
@@ -169,6 +168,7 @@ contract Governor {
         delete voteFor;
         delete voteAgainst;
         positionalMovement = pendingPositionalMovement;
+        positionalChanges++;
         delete pendingPositionalMovement;
     }
 
@@ -197,7 +197,6 @@ contract Governor {
         }
         require(size == 0);
         require(collections.length > 0);
-        require(block.timestamp > controller.voteEndTime() + 7 days);
         require(!controller.changeLive());
         require(pendingPositionalMovement == 0);
         require(credit[msg.sender] >= 20_000_000e18);
@@ -349,7 +348,6 @@ contract Governor {
             size := extcodesize(_addr)
         }
         require(size == 0);
-        require(block.timestamp > controller.voteEndTime() + 7 days);
         require(!controller.changeLive());
         require(pendingPositionalMovement == 0);
         require(credit[msg.sender] >= 100_000_000e18);

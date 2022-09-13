@@ -103,7 +103,6 @@ contract Closure is ReentrancyGuard, Initializable {
     function startAuction(uint256 _nftVal, address _nft, uint256 _id) external {
         require(msg.sender == address(vault));
         uint256 _nonce = nonce[_nft][_id];
-        auctionEndTime[_nonce][_nft][_id] = block.timestamp + 12 hours;
         nftVal[_nonce][_nft][_id] = _nftVal;
         liveAuctions++;
         nonce[_nft][_id]++;
@@ -115,6 +114,12 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @param _id NFT ID
     function newBid(address _nft, uint256 _id) external payable nonReentrant {
         uint256 _nonce = nonce[_nft][_id] - 1;
+        if(
+            nftVal[_nonce][_nft][_id] != 0
+            && auctionEndTime[_nonce][_nft][_id] == 0
+        ) {
+            auctionEndTime[_nonce][_nft][_id] = block.timestamp + 12 hours;
+        }
         require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100);
         require(block.timestamp < auctionEndTime[_nonce][_nft][_id]);
         factory.updatePendingReturns{ 

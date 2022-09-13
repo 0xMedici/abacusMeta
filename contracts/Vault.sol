@@ -147,9 +147,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> amount of adjustments made
     mapping(address => mapping(uint256 => uint256)) public adjustmentsMade;
 
-    /// @notice Track a traders profile for each epoch
+    /// @notice Track a traders profile for each nonce
     /// [address] -> user
-    /// [uint256] -> epoch
+    /// [uint256] -> nonce
     mapping(address => mapping(uint256 => Buyer)) public traderProfile;
 
     /// @notice Tracks whether an NFT has started emissions during an epoch
@@ -224,12 +224,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param emissionStatus The state new state of 'emissionsStarted' 
     function toggleEmissions(address _nft, uint256 _id, bool emissionStatus) external nonReentrant {
         require(!poolClosed);
-        uint256 poolEpoch;
-        if(startTime == 0) {
-            poolEpoch = 0;
-        } else {
-            poolEpoch = (block.timestamp - startTime) / 1 days;
-        }
+        require(startTime != 0);
+        uint256 poolEpoch = (block.timestamp - startTime) / 1 days;
         if(!emissionStatus) {
             require(
                 msg.sender == address(factory)
@@ -331,6 +327,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 startEpoch,
         uint256 finalEpoch
     ) external payable nonReentrant {
+        require(
+            _caller == msg.sender
+            || _buyer == msg.sender
+        );
         require(startTime != 0);
         require(!poolClosed);
         require(tickets.length == amountPerTicket.length);
@@ -491,6 +491,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 id = _id[i];
             require(
                 msg.sender == IERC721(nft).ownerOf(id)
+                || msg.sender == controller.registry(IERC721(nft).ownerOf(id))
             );
             require(controller.nftVaultSignedAddress(nft, id) == address(this));
             factory.updateNftInUse(nft, id, MAPoolNonce);
@@ -558,6 +559,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(!poolClosed);
         require(
             msg.sender == IERC721(_nft).ownerOf(id)
+            || msg.sender == controller.registry(IERC721(_nft).ownerOf(id))
         );
         require(controller.nftVaultSignedAddress(_nft, id) == address(this));
         require(reservations[poolEpoch] + 1 <= reservationsAvailable);
