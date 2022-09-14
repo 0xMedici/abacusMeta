@@ -58,7 +58,7 @@ contract Factory is ReentrancyGuard {
     /// [uint256] -> nonce
     mapping(uint256 => MultiAssetVault) public multiAssetMapping;
 
-    mapping(string => address[]) public vaultNames;
+    mapping(string => address) public vaultNames;
 
     mapping(address => mapping(address => mapping(uint256 => bool))) public nftRemoved;
 
@@ -128,10 +128,7 @@ contract Factory is ReentrancyGuard {
     function initiateMultiAssetVault(
         string memory name
     ) external nonReentrant {
-        require(
-            vaultNames[name].length == 0
-            || Vault(payable(vaultNames[name][vaultNames[name].length - 1])).poolClosed()
-        );
+        require(vaultNames[name] == address(0));
         uint256 beta = controller.beta();
         if(beta == 1) {
             require(controller.userWhitelist(msg.sender));
@@ -153,7 +150,7 @@ contract Factory is ReentrancyGuard {
         controller.addAccreditedAddressesMulti(address(vaultMultiDeployment));
         mav.pool = address(vaultMultiDeployment);
         mav.name = name;
-        vaultNames[name].push(address(vaultMultiDeployment));
+        vaultNames[name] = address(vaultMultiDeployment);
         multiAssetVaultNonce++;
         emit VaultCreated(name, msg.sender, address(vaultMultiDeployment));
     }
