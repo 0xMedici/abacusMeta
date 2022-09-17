@@ -125,6 +125,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
     event AllocationChanged(address _user, address _oldCollection, address _newCollection, uint256 _epoch, uint256 _amount);
     event AutoAllocate(address _user, uint256 _epoch, uint256 _amount);
     event BribeOffered(address _user, address _collection, uint256 _epoch, uint256 _amount);
+    event BribeReclaimed(address _user, uint256 _epoch);
     event RewardClaimed(address _user, uint256 _amount);
     event FundsClearedToTreasury(address _caller, uint256 _epoch, uint256 _amount); 
 
@@ -357,6 +358,7 @@ contract Allocator is ReentrancyGuard, ReentrancyGuard2 {
         uint256 payout = bribeOffered[msg.sender][_epoch];
         delete bribeOffered[msg.sender][_epoch];
         payable(msg.sender).transfer(payout);
+        emit BribeReclaimed(msg.sender, _epoch);
     }
 
     /// @notice Used to clear protocol generated fees to treasury

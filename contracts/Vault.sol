@@ -752,6 +752,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         return true;
     }
 
+    function accessLiq(uint256 _amount) external {
+        require(controller.accreditedAddresses(msg.sender));
+        payable(msg.sender).transfer(_amount);
+    }
+
     /* ======== INTERNAL ======== */
     function choppedPosition(
         address _buyer,
