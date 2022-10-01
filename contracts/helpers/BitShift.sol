@@ -19,6 +19,7 @@ library BitShift {
             comTickets <<= 25;
             comAmounts <<= 25;
             comTickets |= tickets[i];
+            require(amountPerTicket[i] * 100 < (2**25 -1));
             comAmounts |= amountPerTicket[i] * 100;
             base += uint128(amountPerTicket[i] * 0.001 ether);
         }

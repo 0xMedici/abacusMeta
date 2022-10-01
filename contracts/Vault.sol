@@ -217,7 +217,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// post-purchase via the 'transferFrom' function. 
     /// - The '_caller' address of a purchase receives a 1% referral fee. If this is the buyer,
     /// they incur no fee as the extra 1% is accredited to them. 
-    /// @param _caller Function caller
     /// @param _buyer The position buyer
     /// @param tickets Array of tickets that the buyer would like to add in their position
     /// @param amountPerTicket Array of amount of tokens that the buyer would like to purchase
@@ -225,23 +224,20 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @param startEpoch Starting LP epoch
     /// @param finalEpoch The first epoch during which the LP position unlocks
     function purchase(
-        address _caller,
         address _buyer,
         uint256[] calldata tickets, 
         uint256[] calldata amountPerTicket,
         uint256 startEpoch,
         uint256 finalEpoch
     ) external payable nonReentrant {
-        require(
-            _caller == msg.sender
-            || _buyer == msg.sender
-        );
+        require(_buyer == msg.sender);
         require(startTime != 0, "NS");
         require(tickets.length == amountPerTicket.length, "II");
         require(tickets.length <= 100, "II");
         require(startEpoch <= (block.timestamp - startTime) / ELENGTH + 1, "IT");
         require(startEpoch >= (block.timestamp - startTime) / ELENGTH, "IT");
-        require(finalEpoch - startEpoch <= 10, "TL");
+        if(epochEarnings[startEpoch] != 0) startEpoch++;
+        require(finalEpoch - startEpoch <= 52, "TL");
         uint256 totalTokensRequested;
         uint256 largestTicket;
         for(uint256 i = 0; i < tickets.length / 10 + 1; i++) {
@@ -286,11 +282,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         address _user,
         uint256 _nonce
     ) external nonReentrant returns(uint256 interestEarned) {
-        require(msg.sender == _user);
+        require(msg.sender == _user, "IC");
         Buyer storage trader = traderProfile[_user][_nonce];
-        require(!trader.closed);
-        require(adjustmentsMade[_user][_nonce] == adjustmentsRequired);
-        require(trader.unlockEpoch != 0);
+        require(!trader.closed, "PC");
+        require(adjustmentsMade[_user][_nonce] == adjustmentsRequired, "ANM");
+        require(trader.unlockEpoch != 0, "ICR");
         uint256 poolEpoch = (block.timestamp - startTime) / ELENGTH;
         uint256 finalEpoch;
         uint256 interestLost;
@@ -403,21 +399,23 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 poolEpoch = (block.timestamp - startTime) / ELENGTH;
         require(
             msg.sender == IERC721(_nft).ownerOf(_id)
-            || msg.sender == controller.registry(IERC721(_nft).ownerOf(_id))
+            || msg.sender == controller.registry(IERC721(_nft).ownerOf(_id)),
+            "Not owner"
         );
-        require(controller.nftVaultSignedAddress(_nft, _id) == address(this));
-        require(reservations[poolEpoch] + 1 <= reservationsAvailable);
-        require(_endEpoch - poolEpoch <= 20);
+        require(controller.nftVaultSignedAddress(_nft, _id) == address(this), "Not signed");
+        require(reservations[poolEpoch] + 1 <= reservationsAvailable, "No res avail");
+        require(_endEpoch - poolEpoch <= 20, "Res too long");
         uint256 amount;
         for(uint256 j = poolEpoch; j < _endEpoch; j++) {
             amount += this.getPayoutPerReservation(j);
         }
         require(
             msg.value == (100_000 + reservations[poolEpoch]**2 * 100_000 / amountNft**2) 
-                * (_endEpoch - poolEpoch) * (amount / (_endEpoch - poolEpoch)) / 250_000_000
+                * (_endEpoch - poolEpoch) * (amount / (_endEpoch - poolEpoch)) / 250_000_000,
+                "Incorrect payment"
         );
         for(uint256 i = poolEpoch; i < _endEpoch; i++) {
-            require(!reservationMade[i][_nft][_id]);
+            require(!reservationMade[i][_nft][_id], "Res already made");
             epochEarnings[i] += (100_000 + reservations[i]**2 * 100_000 / amountNft**2) 
                 * (amount / (_endEpoch - poolEpoch)) / 250_000_000;
             reservationMade[i][_nft][_id] = true;
@@ -477,7 +475,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// it will create a close pool contract that the rest of the closure will use as well.
     /// @param _nft NFT that is being closed
     /// @param _id Token ID of the NFT that is being closed
-    function closeNft(address _nft, uint256 _id) external nonReentrant2 {
+    function closeNft(address _nft, uint256 _id) external nonReentrant2 returns(uint256) {
         uint256 poolEpoch = (block.timestamp - startTime) / ELENGTH;
         require(reservationMade[poolEpoch][_nft][_id]);
         adjustmentsRequired++;
@@ -516,6 +514,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             ppr,
             address(closePoolContract)
         );
+        return(ppr - payout);
     }
 
     /* ======== ACCOUNT CLOSURE ======== */
@@ -573,7 +572,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     function processFees() external payable {
-        require(controller.accreditedAddresses(msg.sender));
+        require(controller.lender() == msg.sender, "Not accredited");
         uint256 poolEpoch = (block.timestamp - startTime) / ELENGTH;
         uint256 payout = msg.value / 25;
         payable(controller.multisig()).transfer(payout);
@@ -581,13 +580,13 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     function accessLiq(address _user, address _nft, uint256 _id, uint256 _amount) external {
-        require(controller.accreditedAddresses(msg.sender));
+        require(controller.lender() == msg.sender, "Not accredited");
         liqAccessed[_nft][_id] += _amount;
         payable(_user).transfer(_amount);
     }
 
     function depositLiq(address _nft, uint256 _id) external payable {
-        require(controller.accreditedAddresses(msg.sender));
+        require(controller.lender() == msg.sender, "Not accredited");
         liqAccessed[_nft][_id] -= msg.value;
     }
 
@@ -646,19 +645,24 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 riskPoints += getSqrt((100 + ticket) / 10) ** 3 * ticketAmounts[i];
                 temp = this.getTicketInfo(j, ticket);
                 temp += ticketAmounts[i];
+                require(ticketAmounts[i] != 0);
                 require(temp <= amountNft * ticketLimit);
-                epochTickets[ticket / 15] &= ~((2**((ticket % 15 + 1)*16) - 1) - (2**(((ticket % 15))*16) - 1));
-                epochTickets[ticket / 15] |= (temp << ((ticket % 15)*16));
+                epochTickets[ticket / 10] &= ~((2**((ticket % 10 + 1)*25) - 1) - (2**(((ticket % 10))*25) - 1));
+                epochTickets[ticket / 10] |= (temp << ((ticket % 10)*25));
                 amount += ticketAmounts[i];
             }
             uint256 tempComp = compressedEpochVals[j];
             uint256 prevPosition;
+            require(((compressedEpochVals[j] & (2**35 -1)) + amount) < (2**35 -1));
             tempComp = tempComp & ~((2**(prevPosition + 35) - 1) - (2**prevPosition - 1)) | ((compressedEpochVals[j] & (2**35 -1)) + amount); 
             prevPosition += 35;
+            require((((compressedEpochVals[j] >> 35) & (2**51 -1)) + riskPoints) < (2**51 -1));
             tempComp = tempComp & ~((2**(prevPosition + 51) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[j] >> 35) & (2**51 -1)) + riskPoints) << prevPosition);
             prevPosition += 51;
+            require((((compressedEpochVals[j] >> 86) & (2**84 -1)) + amount * 0.001 ether / amountNft) < (2**84 -1));
             tempComp = tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[j] >> 86) & (2**84 -1)) + amount * 0.001 ether / amountNft) << prevPosition);
             prevPosition += 84;
+            require((((compressedEpochVals[j] >> 170) & (2**84 -1)) + amount * 0.001 ether) < (2**84 -1));
             tempComp = tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[j] >> 170) & (2**84 -1)) + amount * 0.001 ether) << prevPosition);
             compressedEpochVals[j] = tempComp;
             ticketsPurchased[j] = epochTickets;
@@ -815,12 +819,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Get the amount of spots in a ticket that have been purchased during an epoch
     function getTicketInfo(uint256 epoch, uint256 ticket) external view returns(uint256) {
         uint256[] memory epochTickets = ticketsPurchased[epoch];
-        if(epochTickets.length <= ticket / 15) {
+        if(epochTickets.length <= ticket / 10) {
             return 0;
         }
-        uint256 temp = epochTickets[ticket / 15];
-        temp &= (2**((ticket % 15 + 1)*16) - 1) - (2**(((ticket % 15))*16) - 1);
-        return temp >> ((ticket % 15) * 16);
+        uint256 temp = epochTickets[ticket / 10];
+        temp &= (2**((ticket % 10 + 1)*25) - 1) - (2**(((ticket % 10))*25) - 1);
+        return temp >> ((ticket % 10) * 25);
     }
 
     /// @notice Get the cost to reserve an NFT for an amount of epochs

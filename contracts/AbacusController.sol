@@ -109,7 +109,7 @@ contract AbacusController {
     }
 
     function updateNftUsage(address pool, address nft, uint256 id, bool status) external {
-        require(factory == msg.sender || accreditedAddresses[msg.sender]);
+        require(factory == msg.sender || accreditedAddresses[msg.sender], "Not allowed to update");
         if(status) {
             nftVaultSigned[nft][id] = true;
             nftVaultSignedAddress[nft][id] = pool;

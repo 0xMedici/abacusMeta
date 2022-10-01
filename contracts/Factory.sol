@@ -164,18 +164,19 @@ contract Factory is ReentrancyGuard {
         uint256[] calldata id
     ) external nonReentrant {
         MultiAssetVault storage mav = multiAssetMapping[multiVaultNonce];
-        require(Vault(payable(mav.pool)).startTime() != 0);
+        require(Vault(payable(mav.pool)).startTime() != 0, "Pool not started");
         uint256 length = id.length;
         address pool = mav.pool;
         for(uint256 i = 0; i < length; i++) {
             address collection = nft[i];
             uint256 _id = id[i];
-            require(IVault(pool).getHeldTokenExistence(collection, _id));
+            require(IVault(pool).getHeldTokenExistence(collection, _id), "Token not in pool");
             require(
                 msg.sender == IERC721(collection).ownerOf(_id)
-                || msg.sender == controller.registry(IERC721(collection).ownerOf(_id))
+                || msg.sender == controller.registry(IERC721(collection).ownerOf(_id)),
+                "Not owner or proxy"
             );
-            require(!controller.nftVaultSigned(collection, _id));
+            require(!controller.nftVaultSigned(collection, _id), "NFT already linked to a pool");
             controller.updateNftUsage(pool, collection, _id, true);
         }
         emit VaultSigned(pool, msg.sender, nft, id);

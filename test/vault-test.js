@@ -3,7 +3,7 @@ const { SupportedAlgorithm } = require("@ethersproject/sha2");
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("MA Vault", function () {
+describe("Spot pool", function () {
     let
         deployer,
         MockNft,
@@ -13,18 +13,10 @@ describe("MA Vault", function () {
         user2,
         Factory,
         factory,
-        CreditBonds,
-        bonds,
         Vault,
         Closure,
-        AbcToken,
-        abcToken,
-        Allocator,
-        alloc,
         AbacusController,
-        controller,
-        EpochVault,
-        eVault
+        controller
     
     beforeEach(async() => {
         [
@@ -86,7 +78,6 @@ describe("MA Vault", function () {
         let totalCost = costPerToken * 750;
         await maPool.purchase(
             deployer.address,
-            deployer.address,
             [
                 '0','1','2'
             ],
@@ -94,12 +85,11 @@ describe("MA Vault", function () {
                 '300', '150', '300'
             ],
             0,
-            10,
+            2,
             { value: totalCost.toString() }
         );
         totalCost = costPerToken * 150;
         await maPool.purchase(
-            deployer.address,
             deployer.address,
             [
                 '1'
@@ -108,13 +98,12 @@ describe("MA Vault", function () {
                 '150'
             ],
             0,
-            10,
+            2,
             { value: totalCost.toString() }
         );
         expect(await maPool.positionNonce(deployer.address)).to.equal(2);
         totalCost = costPerToken * 600;
         await maPool.purchase(
-            deployer.address,
             deployer.address,
             [
                 '3','4'
@@ -123,7 +112,7 @@ describe("MA Vault", function () {
                 '300', '300'
             ],
             0,
-            10,
+            2,
             { value: totalCost.toString() }
         );
         expect(await maPool.positionNonce(deployer.address)).to.equal(3);
@@ -132,7 +121,6 @@ describe("MA Vault", function () {
         totalCost = costPerToken * 900;
         await maPool.purchase(
             deployer.address,
-            deployer.address,
             [
                 '5','6','7'
             ],
@@ -140,7 +128,7 @@ describe("MA Vault", function () {
                 '300', '300', '300'
             ],
             2,
-            12,
+            4,
             { value: totalCost.toString() }
         );
 
@@ -148,6 +136,10 @@ describe("MA Vault", function () {
         expect((await maPool.getPayoutPerReservation(0)).toString()).to.equal("500000000000000000");
         expect((await maPool.getTotalAvailableFunds(0)).toString()).to.equal("1500000000000000000");
         await network.provider.send("evm_increaseTime", [172801 * 10]);
+        await maPool.sell(
+            deployer.address,
+            0
+        );
         await maPool.sell(
             deployer.address,
             2
@@ -179,7 +171,6 @@ describe("MA Vault", function () {
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await maPool.purchase(
-            deployer.address,
             deployer.address,
             [0, '1', '2'],
             ['300', '300', '300'],
@@ -218,7 +209,6 @@ describe("MA Vault", function () {
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await maPool.purchase(
-            deployer.address,
             deployer.address,
             [0, '1', '2'],
             ['300', '300', '300'],
@@ -270,7 +260,6 @@ describe("MA Vault", function () {
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await maPool.purchase(
-            deployer.address,
             deployer.address,
             [0, '1', '2'],
             ['300', '300', '300'],
@@ -325,7 +314,6 @@ describe("MA Vault", function () {
         let totalCost = costPerToken * 300 * 3;
         await maPool.purchase(
             deployer.address,
-            deployer.address,
             [0, '1', '2'],
             ['300', '300', '300'],
             0,
@@ -365,7 +353,6 @@ describe("MA Vault", function () {
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await maPool.purchase(
-            deployer.address,
             deployer.address,
             [0, '1', '2'],
             ['300', '300', '300'],
@@ -410,7 +397,6 @@ describe("MA Vault", function () {
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 6;
         await maPool.purchase(
-            deployer.address,
             deployer.address,
             [0, '1', '2'],
             ['600', '600', '600'],
@@ -464,7 +450,6 @@ describe("MA Vault", function () {
         let totalCost = costPerToken * 100 * 3;
         await maPool.purchase(
             deployer.address,
-            deployer.address,
             [0],
             ['300'],
             0,
@@ -506,7 +491,6 @@ describe("MA Vault", function () {
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await maPool.purchase(
-            deployer.address,
             deployer.address,
             [0],
             ['300'],
@@ -555,7 +539,6 @@ describe("MA Vault", function () {
         let totalCost = costPerToken * 100;
         await maPool.purchase(
             deployer.address,
-            deployer.address,
             [0],
             ['100'],
             0,
@@ -564,7 +547,6 @@ describe("MA Vault", function () {
         );
         await maPool.connect(user1).purchase(
             user1.address,
-            user1.address,
             [0],
             ['100'],
             0,
@@ -572,7 +554,6 @@ describe("MA Vault", function () {
             { value: totalCost.toString() }
         );
         await maPool.connect(user2).purchase(
-            user2.address,
             user2.address,
             [0],
             ['100'],
@@ -631,7 +612,6 @@ describe("MA Vault", function () {
         let totalCost = costPerToken * 100;
         await maPool.purchase(
             deployer.address,
-            deployer.address,
             [0],
             ['100'],
             0,
@@ -640,7 +620,6 @@ describe("MA Vault", function () {
         );
         await maPool.connect(user1).purchase(
             user1.address,
-            user1.address,
             [0],
             ['100'],
             0,
@@ -648,7 +627,6 @@ describe("MA Vault", function () {
             { value: totalCost.toString() }
         );
         await maPool.connect(user2).purchase(
-            user2.address,
             user2.address,
             [0],
             ['100'],
@@ -712,7 +690,6 @@ describe("MA Vault", function () {
         let totalCost = costPerToken * 100;
         await maPool.purchase(
             deployer.address,
-            deployer.address,
             [0],
             ['100'],
             0,
@@ -722,7 +699,6 @@ describe("MA Vault", function () {
 
         await maPool.connect(user1).purchase(
             user1.address,
-            user1.address,
             [0],
             ['100'],
             0,
@@ -731,7 +707,6 @@ describe("MA Vault", function () {
         );
 
         await maPool.connect(user2).purchase(
-            user2.address,
             user2.address,
             [0],
             ['100'],
@@ -799,7 +774,6 @@ describe("MA Vault", function () {
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await maPool.purchase(
-            deployer.address,
             deployer.address,
             [0],
             ['300'],
