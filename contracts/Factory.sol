@@ -42,9 +42,6 @@ contract Factory is ReentrancyGuard {
     address private immutable _closePoolImplementation;
 
     /* ======== BOOLEAN ======== */
-    /// @notice Factory version of this vault factory
-    uint256 public immutable vaultVersion;
-
     /// @notice Used to tag each vault with a unique value for tracking purposes
     uint256 public multiAssetVaultNonce;
 
@@ -66,14 +63,11 @@ contract Factory is ReentrancyGuard {
     /// @notice Store information regarding a multi asset pool
     /// [pool] -> pool address
     /// [slots] -> amount of NFTs that can be borrowed against at once
-    /// [amountSigned] -> amount of NFTs signed to turn on emissions
     struct MultiAssetVault {
         string name;
         address pool;
         uint32 nftsInPool;
         uint32 slots;
-        uint32 nftRemoved;
-        uint32 amountSigned;
     }
 
     /* ======== EVENT ======== */
@@ -113,7 +107,6 @@ contract Factory is ReentrancyGuard {
         _closePoolImplementation = address(new Closure());
         _vaultMultiImplementation = address(new Vault());
         controller = AbacusController(_controller);
-        vaultVersion = 1;
     }
 
     /* ======== FALLBACK FUNCTIONS ======== */
@@ -140,7 +133,6 @@ contract Factory is ReentrancyGuard {
         );
 
         vaultMultiDeployment.initialize(
-            vaultVersion,
             multiAssetVaultNonce,
             address(controller),
             _closePoolImplementation,
@@ -183,12 +175,8 @@ contract Factory is ReentrancyGuard {
                 msg.sender == IERC721(collection).ownerOf(_id)
                 || msg.sender == controller.registry(IERC721(collection).ownerOf(_id))
             );
-            require(
-                !controller.nftVaultSigned(collection, _id)
-                || Vault(payable(controller.nftVaultSignedAddress(collection, _id))).poolClosed()
-            );
+            require(!controller.nftVaultSigned(collection, _id));
             controller.updateNftUsage(pool, collection, _id, true);
-            IVault(mav.pool).toggleEmissions(collection, _id, true);
         }
         emit VaultSigned(pool, msg.sender, nft, id);
     }
@@ -207,16 +195,6 @@ contract Factory is ReentrancyGuard {
         require(controller.accreditedAddresses(msg.sender));
         require(IVault(mav.pool).getHeldTokenExistence(nftToRemove, idToRemove));
         controller.updateNftUsage(address(0), nftToRemove, idToRemove, false);
-        if(!nftRemoved[mav.pool][nftToRemove][idToRemove]) {
-            nftRemoved[mav.pool][nftToRemove][idToRemove] = true;
-            mav.nftRemoved++;
-        }
-        IVault(mav.pool).toggleEmissions(nftToRemove, idToRemove, false);
-
-        if(mav.nftRemoved == mav.nftsInPool) {
-            IVault(mav.pool).closePool();
-            emit PoolClosed(mav.pool);
-        }
         emit NftRemoved(msg.sender, nftToRemove, idToRemove);
     }
 
@@ -226,9 +204,8 @@ contract Factory is ReentrancyGuard {
     /// various pool contracts
     /// @param _user The recipient of these returned funds
     function updatePendingReturns(address _user) external payable nonReentrant {
-        require(controller.accreditedAddresses(msg.sender));
+        require(controller.accreditedAddresses(msg.sender), "NA");
         pendingReturns[_user] += msg.value;
-
         emit PendingReturnsUpdated(_user, msg.value);
     }
 
@@ -237,7 +214,6 @@ contract Factory is ReentrancyGuard {
         uint256 payout = pendingReturns[msg.sender];
         delete pendingReturns[msg.sender];
         payable(msg.sender).transfer(payout);
-
         emit PendingReturnsClaimed(msg.sender, payout);
     }
 
@@ -251,15 +227,6 @@ contract Factory is ReentrancyGuard {
 
     function emitPoolBegun(uint256 ticketSize) external onlyAccredited {
         emit VaultBegun(msg.sender, ticketSize);
-    }
-
-    function emitToggle(
-        address _nft,
-        uint256 _id,
-        bool _chosenToggle, 
-        uint256 _totalToggles
-    ) external onlyAccredited {
-        emit EmissionsToggled(msg.sender, _nft, _id, _chosenToggle, _totalToggles);
     }
 
     function emitPurchase(
@@ -285,23 +252,14 @@ contract Factory is ReentrancyGuard {
         address _seller,
         uint256 _nonce,
         uint256 _ticketsSold,
-        uint256 _creditsPurchased
+        uint256 _interestEarned
     ) external onlyAccredited {
         emit SaleComplete(
             msg.sender, 
             _seller, 
             _nonce,
             _ticketsSold, 
-            _creditsPurchased
-        );
-    }
-
-    function emitPoolRestored(
-        uint256 _payoutPerReservation
-    ) external onlyAccredited {
-        emit PoolRestored(
-            msg.sender, 
-            _payoutPerReservation
+            _interestEarned
         );
     }
 

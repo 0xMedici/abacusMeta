@@ -6,19 +6,11 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 interface IVault {
 
     function initialize(
-        uint256 _vaultVersion,
         uint256 nonce,
         address _controller,
         address closePoolImplementation_,
         address _creator
     ) external;
-
-    /// @notice Turn the emissions on and off
-    /// @dev Only callable by the factory contract
-    /// @param _nft Address of NFT collection
-    /// @param _id ID of NFT
-    /// @param emissionStatus The state new state of 'emissionsStarted' 
-    function toggleEmissions(address _nft, uint256 _id, bool emissionStatus) external;
 
     /// @notice [setup phase] Give an NFT access to the pool 
     /// @param _compTokenInfo Compressed list of NFT collection address and token ID information
@@ -59,46 +51,11 @@ interface IVault {
     /// any concentrated or general bribes during the users LP time is distributed on a risk
     /// adjusted basis. Revenues from an EDC sale are distributed among allocators.
     /// @param _user Address of the LP
-    /// @param _nonce Held nonce to close 
-    /// @param _payoutRatio Ratio of mined EDC that the user would like to purchase 
+    /// @param _nonce Held nonce to close
     function sell(
         address _user,
-        uint256 _nonce,
-        uint256 _payoutRatio
+        uint256 _nonce
     ) external;
-
-    /// @notice Offer a bribe to all LPs during a set of epochs
-    /// @param bribePerEpoch Bribe size during each desired epoch
-    /// @param startEpoch First epoch where bribes will be distributed
-    /// @param endEpoch Epoch in which bribe distribution from this general
-    /// bribe concludes
-    function offerGeneralBribe(
-        uint256 bribePerEpoch, 
-        uint256 startEpoch, 
-        uint256 endEpoch
-    ) external payable;
-
-    /// @notice Offer a concentrated bribe
-    /// @dev Concentrated bribes are offered to specific tranches during specific epochs 
-    /// @param startEpoch First epoch where bribes will be distributed
-    /// @param endEpoch Epoch in which bribe distribution from this general
-    /// @param tickets Tranches for bribe to be applied
-    /// @param bribePerTicket Size of the bribe offered to each tranche LP
-    function offerConcentratedBribe(
-        uint256 startEpoch,
-        uint256 endEpoch,
-        uint256[] calldata tickets,
-        uint256[] calldata bribePerTicket
-    ) external payable;
-
-    /// @notice Reclaim unused general bribes offered
-    /// @param epoch Epoch in which bribe went unused
-    function reclaimGeneralBribe(uint256 epoch) external;
-
-    /// @notice Reclaim unused concentrated bribes offered
-    /// @param epoch Epoch in which bribe went unused
-    /// @param ticket Ticket in which bribe went unused
-    function reclaimConcentratedBribe(uint256 epoch, uint256 ticket) external;
 
     /// @notice Revoke an NFTs connection to a pool
     /// @param _nft List of NFTs to be removed
@@ -115,11 +72,6 @@ interface IVault {
         uint256 _id,
         uint256 _saleValue
     ) external payable;
-
-    /// @notice Reset the value of 'payoutPerRes' size and the total allowed reservations
-    /// @dev This rebalances the payout per reservation value dependent on the total 
-    /// available funds count. 
-    function restore() external returns(bool);
 
     /// @notice Reserve the ability to close an NFT during an epoch 
     /// @dev Example: Alice and Bob create a 1 slot pool together with 2 Punks. Alice wants to
@@ -164,11 +116,6 @@ interface IVault {
     /// @param _nft NFT that is being closed
     /// @param _id Token ID of the NFT that is being closed
     function closeNft(address _nft, uint256 _id) external;
-
-    /// @notice Close the pool
-    /// @dev This can only be called from the factory once majority of holders
-    /// sign off on the overall closure of this pool.
-    function closePool() external;
 
     /// @notice Adjust a users LP information after an NFT is closed
     /// @dev This function is called by the calculate principal function in the closure contract

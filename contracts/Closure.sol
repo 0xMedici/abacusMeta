@@ -81,12 +81,11 @@ contract Closure is ReentrancyGuard, Initializable {
 
     function initialize(
         address _vault,
-        address _controller,
-        uint256 _version
+        address _controller
     ) external initializer {
         vault = IVault(payable(_vault));
         controller = AbacusController(_controller);
-        factory = IFactory(controller.factoryVersions(_version));
+        factory = IFactory(controller.factory());
     }
 
     /* ======== FALLBACK FUNCTIONS ======== */
@@ -102,10 +101,10 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @param _id NFT ID
     function startAuction(uint256 _nftVal, address _nft, uint256 _id) external {
         require(msg.sender == address(vault));
+        nonce[_nft][_id]++;
         uint256 _nonce = nonce[_nft][_id];
         nftVal[_nonce][_nft][_id] = _nftVal;
         liveAuctions++;
-        nonce[_nft][_id]++;
     }
 
     /// @notice Bid in an NFT auction
@@ -113,19 +112,18 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @param _nft NFT collection address
     /// @param _id NFT ID
     function newBid(address _nft, uint256 _id) external payable nonReentrant {
-        uint256 _nonce = nonce[_nft][_id] - 1;
+        uint256 _nonce = nonce[_nft][_id];
         if(
             nftVal[_nonce][_nft][_id] != 0
             && auctionEndTime[_nonce][_nft][_id] == 0
         ) {
             auctionEndTime[_nonce][_nft][_id] = block.timestamp + 12 hours;
         }
-        require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100);
-        require(block.timestamp < auctionEndTime[_nonce][_nft][_id]);
+        require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100, "IB");
+        require(block.timestamp < auctionEndTime[_nonce][_nft][_id], "TO");
         factory.updatePendingReturns{ 
             value:highestBid[_nonce][_nft][_id]
         } ( highestBidder[_nonce][_nft][_id] );
-
         highestBid[_nonce][_nft][_id] = msg.value;
         highestBidder[_nonce][_nft][_id] = msg.sender;
 
@@ -142,26 +140,23 @@ contract Closure is ReentrancyGuard, Initializable {
     /// @param _nft NFT collection address
     /// @param _id NFT ID
     function endAuction(address _nft, uint256 _id) external nonReentrant {
-        uint256 _nonce = nonce[_nft][_id] - 1;
-        require(auctionEndTime[_nonce][_nft][_id] != 0);
+        uint256 _nonce = nonce[_nft][_id];
+        require(auctionEndTime[_nonce][_nft][_id] != 0, "IA");
         require(
             block.timestamp > auctionEndTime[_nonce][_nft][_id]
-            && !auctionComplete[_nonce][_nft][_id]
+            && !auctionComplete[_nonce][_nft][_id],
+            "AO"
         );
-
         if(highestBid[_nonce][_nft][_id] > nftVal[_nonce][_nft][_id]) {
             auctionPremium[_nonce][_nft][_id] = highestBid[_nonce][_nft][_id] - nftVal[_nonce][_nft][_id];
         }
-        
         vault.updateSaleValue{value:highestBid[_nonce][_nft][_id]}(_nft, _id, highestBid[_nonce][_nft][_id]);
-
         auctionComplete[_nonce][_nft][_id] = true;
         IERC721(_nft).transferFrom(
             address(this), 
             highestBidder[_nonce][_nft][_id],
             _id
         );
-
         liveAuctions--;
         factory.emitAuctionEnded(
             address(vault),

@@ -8,8 +8,7 @@ interface IClosure {
 
     function initialize(
         address _vault,
-        address _controller,
-        uint256 _version
+        address _controller
     ) external;
 
     /// @notice Begin auction upon NFT closure
