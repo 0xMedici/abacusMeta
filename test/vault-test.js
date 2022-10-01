@@ -84,7 +84,7 @@ describe("MA Vault", function () {
         );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 750;
-        await expect(maPool.purchase(
+        await maPool.purchase(
             deployer.address,
             deployer.address,
             [
@@ -96,22 +96,22 @@ describe("MA Vault", function () {
             0,
             10,
             { value: totalCost.toString() }
-        )).to.reverted;
-        totalCost = costPerToken * 900;
+        );
+        totalCost = costPerToken * 150;
         await maPool.purchase(
             deployer.address,
             deployer.address,
             [
-                '0','1','2'
+                '1'
             ],
             [
-                '300', '300', '300'
+                '150'
             ],
             0,
             10,
             { value: totalCost.toString() }
         );
-        expect(await maPool.positionNonce(deployer.address)).to.equal(1);
+        expect(await maPool.positionNonce(deployer.address)).to.equal(2);
         totalCost = costPerToken * 600;
         await maPool.purchase(
             deployer.address,
@@ -126,7 +126,7 @@ describe("MA Vault", function () {
             10,
             { value: totalCost.toString() }
         );
-        expect(await maPool.positionNonce(deployer.address)).to.equal(2);
+        expect(await maPool.positionNonce(deployer.address)).to.equal(3);
         expect(await maPool.getTicketInfo(0, 3)).to.equal(300);
         await network.provider.send("evm_increaseTime", [172801]);
         totalCost = costPerToken * 900;
@@ -143,6 +143,10 @@ describe("MA Vault", function () {
             12,
             { value: totalCost.toString() }
         );
+
+        expect((await maPool.getTokensPurchased(0)).toString()).to.equal("1500");
+        expect((await maPool.getPayoutPerReservation(0)).toString()).to.equal("500000000000000000");
+        expect((await maPool.getTotalAvailableFunds(0)).toString()).to.equal("1500000000000000000");
         await network.provider.send("evm_increaseTime", [172801 * 10]);
         await maPool.sell(
             deployer.address,

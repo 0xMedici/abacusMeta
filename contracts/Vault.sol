@@ -81,22 +81,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) payoutAmount;
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) auctionSaleValue;
 
-    mapping(uint256 => uint256) public totalRiskPoints;
-
-    /// @notice The total amount of tokens purchased during an epoch
-    /// [uint256] -> Epoch
-    /// [uint256] -> Amount of tokens purchased
-    mapping(uint256 => uint256) public totalTokensPurchased;
+    mapping(uint256 => uint256) public compressedEpochVals;
 
     /// @notice A users position nonce
     /// [address] -> User address
     /// [uint256] -> Next nonce value 
     mapping(address => uint256) public positionNonce;
-
-    /// @notice Largest ticket in an epoch
-    /// [uint256] -> epoch
-    /// [uint256] -> max ticket 
-    mapping(uint256 => uint256) public maxTicketPerEpoch;
 
     /// @notice Amount of reservations made during an epoch
     /// [uint256] -> epoch
@@ -106,17 +96,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Payout size for each reservation during an epoch
     /// [uint256] -> epoch
     /// [uint256] -> payout size
-    mapping(uint256 => uint256) public payoutPerRes;
-
-    /// @notice Payout size for each reservation during an epoch
-    /// [uint256] -> epoch
-    /// [uint256] -> payout size
     mapping(uint256 => uint256) public epochEarnings;
-
-    /// @notice Total available funds in the pool during an epoch
-    /// [uint256] -> epoch
-    /// [uint256] -> available funds
-    mapping(uint256 => uint256) public totAvailFunds;
 
     /// @notice Track an addresses allowance status to trade another addresses position
     /// [address] allowance recipient
@@ -321,15 +301,23 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             finalEpoch = poolEpoch;
         }
         for(uint256 j = trader.startEpoch; j < finalEpoch; j++) {
-            interestLost += trader.riskLost * epochEarnings[j] / totalRiskPoints[j];
-            interestEarned += (trader.riskPoints - trader.riskLost) * epochEarnings[j] / totalRiskPoints[j];
+            uint256 riskPoints = this.getRiskPoints(j);
+            interestLost += trader.riskLost * epochEarnings[j] / riskPoints;
+            interestEarned += (trader.riskPoints - trader.riskLost) * epochEarnings[j] / riskPoints;
         }
 
         if(poolEpoch < trader.unlockEpoch) {
             for(poolEpoch; poolEpoch < trader.unlockEpoch; poolEpoch++) {
-                totalRiskPoints[poolEpoch] -= trader.riskPoints;
-                payoutPerRes[poolEpoch] -= (trader.ethLocked) / amountNft;
-                totAvailFunds[poolEpoch] -= (trader.ethLocked);
+                uint256 tempComp = compressedEpochVals[poolEpoch];
+                uint256 prevPosition;
+                tempComp = tempComp & ~((2**(prevPosition + 35) - 1) - (2**prevPosition - 1)) | ((compressedEpochVals[poolEpoch] & (2**35 -1)) - (trader.ethLocked / 0.001 ether)); 
+                prevPosition += 35;
+                tempComp = tempComp & ~((2**(prevPosition + 51) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[poolEpoch] >> 35) & (2**51 -1)) - trader.riskPoints) << prevPosition);
+                prevPosition += 51;
+                tempComp = tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[poolEpoch] >> 86) & (2**84 -1)) - trader.ethLocked / amountNft) << prevPosition);
+                prevPosition += 84;
+                tempComp = tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[poolEpoch] >> 170) & (2**84 -1)) - trader.ethLocked) << prevPosition);
+                compressedEpochVals[poolEpoch] = tempComp;
             }
         }
         factory.emitSaleComplete(
@@ -381,15 +369,20 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 poolEpoch = epochOfClosure[closureNonce[_nft][_id]][_nft][_id];
         auctionSaleValue[closureNonce[_nft][_id]][_nft][_id] = _saleValue;
         closureNonce[_nft][_id]++;
-        uint256 ppr = payoutPerRes[poolEpoch];
-        uint256 propTrack = totAvailFunds[poolEpoch];
+        uint256 ppr = this.getPayoutPerReservation(poolEpoch);
+        uint256 propTrack = this.getTotalAvailableFunds(poolEpoch);
         uint256 mod;
-        if(totAvailFunds[poolEpoch + 1] > propTrack) {
-            mod = totAvailFunds[poolEpoch + 1] - propTrack;
+        if(this.getTotalAvailableFunds(poolEpoch) > propTrack) {
+            mod = this.getTotalAvailableFunds(poolEpoch) - propTrack;
         }
-        while(totAvailFunds[poolEpoch] > 0) {
-            totAvailFunds[poolEpoch] -= ppr * (totAvailFunds[poolEpoch] - mod) / propTrack;
-            payoutPerRes[poolEpoch] = totAvailFunds[poolEpoch] / amountNft;
+        while(this.getTotalAvailableFunds(poolEpoch) > 0) {
+            uint256 tempComp = compressedEpochVals[poolEpoch];
+            uint256 tv = this.getTotalAvailableFunds(poolEpoch);
+            uint256 prevPosition = 86;
+            tempComp = tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) | ((tv / amountNft) << 86);
+            prevPosition += 84;
+            tempComp = tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[poolEpoch] >> 170) & (2**84 -1)) - ppr * (tv - mod) / propTrack) << prevPosition);
+            compressedEpochVals[poolEpoch] = tempComp;
             poolEpoch++;
         }
         reservationsAvailable++;
@@ -417,7 +410,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(_endEpoch - poolEpoch <= 20);
         uint256 amount;
         for(uint256 j = poolEpoch; j < _endEpoch; j++) {
-            amount += payoutPerRes[j];
+            amount += this.getPayoutPerReservation(j);
         }
         require(
             msg.value == (100_000 + reservations[poolEpoch]**2 * 100_000 / amountNft**2) 
@@ -498,7 +491,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             i++;
         }
         i = poolEpoch;
-        uint256 ppr = payoutPerRes[i];
+        uint256 ppr = this.getPayoutPerReservation(i);
         if(closePoolContract == address(0)) {
             IClosure closePoolMultiDeployment = 
                 IClosure(Clones.clone(_closePoolMultiImplementation));
@@ -554,7 +547,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 appLoss = internalAdjustment(
             _user,
             _nonce,
-            totalTokensPurchased[epochOfClosure[_closureNonce][_nft][_id]],
+            this.getTokensPurchased(epochOfClosure[_closureNonce][_nft][_id]),
             payoutAmount[_closureNonce][_nft][_id],
             auctionSaleValue[_closureNonce][_nft][_id],
             trader.comListOfTickets,
@@ -578,37 +571,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         adjustCompleted[_user][_nonce][_closureNonce][_nft][_id] = true;
         return true;
     }
-
-    /** 
-    TODO:
-        1. Allow access to liquidity
-        2. Take in interest based on pool creators chosen interest rate 
-            - Interest paid on entire payout size since user is reserving that entire amount
-        3. Process fee intake from interest & liquidation
-        4. Allow for liquidation
-        5. Liq repayment
-
-        Risk Engine:
-        1. User takes loan
-        2. Liquidator wants to liquidate
-        3. Checks that reservationsAvailable == amountNft
-            > YES -> check payoutPerRes
-            > NO -> Liquidator must submit a set of auctions 
-                    that are ending in the next x hours 
-                    which will send the payoutPerRes below
-                    the current payoutPerRes
-                - Submit NFT
-                - Submit list of closure nonces
-                    For each in list:
-                    1. Load in the auction information using closure nonce
-                    2. Verify auction endTime is within liquidation time
-                    3. Calculate average closure value across all auctions
-                    4. Calculate final payoutPerRes by: 
-                        ((remainingClosures * payoutPerRes) + (auctionsCounted * averageAuctionValue)) 
-                            / (remainingClosures + auctionsCounted)
-            > NO -> Liquidator shows 3x missed interest payments
-            > NO -> Liquidator shows raw payout per res of the future res is lower 
-    */
 
     function processFees() external payable {
         require(controller.accreditedAddresses(msg.sender));
@@ -681,16 +643,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 temp;
             for(uint256 i = 0; i < length; i++) {
                 uint256 ticket = tickets[i];
-                if(
-                    startEpoch == j
-                    && ticket > 0
-                ) {
-                    if(temp == 0) {
-                        require(this.getTicketInfo(j, ticket - 1) >= amountNft * ticketLimit);
-                    } else {
-                        require(temp >= amountNft * ticketLimit);
-                    }
-                }
                 riskPoints += getSqrt((100 + ticket) / 10) ** 3 * ticketAmounts[i];
                 temp = this.getTicketInfo(j, ticket);
                 temp += ticketAmounts[i];
@@ -699,13 +651,18 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 epochTickets[ticket / 15] |= (temp << ((ticket % 15)*16));
                 amount += ticketAmounts[i];
             }
-            totalRiskPoints[j] += riskPoints;
-            payoutPerRes[j] += amount * 0.001 ether / amountNft;
-            totAvailFunds[j] += amount * 0.001 ether;
+            uint256 tempComp = compressedEpochVals[j];
+            uint256 prevPosition;
+            tempComp = tempComp & ~((2**(prevPosition + 35) - 1) - (2**prevPosition - 1)) | ((compressedEpochVals[j] & (2**35 -1)) + amount); 
+            prevPosition += 35;
+            tempComp = tempComp & ~((2**(prevPosition + 51) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[j] >> 35) & (2**51 -1)) + riskPoints) << prevPosition);
+            prevPosition += 51;
+            tempComp = tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[j] >> 86) & (2**84 -1)) + amount * 0.001 ether / amountNft) << prevPosition);
+            prevPosition += 84;
+            tempComp = tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) | ((((compressedEpochVals[j] >> 170) & (2**84 -1)) + amount * 0.001 ether) << prevPosition);
+            compressedEpochVals[j] = tempComp;
             ticketsPurchased[j] = epochTickets;
             totalTokens = amount;
-            if(maxTicketPerEpoch[j] < largestTicket) maxTicketPerEpoch[j] = largestTicket;
-            totalTokensPurchased[j] += amount;
         }
     }
 
@@ -792,6 +749,42 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         return MAPoolNonce;
     }
 
+    function getTotalAvailableFunds(uint256 _epoch) external view returns(uint256) {
+        uint256 compVal = compressedEpochVals[_epoch];
+        return (compVal >> 170) & (2**84 -1);
+    }
+
+    function getPayoutPerReservation(uint256 _epoch) external view returns(uint256) {
+        uint256 compVal = compressedEpochVals[_epoch];
+        return (compVal >> 86) & (2**84 -1);
+    }
+
+    function getRiskPoints(uint256 _epoch) external view returns(uint256) {
+        uint256 compVal = compressedEpochVals[_epoch];
+        return (compVal >> 35) & (2**51 -1);
+    }
+
+    function getTokensPurchased(uint256 _epoch) external view returns(uint256) {
+        uint256 compVal = compressedEpochVals[_epoch];
+        return compVal & (2**35 -1);
+    }
+
+    // function getEpochInfo(uint256 _epoch) external view returns(
+    //     uint256 totalAvailableFunds,
+    //     uint256 payoutPerReservation,
+    //     uint256 riskPoints,
+    //     uint256 tokensPurchased
+    // ) {
+    //     uint256 compVal = compressedEpochVals[_epoch];
+    //     tokensPurchased = compVal & (2**35 -1);
+    //     compVal >>= 35;
+    //     riskPoints = compVal & (2**51 -1);
+    //     compVal >>= 51;
+    //     payoutPerReservation = compVal & (2**85 -1);
+    //     compVal >>= 85;
+    //     totalAvailableFunds = compVal & (2**85 -1);
+    // }
+
     function getPosition(
         address _user, 
         uint256 _nonce
@@ -837,7 +830,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 poolEpoch = (block.timestamp - startTime) / ELENGTH;
         uint256 amount;
         for(uint256 j = poolEpoch; j < _endEpoch; j++) {
-            amount += payoutPerRes[j];
+            amount += this.getPayoutPerReservation(j);
         }
         return (100_000 + reservations[poolEpoch]**2 * 100_000 / amountNft**2) 
             * (_endEpoch - poolEpoch) * (amount / (_endEpoch - poolEpoch)) / 250_000_000;
