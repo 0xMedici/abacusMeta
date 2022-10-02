@@ -53,6 +53,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     uint256 amountNftsLinked;
     uint256 MAPoolNonce;
 
+    /// @notice Interest rate that the pool charges for usage of liquidity
     uint256 public interestRate;
 
     /// @notice The amount of available NFT closures
@@ -81,6 +82,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) payoutAmount;
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) auctionSaleValue;
 
+    /// @notice Compressed version of: totalTokensPurchased, totalRiskPoints, payoutPerRes, totAvailFunds
     mapping(uint256 => uint256) public compressedEpochVals;
 
     /// @notice A users position nonce
@@ -571,6 +573,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         return true;
     }
 
+    /// @notice Receive and process an fees earned by the Spot pool
     function processFees() external payable {
         require(controller.lender() == msg.sender, "Not accredited");
         uint256 poolEpoch = (block.timestamp - startTime) / ELENGTH;
@@ -579,12 +582,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         epochEarnings[poolEpoch] += msg.value - payout;
     }
 
+    /// @notice Send liquidity to borrower
     function accessLiq(address _user, address _nft, uint256 _id, uint256 _amount) external {
         require(controller.lender() == msg.sender, "Not accredited");
         liqAccessed[_nft][_id] += _amount;
         payable(_user).transfer(_amount);
     }
 
+    /// @notice Receive liquidity from lending contract
     function depositLiq(address _nft, uint256 _id) external payable {
         require(controller.lender() == msg.sender, "Not accredited");
         liqAccessed[_nft][_id] -= msg.value;
@@ -753,42 +758,31 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         return MAPoolNonce;
     }
 
+    /// @notice Returns the total available funds during an `_epoch`
     function getTotalAvailableFunds(uint256 _epoch) external view returns(uint256) {
         uint256 compVal = compressedEpochVals[_epoch];
         return (compVal >> 170) & (2**84 -1);
     }
 
+    /// @notice Returns the payout per reservations during an `_epoch`
     function getPayoutPerReservation(uint256 _epoch) external view returns(uint256) {
         uint256 compVal = compressedEpochVals[_epoch];
         return (compVal >> 86) & (2**84 -1);
     }
 
+    /// @notice Returns the total amount of risk points outstanding in an `_epoch`
     function getRiskPoints(uint256 _epoch) external view returns(uint256) {
         uint256 compVal = compressedEpochVals[_epoch];
         return (compVal >> 35) & (2**51 -1);
     }
 
+    /// @notice Returns total amount of tokens purchased during an `_epoch`
     function getTokensPurchased(uint256 _epoch) external view returns(uint256) {
         uint256 compVal = compressedEpochVals[_epoch];
         return compVal & (2**35 -1);
     }
 
-    // function getEpochInfo(uint256 _epoch) external view returns(
-    //     uint256 totalAvailableFunds,
-    //     uint256 payoutPerReservation,
-    //     uint256 riskPoints,
-    //     uint256 tokensPurchased
-    // ) {
-    //     uint256 compVal = compressedEpochVals[_epoch];
-    //     tokensPurchased = compVal & (2**35 -1);
-    //     compVal >>= 35;
-    //     riskPoints = compVal & (2**51 -1);
-    //     compVal >>= 51;
-    //     payoutPerReservation = compVal & (2**85 -1);
-    //     compVal >>= 85;
-    //     totalAvailableFunds = compVal & (2**85 -1);
-    // }
-
+    /// @notice Returns a users position information
     function getPosition(
         address _user, 
         uint256 _nonce

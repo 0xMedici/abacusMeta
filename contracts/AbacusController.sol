@@ -122,7 +122,7 @@ contract AbacusController {
     }
 
     /* ======== PROPOSALS BETA 1 ======== */
-
+    
     function addWlUser(address[] calldata users) external onlyMultisig {
         uint256 length = users.length;
         for(uint256 i = 0; i < length; i++) {

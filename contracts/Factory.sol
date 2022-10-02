@@ -55,9 +55,9 @@ contract Factory is ReentrancyGuard {
     /// [uint256] -> nonce
     mapping(uint256 => MultiAssetVault) public multiAssetMapping;
 
+    /// @notice Track a Spot pool by name
+    /// [string] -> Spot pool name
     mapping(string => address) public vaultNames;
-
-    mapping(address => mapping(address => mapping(uint256 => bool))) public nftRemoved;
 
     /* ======== MAPPING ======== */
     /// @notice Store information regarding a multi asset pool
@@ -76,14 +76,11 @@ contract Factory is ReentrancyGuard {
     event VaultSigned(address _pool, address _signer, address[] nftAddress, uint256[] ids);
     event NftInclusion(address _pool, uint256[] nfts);
     event VaultBegun(address _pool, uint256 _ticketSize);
-    event EmissionsToggled(address _pool, address _nft, uint256 _id, bool chosenToggle, uint256 totalToggles);
     event NftRemoved(address _pool, address removedAddress, uint256 removedId);
-    event PoolClosed(address _pool); 
     event PendingReturnsUpdated(address _user, uint256 _amount);
     event PendingReturnsClaimed(address _user, uint256 _amount);
     event Purchase(address _pool, address _buyer, uint256[] tickets, uint256[] amountPerTicket, uint256 nonce, uint256 startEpoch, uint256 finalEpoch);
     event SaleComplete(address _pool,  address _seller, uint256 nonce, uint256 ticketsSold, uint256 creditsPurchased);
-    event PoolRestored(address _pool, uint256 newPayoutPerReservation);
     event SpotReserved(address _pool, uint256 reservationId, uint256 startEpoch, uint256 endEpoch);
     event NftClosed(address _pool, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
     event NewBid(address _pool, address _closePoolContract, address _collection, uint256 _id, address _bidder, uint256 _bid);
