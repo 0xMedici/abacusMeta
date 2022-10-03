@@ -81,14 +81,14 @@ describe("Life cycle", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -111,7 +111,6 @@ describe("Life cycle", function () {
             12,
             { value: totalCost.toString() }
         );
-        await maPool.reserve(mockNft.address, 1, 10, { value:(await maPool.getCostToReserve(10)).toString() });
         await mockNft.approve(lend.address, 1);
         await lend.borrow(
             maPool.address,
@@ -128,7 +127,6 @@ describe("Life cycle", function () {
             12,
             { value: totalCost.toString() }
         );
-        await maPool.reserve(mockNft.address, 2, 10, { value:(await maPool.getCostToReserve(10)).toString() });
         await mockNft.approve(lend.address, 2);
         await lend.borrow(
             maPool.address,
@@ -191,11 +189,10 @@ describe("Life cycle", function () {
         await network.provider.send("evm_increaseTime", [86400]);
         await closureMulti.endAuction(mockNft.address, 2);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address],
             [2]
         );
-        await maPool.reserve(mockNft.address, 1, 15, { value:(await maPool.getCostToReserve(15)).toString() });
         await mockNft.approve(lend.address, 1);
         await lend.borrow(
             maPool.address,

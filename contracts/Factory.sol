@@ -35,15 +35,9 @@ import "./helpers/ReentrancyGuard.sol";
 contract Factory is ReentrancyGuard {
 
     /* ======== ADDRESS ======== */
-
     AbacusController public immutable controller;
-        
     address private immutable _vaultMultiImplementation;
     address private immutable _closePoolImplementation;
-
-    /* ======== BOOLEAN ======== */
-    /// @notice Used to tag each vault with a unique value for tracking purposes
-    uint256 public multiAssetVaultNonce;
 
     /* ======== MAPPING ======== */
     /// @notice ETH to be returned from all vaults is routed this mapping
@@ -53,25 +47,20 @@ contract Factory is ReentrancyGuard {
 
     /// @notice Track each pool using a unique multi asset mapping nonce
     /// [uint256] -> nonce
-    mapping(uint256 => MultiAssetVault) public multiAssetMapping;
-
-    /// @notice Track a Spot pool by name
-    /// [string] -> Spot pool name
-    mapping(string => address) public vaultNames;
+    mapping(string => SpotPool) public poolMapping;
 
     /* ======== MAPPING ======== */
     /// @notice Store information regarding a multi asset pool
-    /// [pool] -> pool address
     /// [slots] -> amount of NFTs that can be borrowed against at once
-    struct MultiAssetVault {
-        string name;
-        address pool;
-        uint32 nftsInPool;
+    /// [nftsInPool] -> total amount of NFTs linked to a pool
+    /// [pool] -> pool address
+    struct SpotPool {
         uint32 slots;
+        uint64 nftsInPool;
+        address pool;
     }
 
     /* ======== EVENT ======== */
-
     event VaultCreated(string name, address _creator, address _pool);
     event VaultSigned(address _pool, address _signer, address[] nftAddress, uint256[] ids);
     event NftInclusion(address _pool, uint256[] nfts);
@@ -90,16 +79,13 @@ contract Factory is ReentrancyGuard {
     event LPTransferAllowanceChanged(address _pool, address from, address to);
     event LPTransferred(address _pool, address from, address to, uint256 nonce);
 
-
     /* ======== MODIFIER ======== */
-    
     modifier onlyAccredited {
         require(controller.accreditedAddresses(msg.sender));
         _;
     }
 
     /* ======== CONSTRUCTOR ======== */
-
     constructor(address _controller) {
         _closePoolImplementation = address(new Closure());
         _vaultMultiImplementation = address(new Vault());
@@ -107,107 +93,91 @@ contract Factory is ReentrancyGuard {
     }
 
     /* ======== FALLBACK FUNCTIONS ======== */
-
     receive() external payable {}
     fallback() external payable {}
 
     /* ======== POOL CREATION ======== */
-    /// @notice Create a multi asset vault
-    /// @dev The creator will have to pay a creation fee (denominated in ABC)
-    /// @param name Name of the pool
+    /// SEE IFactory.sol FOR COMMENTS
     function initiateMultiAssetVault(
         string memory name
     ) external nonReentrant {
-        require(vaultNames[name] == address(0));
         uint256 beta = controller.beta();
         if(beta == 1) {
             require(controller.userWhitelist(msg.sender));
         }
 
-        MultiAssetVault storage mav = multiAssetMapping[multiAssetVaultNonce];
+        SpotPool storage pool = poolMapping[name];
+        require(pool.pool == address(0));
         IVault vaultMultiDeployment = IVault(
             Clones.clone(_vaultMultiImplementation)
         );
 
         vaultMultiDeployment.initialize(
-            multiAssetVaultNonce,
+            name,
             address(controller),
             _closePoolImplementation,
             msg.sender
         );
 
         controller.addAccreditedAddressesMulti(address(vaultMultiDeployment));
-        mav.pool = address(vaultMultiDeployment);
-        mav.name = name;
-        vaultNames[name] = address(vaultMultiDeployment);
-        multiAssetVaultNonce++;
+        pool.pool = address(vaultMultiDeployment);
         emit VaultCreated(name, msg.sender, address(vaultMultiDeployment));
     }
 
-    function updateSlotCount(uint256 mavNonce, uint256 slots, uint256 amountNfts) external {
+    /// SEE IFactory.sol FOR COMMENTS
+    function updateSlotCount(string memory name, uint256 slots, uint256 amountNfts) external {
         require(controller.accreditedAddresses(msg.sender));
-        multiAssetMapping[mavNonce].slots = uint32(slots);
-        multiAssetMapping[mavNonce].nftsInPool = uint32(amountNfts);
+        poolMapping[name].slots = uint32(slots);
+        poolMapping[name].nftsInPool = uint64(amountNfts);
     }
 
-    /// @notice Sign off on starting a vaults emissions
-    /// @dev Each NFT can only have its signature attached to one vault at a time
-    /// @param multiVaultNonce Nonce corresponding to desired vault
-    /// @param nft List of NFTs (must be in the vault and owned by the caller)
-    /// @param id List of NFT IDs (must be in the vault and owned by the caller)
+    /// SEE IFactory.sol FOR COMMENTS
     function signMultiAssetVault(
-        uint256 multiVaultNonce,
+        string memory name,
         address[] calldata nft,
         uint256[] calldata id
     ) external nonReentrant {
-        MultiAssetVault storage mav = multiAssetMapping[multiVaultNonce];
-        require(Vault(payable(mav.pool)).startTime() != 0, "Pool not started");
+        SpotPool storage pool = poolMapping[name];
+        require(Vault(payable(pool.pool)).startTime() != 0, "Pool not started");
         uint256 length = id.length;
-        address pool = mav.pool;
+        address poolAddress = pool.pool;
         for(uint256 i = 0; i < length; i++) {
             address collection = nft[i];
             uint256 _id = id[i];
-            require(IVault(pool).getHeldTokenExistence(collection, _id), "Token not in pool");
+            require(IVault(poolAddress).getHeldTokenExistence(collection, _id), "Token not in pool");
             require(
                 msg.sender == IERC721(collection).ownerOf(_id)
                 || msg.sender == controller.registry(IERC721(collection).ownerOf(_id)),
                 "Not owner or proxy"
             );
-            require(!controller.nftVaultSigned(collection, _id), "NFT already linked to a pool");
-            controller.updateNftUsage(pool, collection, _id, true);
+            require(controller.nftVaultSignedAddress(collection, _id) == address(0), "NFT already linked to a pool");
+            controller.updateNftUsage(poolAddress, collection, _id, true);
         }
-        emit VaultSigned(pool, msg.sender, nft, id);
+        emit VaultSigned(poolAddress, msg.sender, nft, id);
     }
 
-    /// @notice Sever ties between an NFT and a pool
-    /// @dev Only callable by an accredited address (an existing pool)
-    /// @param nftToRemove NFT address to be removed
-    /// @param idToRemove NFT ID to be removed
-    /// @param multiVaultNonce Nonce corresponding to desired vault 
+    /// SEE IFactory.sol FOR COMMENTS
     function updateNftInUse(
         address nftToRemove,
         uint256 idToRemove,
-        uint256 multiVaultNonce
+        string memory name
     ) external {
-        MultiAssetVault storage mav = multiAssetMapping[multiVaultNonce];
+        SpotPool storage pool = poolMapping[name];
         require(controller.accreditedAddresses(msg.sender));
-        require(IVault(mav.pool).getHeldTokenExistence(nftToRemove, idToRemove));
+        require(IVault(pool.pool).getHeldTokenExistence(nftToRemove, idToRemove));
         controller.updateNftUsage(address(0), nftToRemove, idToRemove, false);
         emit NftRemoved(msg.sender, nftToRemove, idToRemove);
     }
 
     /* ======== CLAIMING RETURNED FUNDS/EARNED FEES ======== */
-    /// @notice Update a users pending return count
-    /// @dev Pending returns come from funds that need to be returned from
-    /// various pool contracts
-    /// @param _user The recipient of these returned funds
+    /// SEE IFactory.sol FOR COMMENTS
     function updatePendingReturns(address _user) external payable nonReentrant {
         require(controller.accreditedAddresses(msg.sender), "NA");
         pendingReturns[_user] += msg.value;
         emit PendingReturnsUpdated(_user, msg.value);
     }
 
-    /// @notice Claim the pending returns that have been sent for the user
+    /// SEE IFactory.sol FOR COMMENTS
     function claimPendingReturns() external nonReentrant {
         uint256 payout = pendingReturns[msg.sender];
         delete pendingReturns[msg.sender];
@@ -216,7 +186,6 @@ contract Factory is ReentrancyGuard {
     }
 
     /* ======== EVENT PROPAGATION ======== */
-
     function emitNftInclusion(
         uint256[] calldata encodedNfts
     ) external onlyAccredited {
@@ -369,7 +338,6 @@ contract Factory is ReentrancyGuard {
     }
 
     /* ======== GETTERS ======== */
-
     function getSqrt(uint x) external pure returns (uint y) {
         uint z = (x + 1) / 2;
         y = x;
@@ -379,7 +347,11 @@ contract Factory is ReentrancyGuard {
         }
     }
 
-    function encodeCompressedValue(
+    function getPoolAddress(string memory name) external view returns(address) {
+        return poolMapping[name].pool;
+    }
+
+    function getEncodedCompressedValue(
         address[] calldata nft,
         uint256[] calldata id
     ) external pure returns(
@@ -396,7 +368,7 @@ contract Factory is ReentrancyGuard {
         }
     }
 
-    function decodeCompressedValue(
+    function getDecodedCompressedValue(
         uint256 _compTokenInfo
     ) external pure returns(address _nft, uint256 _id) {
         _id = _compTokenInfo & (2**95-1);
@@ -404,7 +376,7 @@ contract Factory is ReentrancyGuard {
         _nft = address(uint160(temp & (2**160-1)));
     }
 
-    function decodeCompressedTickets(
+    function getDecodedCompressedTickets(
         uint256 comTickets
     ) external pure returns(
         uint256 stopIndex,

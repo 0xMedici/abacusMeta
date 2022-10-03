@@ -1,12 +1,10 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-
 interface IVault {
 
     function initialize(
-        uint256 nonce,
+        string memory name,
         address _controller,
         address closePoolImplementation_,
         address _creator
@@ -17,8 +15,10 @@ interface IVault {
     function includeNft(uint256[] calldata _compTokenInfo) external;
 
     /// @notice [setup phase] Start the pools operation
-    /// @param slots The amount of collateral slots the pool will offer
-    function begin(uint256 slots, uint256 _ticketSize) external;
+    /// @param _slots The amount of collateral slots the pool will offer
+    /// @param _ticketSize The size of a tranche
+    /// @param _rate The chosen interest rate
+    function begin(uint256 _slots, uint256 _ticketSize, uint256 _rate) external payable;
 
     /// @notice Purchase an LP position in a spot pool
     /// @dev Each position that is held by a user is tagged by a nonce which allows each 
@@ -27,7 +27,6 @@ interface IVault {
     /// post-purchase via the 'transferFrom' function. 
     /// - The '_caller' address of a purchase receives a 1% referral fee. If this is the buyer,
     /// they incur no fee as the extra 1% is accredited to them. 
-    /// @param _caller Function caller
     /// @param _buyer The position buyer
     /// @param tickets Array of tickets that the buyer would like to add in their position
     /// @param amountPerTicket Array of amount of tokens that the buyer would like to purchase
@@ -35,8 +34,7 @@ interface IVault {
     /// @param startEpoch Starting LP epoch
     /// @param finalEpoch The first epoch during which the LP position unlocks
     function purchase(
-        address _caller,
-        address _buyer, 
+        address _buyer,
         uint256[] calldata tickets, 
         uint256[] calldata amountPerTicket,
         uint256 startEpoch,
@@ -47,15 +45,14 @@ interface IVault {
     /// @dev Users ticket balances are counted on a risk adjusted basis in comparison to the
     /// maximum purchased ticket tranche. The lowest discounted EDC payout is 75% and the 
     /// highest premium is 125% for the highest ticket holders. This rate effects the portion of
-    /// EDC that a user receives per EDC emitted from a pool each epoch. Furthermore, upon unlock
-    /// any concentrated or general bribes during the users LP time is distributed on a risk
-    /// adjusted basis. Revenues from an EDC sale are distributed among allocators.
+    /// EDC that a user receives per EDC emitted from a pool each epoch.
+    /// Revenues from an EDC sale are distributed among allocators.
     /// @param _user Address of the LP
-    /// @param _nonce Held nonce to close
+    /// @param _nonce Held nonce to close 
     function sell(
         address _user,
         uint256 _nonce
-    ) external;
+    ) external returns(uint256 interestEarned);
 
     /// @notice Revoke an NFTs connection to a pool
     /// @param _nft List of NFTs to be removed
@@ -73,27 +70,11 @@ interface IVault {
         uint256 _saleValue
     ) external payable;
 
-    /// @notice Reserve the ability to close an NFT during an epoch 
-    /// @dev Example: Alice and Bob create a 1 slot pool together with 2 Punks. Alice wants to
-    /// borrow against the NFT in the upcoming epoch so she reserves the right to close the pool via 
-    /// 'reserve'. If Bob wants to close the NFT he has to wait until he can reserve the closure space.
-    /// The cost to reserve also increases by 25% based on the amount of reservations that have been
-    /// made during the epoch of interest. So if the pool was created with 2 slots and Alice already
-    /// reserved a space, Bob would have to pay 125% of what Alice paid to take the second reservation
-    /// slot. 
-    /// @param _nft NFT that is being reserved
-    /// @param id Token ID of the NFT that is being reserved
-    /// @param endEpoch The epoch during which the reservation wears off
-    function reserve(address _nft, uint256 id, uint256 endEpoch) external payable;
-
     /// @notice Allow another user permission to execute a single 'transferFrom' call
     /// @param recipient Allowee address
-    /// @param nonce Nonce of allowance 
     function changeTransferPermission(
-        address recipient,
-        uint256 nonce,
-        bool permission
-    ) external;
+        address recipient
+    ) external returns(bool);
 
     /// @notice Transfer a position or portion of a position from one user to another
     /// @dev A user can transfer an amount of tokens in each tranche from their held position at
@@ -106,7 +87,7 @@ interface IVault {
         address from,
         address to,
         uint256 nonce
-    ) external;
+    ) external returns(bool);
 
     /// @notice Close an NFT in exchange for the 'payoutPerRes' of the current epoch
     /// @dev This closure triggers a 48 hour auction to begin in which the closed NFT will be sold
@@ -115,7 +96,7 @@ interface IVault {
     /// it will create a close pool contract that the rest of the closure will use as well.
     /// @param _nft NFT that is being closed
     /// @param _id Token ID of the NFT that is being closed
-    function closeNft(address _nft, uint256 _id) external;
+    function closeNft(address _nft, uint256 _id) external returns(uint256);
 
     /// @notice Adjust a users LP information after an NFT is closed
     /// @dev This function is called by the calculate principal function in the closure contract
@@ -123,6 +104,7 @@ interface IVault {
     /// @param _nonce Nonce of the LP
     /// @param _nft Address of the auctioned NFT
     /// @param _id Token ID of the auctioned NFT
+    /// @param _closureNonce Closure nonce of the NFT being adjusted for
     function adjustTicketInfo(
         address _user,
         uint256 _nonce,
@@ -131,17 +113,45 @@ interface IVault {
         uint256 _closureNonce
     ) external returns(bool);
 
+    /// @notice Receive and process an fees earned by the Spot pool
+    function processFees() external payable;
+
+    /// @notice Send liquidity to borrower
+    function accessLiq(address _user, address _nft, uint256 _id, uint256 _amount) external;
+
+    /// @notice Receive liquidity from lending contract
+    function depositLiq(address _nft, uint256 _id) external payable;
+
     /// @notice Get multi asset pool reference nonce
-    function getNonce() external view returns(uint256);
+    function getName() external view returns(string memory);
+
+    /// @notice Returns the total available funds during an `_epoch`
+    function getTotalAvailableFunds(uint256 _epoch) external view returns(uint256);
+
+    /// @notice Returns the payout per reservations during an `_epoch`
+    function getPayoutPerReservation(uint256 _epoch) external view returns(uint256);
+
+    /// @notice Returns the total amount of risk points outstanding in an `_epoch`
+    function getRiskPoints(uint256 _epoch) external view returns(uint256);
+
+    /// @notice Returns total amount of tokens purchased during an `_epoch`
+    function getTokensPurchased(uint256 _epoch) external view returns(uint256);
+
+    /// @notice Returns a users position information
+    function getPosition(
+        address _user, 
+        uint256 _nonce
+    ) external view returns(
+        uint32 startEpoch,
+        uint32 endEpoch,
+        uint256 tickets, 
+        uint256 amounts,
+        uint256 ethLocked
+    );
 
     /// @notice Get the list of NFT address and corresponding token IDs in by this pool
     function getHeldTokenExistence(address _nft, uint256 _id) external view returns(bool);
 
     /// @notice Get the amount of spots in a ticket that have been purchased during an epoch
     function getTicketInfo(uint256 epoch, uint256 ticket) external view returns(uint256);
-
-    /// @notice Get the cost to reserve an NFT for an amount of epochs
-    /// @dev This takes into account the reservation amount premiums
-    /// @param _endEpoch The epoch after the final reservation epoch
-    function getCostToReserve(uint256 _endEpoch) external view returns(uint256);
 }

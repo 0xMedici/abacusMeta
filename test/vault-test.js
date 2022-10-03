@@ -63,14 +63,14 @@ describe("Spot pool", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -157,14 +157,14 @@ describe("Spot pool", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 16);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -178,52 +178,6 @@ describe("Spot pool", function () {
             2,
             { value: totalCost.toString() }
         );
-        await maPool.sell(
-            deployer.address,
-            0
-        );
-    });
-
-    it("Reserve for closure", async function () {
-        let nftIds = new Array();
-        let nftAddresses = new Array();
-        for(let i = 0; i < 6; i++) {
-            await mockNft.mintNew();
-            nftIds[i] = i + 1;
-            nftAddresses[i] = mockNft.address;
-        }
-        await factory.initiateMultiAssetVault(
-            "HelloWorld"
-        );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
-        let maPool = await Vault.attach(vaultAddress);
-        await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
-        );
-        await maPool.begin(3, 100, 15);
-        await factory.signMultiAssetVault(
-            0,
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
-        let costPerToken = 1e15;
-        let totalCost = costPerToken * 300 * 3;
-        await maPool.purchase(
-            deployer.address,
-            [0, '1', '2'],
-            ['300', '300', '300'],
-            0,
-            2,
-            { value: totalCost.toString() }
-        );
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        expect(await maPool.reservationMade(1, mockNft.address, 1)).to.equal(true);
-        expect(await maPool.reservations(1)).to.equal(1);
-        expect(maPool.sell(
-            deployer.address,
-            0
-        )).to.reverted;
-        await maPool.remove([mockNft.address], [1]);
         await maPool.sell(
             deployer.address,
             0
@@ -243,16 +197,16 @@ describe("Spot pool", function () {
             "HelloWorld"
         );
 
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
 
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
 
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -268,7 +222,6 @@ describe("Spot pool", function () {
             { value: totalCost.toString() }
         );
 
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
     });
@@ -291,22 +244,22 @@ describe("Spot pool", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses1, nftIds1)
+            await factory.getEncodedCompressedValue(nftAddresses1, nftIds1)
         );
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft2.address, mockNft2.address, mockNft2.address],
             [1,2,3]
         );
@@ -320,10 +273,8 @@ describe("Spot pool", function () {
             2,
             { value: totalCost.toString() }
         );
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
-        await maPool.reserve(mockNft2.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft2.approve(maPool.address, 1);
         await maPool.closeNft(mockNft2.address, 1);
     });
@@ -339,14 +290,14 @@ describe("Spot pool", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -360,10 +311,6 @@ describe("Spot pool", function () {
             2,
             { value: totalCost.toString() }
         );
-        expect((await maPool.getCostToReserve(2)).toString()).to.equal('240000000000000');
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 2, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 3, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
         await mockNft.approve(maPool.address, 2);
@@ -383,14 +330,14 @@ describe("Spot pool", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(6, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
             [1,2,3,4,5,6]
         );
@@ -404,12 +351,6 @@ describe("Spot pool", function () {
             2,
             { value: totalCost.toString() }
         );
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 2, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 3, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 4, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 5, 2, { value:(await maPool.getCostToReserve(2)).toString() });
-        await maPool.reserve(mockNft.address, 6, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await mockNft.approve(maPool.address, 2);
         await mockNft.approve(maPool.address, 3);
@@ -435,14 +376,14 @@ describe("Spot pool", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -456,7 +397,6 @@ describe("Spot pool", function () {
             2,
             { value: totalCost.toString() }
         );
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
         let closureMulti = await Closure.attach(await maPool.closePoolContract());
@@ -477,14 +417,14 @@ describe("Spot pool", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -498,7 +438,6 @@ describe("Spot pool", function () {
             2,
             { value: totalCost.toString() }
         );
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
         let closureMulti = await Closure.attach(await maPool.closePoolContract());
@@ -524,14 +463,14 @@ describe("Spot pool", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -561,7 +500,6 @@ describe("Spot pool", function () {
             2,
             { value: totalCost.toString() }
         );
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
         let closureMulti = await Closure.attach(await maPool.closePoolContract());
@@ -597,14 +535,14 @@ describe("Spot pool", function () {
         await factory.initiateMultiAssetVault(
             "HelloWorld"
         );
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -634,7 +572,6 @@ describe("Spot pool", function () {
             2,
             { value: totalCost.toString() }
         );
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
         let closureMulti = await Closure.attach(await maPool.closePoolContract());
@@ -672,16 +609,16 @@ describe("Spot pool", function () {
             "HelloWorld"
         );
 
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
 
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
 
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -715,7 +652,6 @@ describe("Spot pool", function () {
             { value: totalCost.toString() }
         );
 
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
 
@@ -757,16 +693,16 @@ describe("Spot pool", function () {
             "HelloWorld"
         );
 
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
 
         await maPool.includeNft(
-            await factory.encodeCompressedValue(nftAddresses, nftIds)
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
 
         await maPool.begin(3, 100, 15);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
@@ -782,7 +718,6 @@ describe("Spot pool", function () {
             { value: totalCost.toString() }
         );
 
-        await maPool.reserve(mockNft.address, 1, 2, { value:(await maPool.getCostToReserve(2)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
 
@@ -792,11 +727,10 @@ describe("Spot pool", function () {
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address],
             [1]
         );
-        await maPool.reserve(mockNft.address, 1, 4, { value:(await maPool.getCostToReserve(4)).toString() });
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
 
@@ -822,11 +756,11 @@ describe("Spot pool", function () {
             "HelloWorld"
         );
 
-        let vaultAddress = await factory.vaultNames("HelloWorld");
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
 
         await maPool.includeNft(
-            await factory.encodeCompressedValue(
+            await factory.getEncodedCompressedValue(
                 [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address], 
                 [1,2,3,4,5,6]
             )
@@ -834,12 +768,12 @@ describe("Spot pool", function () {
 
         await maPool.begin(3, 100, 16);
         await factory.signMultiAssetVault(
-            0,
+            "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
             [1,2,3]
         );
-        expect(await controller.nftVaultSigned(mockNft.address, 1)).to.equal(true);
+        expect(await controller.nftVaultSignedAddress(mockNft.address, 1)).to.equal(maPool.address);
         await maPool.remove([mockNft.address], [1]);
-        expect(await controller.nftVaultSigned(mockNft.address, 1)).to.equal(false);
+        expect(await controller.nftVaultSignedAddress(mockNft.address, 1)).to.equal('0x0000000000000000000000000000000000000000');
     });
 });

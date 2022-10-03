@@ -25,72 +25,39 @@ import "hardhat/console.sol";
 /// @notice Abacus protocol controller contract that holds all relevant addresses and metrics 
 contract AbacusController {
 
-    ///TODO: UPDATE change practices
-
     /* ======== ADDRESS ======== */
-    /// @notice controller multisig address (controlled by council)
     address public multisig;
     address public factory;
     address public lender;
 
     /* ======== UINT ======== */
-    /// @notice beta stage
     uint256 public beta;
 
     /* ======== MAPPING ======== */
-
+    mapping(address => bool) public accreditedAddresses;
+    mapping(address => bool) public userWhitelist;
     mapping(address => address) public registry;
-
-    /// @notice track if an NFT has already been used to sign a pool
-    /// [address] -> NFT collection address
-    /// [uint256] -> NFT token ID
-    /// [bool] -> status of usage
-    mapping(address => mapping(uint256 => bool)) public nftVaultSigned;
-
-    /// @notice track the pool that an NFT signed
-    /// [address] -> NFT collection address
-    /// [uint256] -> NFT token id
-    /// [address] -> pool address
     mapping(address => mapping(uint256 => address)) public nftVaultSignedAddress;
 
-    /// @notice track addresses that are allowed to produce EDC
-    /// [address] -> producer
-    /// [bool] -> accredited status
-    mapping(address => bool) public accreditedAddresses;
-
-    /// @notice track early users that have been whitelisted for permission to create pools
-    /// [address] -> user
-    /// [bool] -> whitelist status
-    mapping(address => bool) public userWhitelist;
-
-    /// @notice track factory address associated with a factory version
-    /// [uint256] -> version
-    /// [address] -> factory
-    mapping(uint256 => address) public factoryVersions;
-
     /* ======== EVENTS ======== */
-
     event UpdateNftInUse(address pool, address nft, uint256 id, bool status);
     event WLUserAdded(address[] _user);
     event WLUserRemoved(address[] _user);
     event BetaStageApproved(uint256 stage);
 
     /* ======== MODIFIERS ======== */
-
     modifier onlyMultisig() {
         require(msg.sender == multisig);
         _;
     }
 
     /* ======== CONSTRUCTOR ======== */
-
     constructor(address _multisig) {
         multisig = _multisig;
         beta = 1;
     }
 
     /* ======== IMMUTABLE SETTERS ======== */
-
     function setLender(address _lender) external onlyMultisig {
         require(lender == address(0));
         lender = _lender;
@@ -102,7 +69,6 @@ contract AbacusController {
     }
 
     /* ======== AUTOMATED SETTERS ======== */
-
     function addAccreditedAddressesMulti(address newAddress) external {
         require(factory == msg.sender || accreditedAddresses[msg.sender]);
         accreditedAddresses[newAddress] = true;
@@ -111,18 +77,15 @@ contract AbacusController {
     function updateNftUsage(address pool, address nft, uint256 id, bool status) external {
         require(factory == msg.sender || accreditedAddresses[msg.sender], "Not allowed to update");
         if(status) {
-            nftVaultSigned[nft][id] = true;
             nftVaultSignedAddress[nft][id] = pool;
         }
         else {
-            delete nftVaultSigned[nft][id];
             delete nftVaultSignedAddress[nft][id];
         }
         emit UpdateNftInUse(pool, nft, id, status);
     }
 
     /* ======== PROPOSALS BETA 1 ======== */
-    
     function addWlUser(address[] calldata users) external onlyMultisig {
         uint256 length = users.length;
         for(uint256 i = 0; i < length; i++) {

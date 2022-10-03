@@ -28,17 +28,14 @@ import "hardhat/console.sol";
  /////////              \\\\\\\\\   |||||||||||||||||||||||||||    /////////              \\\\\\\\\   ||||||||||||||||||||||||||||  ||||||||||||||||||||||||||||  ||||||||||||||||||||||||||||
 /////////                \\\\\\\\\  ||||||||||||||||||||||||||    /////////                \\\\\\\\\  ||||||||||||||||||||||||||||  ||||||||||||||||||||||||||||  ||||||||||||||||||||||||||||
 
-/// @title Spot pool closure contract
+/// @title NFT closure contract
 /// @author Gio Medici
-/// @notice Executes the post NFT closure operations (auction, principal adjustment)
+/// @notice Operates the post NFT closure auction
 contract Closure is ReentrancyGuard, Initializable {
     
     /* ======== ADDRESS ======== */
-
     IFactory public factory;
-
     IVault public vault;
-
     AbacusController public controller;
 
     /* ======== UINT ======== */
@@ -51,6 +48,7 @@ contract Closure is ReentrancyGuard, Initializable {
     /// [address] -> NFT collection address
     /// [uint256] -> NFT ID
 
+    /// @notice Current closure nonce for an NFT
     mapping(address => mapping(uint256 => uint256)) public nonce;
 
     /// @notice track the highest bidder in an auction
@@ -69,16 +67,11 @@ contract Closure is ReentrancyGuard, Initializable {
     /// [uint256] -> highest bid
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public highestBid;
 
-    /// @notice track auction premium (highest bid - pool ascribed value)
-    /// [uint256] -> auction premium
-    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public auctionPremium;
-
     /// @notice track auction completion status
     /// [bool] -> auction completion status
     mapping(uint256 => mapping(address => mapping(uint256 => bool))) public auctionComplete;
 
     /* ======== CONSTRUCTOR ======== */
-
     function initialize(
         address _vault,
         address _controller
@@ -89,28 +82,19 @@ contract Closure is ReentrancyGuard, Initializable {
     }
 
     /* ======== FALLBACK FUNCTIONS ======== */
-
     receive() external payable {}
     fallback() external payable {}
 
     /* ======== AUCTION ======== */
-    /// @notice Begin auction upon NFT closure
-    /// @dev this can only be called by the parent pool
-    /// @param _nftVal pool ascribed value of the NFT being auctioned
-    /// @param _nft NFT collection address
-    /// @param _id NFT ID
+    /// SEE IClosure.sol FOR COMMENTS
     function startAuction(uint256 _nftVal, address _nft, uint256 _id) external {
         require(msg.sender == address(vault));
         nonce[_nft][_id]++;
-        uint256 _nonce = nonce[_nft][_id];
-        nftVal[_nonce][_nft][_id] = _nftVal;
+        nftVal[nonce[_nft][_id]][_nft][_id] = _nftVal;
         liveAuctions++;
     }
 
-    /// @notice Bid in an NFT auction
-    /// @dev The previous highest bid is added to a users credit on the parent factory
-    /// @param _nft NFT collection address
-    /// @param _id NFT ID
+    /// SEE IClosure.sol FOR COMMENTS
     function newBid(address _nft, uint256 _id) external payable nonReentrant {
         uint256 _nonce = nonce[_nft][_id];
         if(
@@ -136,9 +120,7 @@ contract Closure is ReentrancyGuard, Initializable {
         );
     }
 
-    /// @notice End an NFT auction
-    /// @param _nft NFT collection address
-    /// @param _id NFT ID
+    /// SEE IClosure.sol FOR COMMENTS
     function endAuction(address _nft, uint256 _id) external nonReentrant {
         uint256 _nonce = nonce[_nft][_id];
         require(auctionEndTime[_nonce][_nft][_id] != 0, "IA");
@@ -147,9 +129,6 @@ contract Closure is ReentrancyGuard, Initializable {
             && !auctionComplete[_nonce][_nft][_id],
             "AO"
         );
-        if(highestBid[_nonce][_nft][_id] > nftVal[_nonce][_nft][_id]) {
-            auctionPremium[_nonce][_nft][_id] = highestBid[_nonce][_nft][_id] - nftVal[_nonce][_nft][_id];
-        }
         vault.updateSaleValue{value:highestBid[_nonce][_nft][_id]}(_nft, _id, highestBid[_nonce][_nft][_id]);
         auctionComplete[_nonce][_nft][_id] = true;
         IERC721(_nft).transferFrom(
@@ -165,35 +144,5 @@ contract Closure is ReentrancyGuard, Initializable {
             highestBidder[_nonce][_nft][_id],
             highestBid[_nonce][_nft][_id]
         );
-    }
-
-    /* ======== GETTERS ======== */
-    /// @notice Get the highest bid in the auction for an NFT
-    /// @param _nft NFT collection address
-    /// @param _id NFT ID 
-    function getHighestBid(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 bid) {
-        bid = highestBid[_nonce][_nft][_id];
-    }
-
-    /// @notice Get the auction premium (auction sale - ascribed pool value) of an NFT
-    /// @param _nft NFT collection address
-    /// @param _id NFT ID 
-    /// @return premium Auction premium
-    function getAuctionPremium(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 premium) {
-        premium = auctionPremium[_nonce][_nft][_id];
-    }
-
-    /// @notice Get the auction end time of an NFT 
-    /// @param _nft NFT collection address
-    /// @param _id NFT ID 
-    /// @return endTime Auction end time
-    function getAuctionEndTime(uint256 _nonce, address _nft, uint256 _id) external view returns(uint256 endTime) {
-        endTime = auctionEndTime[_nonce][_nft][_id];
-    }
-
-    /// @notice Get the number of live auctions
-    /// @return _liveAuctions Amount of live auctions
-    function getLiveAuctionCount() external view returns(uint256 _liveAuctions) {
-        _liveAuctions = liveAuctions;
     }
 }

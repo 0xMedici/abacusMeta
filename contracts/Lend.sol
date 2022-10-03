@@ -19,7 +19,6 @@ contract Lend is ReentrancyGuard {
     AbacusController public immutable controller;
 
     /* ======== MAPPING ======== */
-    
     /// @notice Track if a loan has been taken out against an NFT
     /// [address] -> NFT Collection address
     /// [uint256] -> NFT ID
@@ -52,30 +51,22 @@ contract Lend is ReentrancyGuard {
     }
 
     /* ======== EVENT ======== */
-
     event EthBorrowed(address _user, address _pool, address nft, uint256 id, uint256 _amount);
     event EthRepayed(address _user, address _pool, address nft, uint256 id, uint256 _amount);
     event BorrowerLiquidated(address _user, address _pool, address nft, uint256 id, uint256 _amount);
     event LoanTransferred(address _pool, address from, address to, address nft, uint256 id);
 
     /* ======== CONSTRUCTOR ======== */
-
     constructor(address _controller) {
         controller = AbacusController(_controller);
     }
 
     /* ======== FALLBACK FUNCTIONS ======== */
-
     receive() external payable {}
     fallback() external payable {}
 
     /* ======== LENDING ======== */
-    /// @notice Borrow against an NFT
-    /// @dev Upon borrowing ETH is minted against the value of the backing pool
-    /// @param _pool Backing pool address
-    /// @param nft NFT Collection address
-    /// @param id NFT ID 
-    /// @param _amount Loan amount
+    /// SEE ILend.sol FOR COMMENTS
     function borrow(address _pool, address nft, uint256 id, uint256 _amount) external nonReentrant {
         require(controller.accreditedAddresses(_pool), "Not accredited");
         Position storage openLoan = loans[nft][id];
@@ -90,24 +81,6 @@ contract Lend is ReentrancyGuard {
         require(
             95 * vault.getPayoutPerReservation((block.timestamp - vault.startTime()) / 1 days) 
                 / 100 >= (_amount + openLoan.amount), "Exceed current LTV"
-        );
-        require(
-            vault.reservationMade(
-                (block.timestamp - vault.startTime()) / 1 days,
-                nft,
-                id
-            ), "Reservation not made"
-        );
-        require(
-            vault.reservationMade(
-                (block.timestamp - vault.startTime() + 12 hours) / 1 days,
-                nft,
-                id
-            ), "Reservation not made in future"
-        );
-        require(
-            (block.timestamp - vault.startTime()) / 1 days 
-            == (block.timestamp - vault.startTime() + 12 hours) / 1 days, "Invalid borrow time"
         );
         uint256 payoutPerResFuture = 
             vault.getPayoutPerReservation((block.timestamp - vault.startTime() + 12 hours) / 1 days);
@@ -126,12 +99,8 @@ contract Lend is ReentrancyGuard {
         emit EthBorrowed(msg.sender, _pool, nft, id, _amount);
     }
 
-    /// @notice Pay interest on an outstanding loan
-    /// @dev The interest rate is stored on the backing Spot pool contract
-    /// @param _epoch Epoch for which a user is paying interest
-    /// @param _nft NFT for which a user is paying interest
-    /// @param _id Corresponding NFT ID for which a user is paying interest
-    function payInterest(uint256 _epoch, address _nft, uint256 _id) external payable {
+    /// SEE ILend.sol FOR COMMENTS
+    function payInterest(uint256 _epoch, address _nft, uint256 _id) external payable nonReentrant {
         Position storage openLoan = loans[_nft][_id];
         Vault vault = Vault(payable(openLoan.pool));
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / 1 days;
@@ -143,9 +112,7 @@ contract Lend is ReentrancyGuard {
         vault.processFees{value: msg.value}();
     }
 
-    /// @notice Repay an open loan
-    /// @param nft NFT Collection address
-    /// @param id NFT ID 
+    /// SEE ILend.sol FOR COMMENTS
     function repay(address nft, uint256 id) external payable nonReentrant {
         Position storage openLoan = loans[nft][id];
         uint256 poolEpoch = (block.timestamp - Vault(payable(openLoan.pool)).startTime()) / 1 days;
@@ -162,21 +129,7 @@ contract Lend is ReentrancyGuard {
         emit EthRepayed(msg.sender, openLoan.pool, nft, id, msg.value);
     }
 
-    /// @notice Liquidate a borrower
-    /// @dev A liquidator can check 'getLiqStatus' to see if a user is eligible for liquidation
-    /// Liquidation criteria is as follows:
-        /// 1. 95% of the pools payout IN THE NEXT EPOCH will not cover the outstanding loan amount
-            /// > This can be checked by inputing NFTs currently at auction within the liquidation window
-            /// The protocol will calculate the outstanding auction offers and add that to the payout
-            /// attributed per NFT and use that to decide the current price point and check whether or not
-            /// a users loan is violating the allowed LTV
-        /// 2. A borrower is missing 2 or more interest payments
-        /// 3. A user does not have an outstanding reservation set IN THE NEXT EPOCH
-    /// @param nft NFT Collection address
-    /// @param id NFT ID
-    /// @param _nfts Set of NFTs currently at auction 
-    /// @param _ids Set of NFT IDs currently at auction
-    /// @param _closureNonces Corresponding closure nonces of inputted NFTs
+    /// SEE ILend.sol FOR COMMENTS
     function liquidate(
         address nft, 
         uint256 id, 
@@ -189,14 +142,6 @@ contract Lend is ReentrancyGuard {
         bool violationTracker;
         if(this.getInterestViolation(nft, id)) {
             violationTracker = true;
-        } else if(
-            !vault.reservationMade(
-                (block.timestamp - vault.startTime() + 12 hours) / 1 days,
-                nft,
-                id
-            )
-        ) {
-            violationTracker = true;
         } else if(this.getPricePointViolation(vault, loanAmount, _nfts, _ids, _closureNonces)) {
             violationTracker = true;
         }
@@ -208,19 +153,14 @@ contract Lend is ReentrancyGuard {
         );
     }
 
-    /// @notice Grant a third party transfer permission
+    /// SEE ILend.sol FOR COMMENTS
     function allowTransferFrom(address nft, uint256 id, address allowee) external nonReentrant {
         Position storage openLoan = loans[nft][id];
         require(msg.sender == openLoan.borrower, "Not borrower");
         openLoan.transferFromPermission = allowee;
     }
 
-    /// @notice Transfer the ownership of a loan
-    /// @dev TRANSFERRING A LOAN WILL ALLOW THE RECIPIENT TO PAY IT OFF AND RECEIVE THE UNDERLYING NFT
-    /// @param from The current owner of the loan
-    /// @param to The recipient of the loan
-    /// @param nft NFT attached to the loan
-    /// @param id Corresponding NFT ID attached to the loan
+    /// SEE ILend.sol FOR COMMENTS
     function transferFromLoanOwnership(
         address from,
         address to, 
@@ -253,9 +193,7 @@ contract Lend is ReentrancyGuard {
     }
 
     /* ======== GETTERS ======== */
-    /// @notice Get liquidation status of an open loan
-    /// @param nft NFT Collection address
-    /// @param id NFT ID
+    /// SEE ILend.sol FOR COMMENTS
     function getLiqStatus(
         address nft, 
         uint256 id, 
@@ -267,22 +205,12 @@ contract Lend is ReentrancyGuard {
         uint256 loanAmount = loans[nft][id].amount;
         if(
             this.getPricePointViolation(vault, loanAmount, _nfts, _ids, _closureNonces)
-            || !vault.reservationMade(
-                (block.timestamp - vault.startTime() + 12 hours) / 1 days,
-                nft,
-                id
-            )
             || this.getInterestViolation(nft, id)
         ) return true;
         return false;
     }
 
-    /// @notice Calculate the current price point and check for LTV violation
-    /// @param vault Vault being used for the loan
-    /// @param loanAmount Outstanding loan amount
-    /// @param _nfts Set of NFTs at auction
-    /// @param _ids Set of NFT IDs at auction
-    /// @param _closureNonces Closure nonces of chosen NFTs
+    /// SEE ILend.sol FOR COMMENTS
     function getPricePointViolation(
         Vault vault,
         uint256 loanAmount,
@@ -309,9 +237,7 @@ contract Lend is ReentrancyGuard {
         );
     }
 
-    /// @notice Check whether or not an existing loan is in violation of missing interest payments
-    /// @param nft NFT of outstanding loan
-    /// @param id ID of outstanding loan
+    /// SEE ILend.sol FOR COMMENTS
     function getInterestViolation(
         address nft, 
         uint256 id 
@@ -321,12 +247,7 @@ contract Lend is ReentrancyGuard {
         return poolEpoch - loans[nft][id].startEpoch > loans[nft][id].timesInterestPaid + 2;
     }
 
-    /// @notice Get position information regarding -> borrower, pool backing, loan amount
-    /// @param nft NFT Collection address
-    /// @param id NFT ID
-    /// @return borrower Loan borrower
-    /// @return pool Pool backing the loan
-    /// @return outstandingAmount Loan amount
+    /// SEE ILend.sol FOR COMMENTS
     function getPosition(
         address nft, 
         uint256 id
@@ -336,9 +257,9 @@ contract Lend is ReentrancyGuard {
         outstandingAmount = loans[nft][id].amount;
     }
 
+    /// SEE ILend.sol FOR COMMENTS
     function getInterestPayment(uint256 _epoch, address _nft, uint256 _id) external view returns(uint256) {
-        Position storage openLoan = loans[_nft][_id];
-        Vault vault = Vault(payable(openLoan.pool));
+        Vault vault = Vault(payable(loans[_nft][_id].pool));
         return vault.interestRate() * vault.getPayoutPerReservation(_epoch) / 10_000;
     }
 }

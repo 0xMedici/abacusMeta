@@ -1,26 +1,27 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-
 interface IFactory {
 
-    /// @notice Create a multi asset vault
-    /// @dev The creator will have to pay a creation fee (denominated in ABC)
+    /// @notice Create a Spot pool
     /// @param name Name of the pool
     function initiateMultiAssetVault(
         string memory name
     ) external;
 
-    function updateSlotCount(uint256 mavNonce, uint256 slots, uint256 amountNfts) external;
+    /// @notice Update the recorded collateral slot count and amount of NFTs in a pool
+    /// @param name Name of the pool
+    /// @param slots Total amount of collateral slots in the pool
+    /// @param amountNfts Total amount of NFTs linked to the pool
+    function updateSlotCount(string memory name, uint256 slots, uint256 amountNfts) external;
 
-    /// @notice Sign off on starting a vaults emissions
+    /// @notice Connect NFT to a Spot pool of choice
     /// @dev Each NFT can only have its signature attached to one vault at a time
-    /// @param multiVaultNonce Nonce corresponding to desired vault
+    /// @param name Name of corresponding Spot pool
     /// @param nft List of NFTs (must be in the vault and owned by the caller)
     /// @param id List of NFT IDs (must be in the vault and owned by the caller)
     function signMultiAssetVault(
-        uint256 multiVaultNonce,
+        string memory name,
         address[] calldata nft,
         uint256[] calldata id
     ) external;
@@ -29,11 +30,11 @@ interface IFactory {
     /// @dev Only callable by an accredited address (an existing pool)
     /// @param nftToRemove NFT address to be removed
     /// @param idToRemove NFT ID to be removed
-    /// @param multiVaultNonce Nonce corresponding to desired vault 
+    /// @param name Name of the Spot pool
     function updateNftInUse(
         address nftToRemove,
         uint256 idToRemove,
-        uint256 multiVaultNonce
+        string memory name
     ) external;
 
     /// @notice Update a users pending return count
@@ -147,7 +148,4 @@ interface IFactory {
         uint256 stopIndex,
         uint256[10] memory tickets 
     );
-
-
-
 }
