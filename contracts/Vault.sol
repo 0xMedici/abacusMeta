@@ -38,9 +38,6 @@ import "hardhat/console.sol";
 /// @notice Spot pools allow users to collateralize any combination of NFT collections and IDs
 contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
-    /* ======== CONSTANTS ======== */
-    uint256 constant ELENGTH = 1 days;
-
     /* ======== ADDRESS ======== */
     IFactory factory;
     AbacusController controller;
@@ -54,9 +51,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     string name;
 
     /* ======== UINT ======== */
-    uint256 earlyLiq;
-
     uint256 amountNftsLinked;
+
+    uint256 public epochLength;
 
     /// @notice Interest rate that the pool charges for usage of liquidity
     uint256 public interestRate;
@@ -191,16 +188,26 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         factory.emitNftInclusion(_compTokenInfo);
     }
 
-    function begin(uint256 _slots, uint256 _ticketSize, uint256 _rate) external payable {
+    function begin(
+        uint256 _slots, 
+        uint256 _ticketSize, 
+        uint256 _rate,
+        uint256 _epochLength
+    ) external payable {
+        require(
+            _epochLength >= 1 days
+            && _epochLength <= 2 weeks
+        );
         require(startTime == 0, "AS");
         require(msg.sender == creator, "NC");
+        epochLength = _epochLength;
         amountNft = _slots;
         ticketLimit = _ticketSize;
         reservationsAvailable = _slots;
         interestRate = _rate;
         factory.updateSlotCount(name, _slots, amountNftsLinked);
         startTime = block.timestamp;
-        factory.emitPoolBegun(_ticketSize);
+        factory.emitPoolBegun(_slots, _ticketSize, _rate, _epochLength);
     }
 
     /* ======== TRADING ======== */
@@ -215,7 +222,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(startTime != 0, "NS");
         require(tickets.length == amountPerTicket.length, "II");
         require(tickets.length <= 100, "II");
-        require(startEpoch >= (block.timestamp - startTime) / ELENGTH, "IT");
+        require(startEpoch >= (block.timestamp - startTime) / epochLength, "IT");
         require(finalEpoch - startEpoch > 1, "TS");
         require(finalEpoch - startEpoch <= 10, "TL");
         uint256 totalTokensRequested;
@@ -246,26 +253,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             tickets,
             amountPerTicket
         );
-
-        uint256 temp;
-        if(
-            earlyLiq & (2**128 - 1) == startEpoch
-            && startEpoch == (block.timestamp - startTime) / ELENGTH + 1
-        ) {
-            temp = earlyLiq >> 128;
-            temp += msg.value;
-            temp <<= 128;
-            temp |= startEpoch;
-        } else if(
-            earlyLiq & (2**128 - 1) != startEpoch
-            && startEpoch == (block.timestamp - startTime) / ELENGTH + 1
-        ) {
-            temp = msg.value;
-            temp <<= 128;
-            temp |= startEpoch;
-        }
-
-        earlyLiq = temp;
         require(msg.value == totalTokensRequested * 0.001 ether, "IF");
     }
 
@@ -278,7 +265,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(trader.active, "PC");
         require(adjustmentsMade[_user][_nonce] == adjustmentsRequired, "ANM");
         require(trader.unlockEpoch != 0, "ICR");
-        uint256 poolEpoch = (block.timestamp - startTime) / ELENGTH;
+        uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         uint256 finalEpoch;
         uint256 interestLost;
         if(poolEpoch >= trader.unlockEpoch) {
@@ -433,7 +420,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     /* ======== POOL CLOSURE ======== */
     function closeNft(address _nft, uint256 _id) external nonReentrant2 returns(uint256) {
-        uint256 poolEpoch = (block.timestamp - startTime) / ELENGTH;
+        uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         if(liqAccessed[_nft][_id] == 0) {
             require(reservations < reservationsAvailable);
         } else {
@@ -529,7 +516,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     function processFees() external payable {
         require(controller.lender() == msg.sender, "Not accredited");
-        uint256 poolEpoch = (block.timestamp - startTime) / ELENGTH;
+        uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         uint256 payout = msg.value / 20;
         payable(controller.multisig()).transfer(payout);
         epochEarnings[poolEpoch] += msg.value - payout;
@@ -580,8 +567,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         trader.ethStatic = trader.ethLocked;
         trader.riskStart = 
             uint32(
-                riskPoints * (block.timestamp - (block.timestamp - startTime) / ELENGTH * ELENGTH)
-                    /  ELENGTH
+                riskPoints * (block.timestamp - (block.timestamp - startTime) / epochLength * epochLength)
+                    /  epochLength
             );
         trader.riskPoints = uint32(riskPoints);
 

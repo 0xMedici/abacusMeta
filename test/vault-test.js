@@ -68,7 +68,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -162,7 +162,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 16);
+        await maPool.begin(3, 100, 16, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -204,7 +204,7 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
 
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -252,7 +252,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses1, nftIds1)
         );
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -295,7 +295,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -335,7 +335,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(6, 100, 15);
+        await maPool.begin(6, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
@@ -381,7 +381,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -422,7 +422,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -468,7 +468,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -540,7 +540,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -616,7 +616,7 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
 
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -700,7 +700,7 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
 
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
@@ -766,7 +766,7 @@ describe("Spot pool", function () {
             )
         );
 
-        await maPool.begin(3, 100, 16);
+        await maPool.begin(3, 100, 16, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],

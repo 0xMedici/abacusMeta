@@ -8,67 +8,35 @@ async function main() {
     provider = ethers.getDefaultProvider();
 
     AbacusController = await ethers.getContractFactory("AbacusController");
-    controller = await AbacusController.attach('0x04D7F5193cEaC1F99AF84bb5EE4F4eD00CA46F42');
+    controller = await AbacusController.attach('0x00351749C1470dcd0CB9fcF9518c7900A69C1129');
     console.log("Controller:", controller.address);
 
     Factory = await ethers.getContractFactory("Factory");
-    factory = await Factory.attach('0x532276cD34fcb5Cfe2C6A5D30E2b0a3Ef3983429');
+    factory = await Factory.attach('0xDe670cF2c63B7976C94555828005dd6486D25da9');
     console.log("Factory:", factory.address);
-
-    // AbcToken = await ethers.getContractFactory("ABCToken");
-    // abcToken = await AbcToken.deploy(controller.address);
-    // console.log("AbcToken:", abcToken.address);
-
-    // EpochVault = await ethers.getContractFactory("EpochVault");
-    // eVault = await EpochVault.deploy(controller.address, 86400);
-    // console.log("EpochVault:", eVault.address);
-
-    // CreditBonds = await ethers.getContractFactory("CreditBonds");
-    // bonds = await CreditBonds.deploy(controller.address, eVault.address);
-    // console.log("CreditBonds:", bonds.address);
-
-    // Allocator = await ethers.getContractFactory("Allocator");
-    // alloc = await Allocator.attach('0x5b4d72055a8f49C12fe65A62959769f7880D47E8');
-    // console.log("Allocator:", alloc.address);
 
     Vault = await ethers.getContractFactory("Vault");
     console.log("Vault connected");
 
-    const create = await factory.initiateMultiAssetVault(
-      "test1"
+    const deployPool = await factory.initiateMultiAssetVault(
+      "HelloWorld"
     );
-    await create.wait();
-    console.log("Vault created for test1");
-    let vaultAddress = await factory.vaultNames("test1", 0);
-    let maPool = await Vault.attach(vaultAddress);
-    const include = await maPool.includeNft(
-      await factory.encodeCompressedValue(['0x7a9a5bb50a6191352b9e0667ee25f30346afc532'], [1])
+    await deployPool.wait();
+    console.log("Pool deployed");
+
+    let poolAddress = await factory.getPoolAddress("HelloWorld");
+    console.log("Spot pool address is", poolAddress);
+    let spotPool = await Vault.attach(poolAddress);
+    console.log("Pool attached at", poolAddress);
+    let compressedNFT = await factory.getEncodedCompressedValue(
+      ['0xe0abdb390ce6bead04c5f1bf82ccfd6026fbbb7d'],
+      [40]
     );
-    await include.wait();
+    console.log("NFT compressed");
+    await spotPool.includeNft(compressedNFT);
     console.log("NFT included");
-    const begin = await maPool.begin(1, 100);
-    await begin.wait();
+    await spotPool.begin(1, 10, 10, 86400);
     console.log("Pool begun");
-    console.log(await maPool.getNonce());
-    console.log(await controller.nftVaultSigned('0x7a9a5bb50a6191352b9e0667ee25f30346afc532', 1));
-    const sign = await factory.signMultiAssetVault(
-      (await maPool.getNonce()).toString(),
-      ['0x7a9a5bb50a6191352b9e0667ee25f30346afc532'],
-      [1]
-    );
-    await sign.wait();
-    console.log("Pool signed");
-    console.log(await controller.nftVaultSigned('0x7a9a5bb50a6191352b9e0667ee25f30346afc532', 1));
-    console.log("Emissions started count:", await maPool.emissionStartedCount(0));
-
-    // const wlCollection = await controller.proposeWLAddresses([
-    //     '0x61e94ac1fad456810b1b9eb3129c44d338ea18bf'
-    // ]);
-    // await wlCollection.wait();
-
-    // const approveWl = await controller.approveWLAddresses();
-    // await approveWl.wait();
-    // console.log("DONE");
 }
 
 main()

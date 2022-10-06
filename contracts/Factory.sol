@@ -64,7 +64,7 @@ contract Factory is ReentrancyGuard {
     event VaultCreated(string name, address _creator, address _pool);
     event VaultSigned(address _pool, address _signer, address[] nftAddress, uint256[] ids);
     event NftInclusion(address _pool, uint256[] nfts);
-    event VaultBegun(address _pool, uint256 _ticketSize);
+    event VaultBegun(address _pool, uint256 _collateralSlots, uint256 _ticketSize, uint256 _interest, uint256 _epoch);
     event NftRemoved(address _pool, address removedAddress, uint256 removedId);
     event PendingReturnsUpdated(address _user, uint256 _amount);
     event PendingReturnsClaimed(address _user, uint256 _amount);
@@ -192,8 +192,19 @@ contract Factory is ReentrancyGuard {
         emit NftInclusion(msg.sender, encodedNfts);
     }
 
-    function emitPoolBegun(uint256 ticketSize) external onlyAccredited {
-        emit VaultBegun(msg.sender, ticketSize);
+    function emitPoolBegun(
+        uint256 _collateralSlots,
+        uint256 _ticketSize,
+        uint256 _interestRate,
+        uint256 _epochLength
+    ) external onlyAccredited {
+        emit VaultBegun(
+            msg.sender,
+            _collateralSlots,
+            _ticketSize,
+            _interestRate,
+            _epochLength
+        );
     }
 
     function emitPurchase(

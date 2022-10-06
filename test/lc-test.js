@@ -86,7 +86,7 @@ describe("Life cycle", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15);
+        await maPool.begin(3, 100, 15, 86400);
         await factory.signMultiAssetVault(
             "HelloWorld",
             [mockNft.address, mockNft.address, mockNft.address],
