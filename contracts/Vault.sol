@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import { AbacusController } from "./AbacusController.sol";
@@ -172,6 +172,13 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     fallback() external payable {}
 
     /* ======== CONFIGURATION ======== */
+    /** 
+    Error codes:
+        AS - Already started
+        NC - Not creator
+        NO - Not owner
+        AM - Already mapped 
+    */
     function includeNft(uint256[] calldata _compTokenInfo) external {
         require(startTime == 0, "AS");
         require(msg.sender == creator, "NC");
@@ -188,6 +195,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         factory.emitNftInclusion(_compTokenInfo);
     }
 
+    /** 
+    Error codes:
+        AS - Already started
+        NC - Not creator
+    */
     function begin(
         uint256 _slots, 
         uint256 _ticketSize, 
@@ -211,6 +223,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /* ======== TRADING ======== */
+    /** 
+    Error codes:
+        NS - not started
+        II - Improper input
+        IT - Improper time
+        TS - Too short
+        TL - Too long
+    */
     function purchase(
         address _buyer,
         uint256[] calldata tickets, 
@@ -256,6 +276,13 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(msg.value == totalTokensRequested * 0.001 ether, "IF");
     }
 
+    /** 
+    Error codes:
+        IC - Improper caller
+        PC - Position closed
+        ANM - Adjustments not made
+        PNE - Position non-existent
+    */
     function sell(
         address _user,
         uint256 _nonce
@@ -264,7 +291,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         Buyer storage trader = traderProfile[_user][_nonce];
         require(trader.active, "PC");
         require(adjustmentsMade[_user][_nonce] == adjustmentsRequired, "ANM");
-        require(trader.unlockEpoch != 0, "ICR");
+        require(trader.unlockEpoch != 0, "PNE");
         uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         uint256 finalEpoch;
         uint256 interestLost;

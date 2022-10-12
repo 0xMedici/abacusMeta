@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import { Vault } from "./Vault.sol";
@@ -130,7 +130,7 @@ contract Lend is ReentrancyGuard {
         require(poolEpoch - openLoan.startEpoch + 1 == openLoan.timesInterestPaid, "Must pay outstanding interest");
         address borrower = openLoan.borrower;
         openLoan.amount -= msg.value;
-        payable(openLoan.pool).transfer(msg.value);
+        Vault(payable(openLoan.pool)).depositLiq{value: msg.value}(nft, id);
         if(openLoan.amount == 0) {
             delete loans[nft][id];
             delete loanDeployed[nft][id];

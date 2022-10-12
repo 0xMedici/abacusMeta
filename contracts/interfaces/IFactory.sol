@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 interface IFactory {
@@ -14,17 +14,6 @@ interface IFactory {
     /// @param slots Total amount of collateral slots in the pool
     /// @param amountNfts Total amount of NFTs linked to the pool
     function updateSlotCount(string memory name, uint256 slots, uint256 amountNfts) external;
-
-    /// @notice Sever ties between an NFT and a pool
-    /// @dev Only callable by an accredited address (an existing pool)
-    /// @param nftToRemove NFT address to be removed
-    /// @param idToRemove NFT ID to be removed
-    /// @param name Name of the Spot pool
-    function updateNftInUse(
-        address nftToRemove,
-        uint256 idToRemove,
-        string memory name
-    ) external;
 
     /// @notice Update a users pending return count
     /// @dev Pending returns come from funds that need to be returned from
