@@ -87,11 +87,6 @@ describe("Life cycle", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300;
         await maPool.purchase(
@@ -107,7 +102,7 @@ describe("Life cycle", function () {
             deployer.address,
             ['1'],
             ['300'],
-            4,
+            3,
             12,
             { value: totalCost.toString() }
         );
@@ -123,7 +118,7 @@ describe("Life cycle", function () {
             deployer.address,
             ['2'],
             ['300'],
-            6,
+            5,
             12,
             { value: totalCost.toString() }
         );
@@ -132,51 +127,22 @@ describe("Life cycle", function () {
             maPool.address,
             mockNft.address,
             2,
-            '90000000000000000'
+            '180000000000000000'
         );
         await network.provider.send("evm_increaseTime", [86400 * 3]);
+        await mockNft.approve(lend.address, 3);
         await lend.payInterest(
-            3,
+            [3, 4, 5, 6, 7, 8],
             mockNft.address,
             1,
-            { value: await lend.getInterestPayment(3, mockNft.address, 1) }
-        );
-        await lend.payInterest(
-            4,
-            mockNft.address,
-            1,
-            { value: await lend.getInterestPayment(4, mockNft.address, 1) }
-        );
-        await lend.payInterest(
-            5,
-            mockNft.address,
-            1,
-            { value: await lend.getInterestPayment(5, mockNft.address, 1) }
-        );
-        await lend.payInterest(
-            6,
-            mockNft.address,
-            1,
-            { value: await lend.getInterestPayment(6, mockNft.address, 1) }
-        );
-        await lend.payInterest(
-            7,
-            mockNft.address,
-            1,
-            { value: await lend.getInterestPayment(7, mockNft.address, 1) }
-        );
-        await lend.payInterest(
-            8,
-            mockNft.address,
-            1,
-            { value: await lend.getInterestPayment(8, mockNft.address, 1) }
+            { value: await lend.getInterestPayment([3, 4, 5, 6, 7, 8], mockNft.address, 1) }
         );
         await lend.repay(
             mockNft.address,
             1,
             { value: '90000000000000000' }
         );
-        await network.provider.send("evm_increaseTime", [86400]);
+        await network.provider.send("evm_increaseTime", [86400 * 2]);
         await lend.liquidate(
             mockNft.address,
             2,
@@ -188,11 +154,6 @@ describe("Life cycle", function () {
         await closureMulti.newBid(mockNft.address, 2, { value:(1e17).toString() });
         await network.provider.send("evm_increaseTime", [86400]);
         await closureMulti.endAuction(mockNft.address, 2);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address],
-            [2]
-        );
         await mockNft.approve(lend.address, 1);
         await lend.borrow(
             maPool.address,
@@ -209,22 +170,10 @@ describe("Life cycle", function () {
             0
         );
         await lend.payInterest(
-            10,
+            [10, 11, 12],
             mockNft.address,
             1,
-            { value: await lend.getInterestPayment(10, mockNft.address, 1) }
-        );
-        await lend.payInterest(
-            11,
-            mockNft.address,
-            1,
-            { value: await lend.getInterestPayment(11, mockNft.address, 1) }
-        );
-        await lend.payInterest(
-            12,
-            mockNft.address,
-            1,
-            { value: await lend.getInterestPayment(12, mockNft.address, 1) }
+            { value: await lend.getInterestPayment([10, 11, 12], mockNft.address, 1) }
         );
         await lend.repay(
             mockNft.address,

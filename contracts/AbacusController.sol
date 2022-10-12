@@ -37,10 +37,8 @@ contract AbacusController {
     mapping(address => bool) public accreditedAddresses;
     mapping(address => bool) public userWhitelist;
     mapping(address => address) public registry;
-    mapping(address => mapping(uint256 => address)) public nftVaultSignedAddress;
 
     /* ======== EVENTS ======== */
-    event UpdateNftInUse(address pool, address nft, uint256 id, bool status);
     event WLUserAdded(address[] _user);
     event WLUserRemoved(address[] _user);
     event BetaStageApproved(uint256 stage);
@@ -72,17 +70,6 @@ contract AbacusController {
     function addAccreditedAddressesMulti(address newAddress) external {
         require(factory == msg.sender || accreditedAddresses[msg.sender]);
         accreditedAddresses[newAddress] = true;
-    }
-
-    function updateNftUsage(address pool, address nft, uint256 id, bool status) external {
-        require(factory == msg.sender || accreditedAddresses[msg.sender], "Not allowed to update");
-        if(status) {
-            nftVaultSignedAddress[nft][id] = pool;
-        }
-        else {
-            delete nftVaultSignedAddress[nft][id];
-        }
-        emit UpdateNftInUse(pool, nft, id, status);
     }
 
     /* ======== PROPOSALS BETA 1 ======== */

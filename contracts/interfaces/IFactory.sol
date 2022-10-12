@@ -15,17 +15,6 @@ interface IFactory {
     /// @param amountNfts Total amount of NFTs linked to the pool
     function updateSlotCount(string memory name, uint256 slots, uint256 amountNfts) external;
 
-    /// @notice Connect NFT to a Spot pool of choice
-    /// @dev Each NFT can only have its signature attached to one vault at a time
-    /// @param name Name of corresponding Spot pool
-    /// @param nft List of NFTs (must be in the vault and owned by the caller)
-    /// @param id List of NFT IDs (must be in the vault and owned by the caller)
-    function signMultiAssetVault(
-        string memory name,
-        address[] calldata nft,
-        uint256[] calldata id
-    ) external;
-
     /// @notice Sever ties between an NFT and a pool
     /// @dev Only callable by an accredited address (an existing pool)
     /// @param nftToRemove NFT address to be removed

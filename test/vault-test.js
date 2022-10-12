@@ -69,11 +69,6 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 750;
         await maPool.purchase(
@@ -163,11 +158,6 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 16, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await maPool.purchase(
@@ -203,14 +193,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
-        
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await maPool.purchase(
@@ -253,16 +236,6 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses1, nftIds1)
         );
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft2.address, mockNft2.address, mockNft2.address],
-            [1,2,3]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await maPool.purchase(
@@ -296,11 +269,6 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await maPool.purchase(
@@ -336,11 +304,6 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(6, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3,4,5,6]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 6;
         await maPool.purchase(
@@ -382,11 +345,6 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await maPool.purchase(
@@ -423,11 +381,6 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await maPool.purchase(
@@ -469,11 +422,6 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await maPool.purchase(
@@ -541,11 +489,6 @@ describe("Spot pool", function () {
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await maPool.purchase(
@@ -615,14 +558,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
-        
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await maPool.purchase(
@@ -699,14 +635,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-
         await maPool.begin(3, 100, 15, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
-        
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await maPool.purchase(
@@ -726,11 +655,6 @@ describe("Spot pool", function () {
         await network.provider.send("evm_increaseTime", [43201]);
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address],
-            [1]
-        );
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
 
@@ -744,36 +668,5 @@ describe("Spot pool", function () {
             deployer.address,
             0
         );
-    });
-
-    it("Remove nft", async function () {
-        await mockNft.mintNew();
-        await mockNft.mintNew();
-        await mockNft.mintNew();
-        await mockNft.mintNew();
-        await mockNft.mintNew();
-        await factory.initiateMultiAssetVault(
-            "HelloWorld"
-        );
-
-        let vaultAddress = await factory.getPoolAddress("HelloWorld");
-        let maPool = await Vault.attach(vaultAddress);
-
-        await maPool.includeNft(
-            await factory.getEncodedCompressedValue(
-                [mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address, mockNft.address], 
-                [1,2,3,4,5,6]
-            )
-        );
-
-        await maPool.begin(3, 100, 16, 86400);
-        await factory.signMultiAssetVault(
-            "HelloWorld",
-            [mockNft.address, mockNft.address, mockNft.address],
-            [1,2,3]
-        );
-        expect(await controller.nftVaultSignedAddress(mockNft.address, 1)).to.equal(maPool.address);
-        await maPool.remove([mockNft.address], [1]);
-        expect(await controller.nftVaultSignedAddress(mockNft.address, 1)).to.equal('0x0000000000000000000000000000000000000000');
     });
 });

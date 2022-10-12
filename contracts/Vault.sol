@@ -222,7 +222,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(startTime != 0, "NS");
         require(tickets.length == amountPerTicket.length, "II");
         require(tickets.length <= 100, "II");
-        require(startEpoch >= (block.timestamp - startTime) / epochLength, "IT");
+        require(startEpoch == (block.timestamp - startTime) / epochLength, "IT");
         require(finalEpoch - startEpoch > 1, "TS");
         require(finalEpoch - startEpoch <= 10, "TL");
         uint256 totalTokensRequested;
@@ -337,22 +337,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         delete traderProfile[_user][_nonce].active;
     }
 
-    function remove(address[] calldata _nft, uint256[] calldata _id) external {
-        require(startTime != 0);
-        uint256 length = _nft.length;
-        for(uint256 i = 0; i < length; i++) {
-            address nft = _nft[i];
-            uint256 id = _id[i];
-            require(
-                msg.sender == IERC721(nft).ownerOf(id)
-                || msg.sender == controller.registry(IERC721(nft).ownerOf(id))
-            );
-            require(controller.nftVaultSignedAddress(nft, id) == address(this));
-            require(liqAccessed[nft][id] == 0);
-            factory.updateNftInUse(nft, id, name);
-        }
-    }
-
     function updateSaleValue(
         address _nft,
         uint256 _id,
@@ -428,7 +412,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         }
         adjustmentsRequired++;
         adjustmentNonce[_nft][_id][closureNonce[_nft][_id]] = adjustmentsRequired;
-        controller.updateNftUsage(address(this), _nft, _id, false);
         reservationsAvailable--;
         uint256 ppr = this.getPayoutPerReservation(poolEpoch);
         if(closePoolContract == address(0)) {

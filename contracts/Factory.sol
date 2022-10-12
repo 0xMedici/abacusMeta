@@ -131,44 +131,6 @@ contract Factory is ReentrancyGuard {
         poolMapping[name].nftsInPool = uint64(amountNfts);
     }
 
-    /// SEE IFactory.sol FOR COMMENTS
-    function signMultiAssetVault(
-        string memory name,
-        address[] calldata nft,
-        uint256[] calldata id
-    ) external nonReentrant {
-        SpotPool storage pool = poolMapping[name];
-        require(Vault(payable(pool.pool)).startTime() != 0, "Pool not started");
-        uint256 length = id.length;
-        address poolAddress = pool.pool;
-        for(uint256 i = 0; i < length; i++) {
-            address collection = nft[i];
-            uint256 _id = id[i];
-            require(IVault(poolAddress).getHeldTokenExistence(collection, _id), "Token not in pool");
-            require(
-                msg.sender == IERC721(collection).ownerOf(_id)
-                || msg.sender == controller.registry(IERC721(collection).ownerOf(_id)),
-                "Not owner or proxy"
-            );
-            require(controller.nftVaultSignedAddress(collection, _id) == address(0), "NFT already linked to a pool");
-            controller.updateNftUsage(poolAddress, collection, _id, true);
-        }
-        emit VaultSigned(poolAddress, msg.sender, nft, id);
-    }
-
-    /// SEE IFactory.sol FOR COMMENTS
-    function updateNftInUse(
-        address nftToRemove,
-        uint256 idToRemove,
-        string memory name
-    ) external {
-        SpotPool storage pool = poolMapping[name];
-        require(controller.accreditedAddresses(msg.sender));
-        require(IVault(pool.pool).getHeldTokenExistence(nftToRemove, idToRemove));
-        controller.updateNftUsage(address(0), nftToRemove, idToRemove, false);
-        emit NftRemoved(msg.sender, nftToRemove, idToRemove);
-    }
-
     /* ======== CLAIMING RETURNED FUNDS/EARNED FEES ======== */
     /// SEE IFactory.sol FOR COMMENTS
     function updatePendingReturns(address _user) external payable nonReentrant {

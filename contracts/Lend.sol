@@ -102,21 +102,23 @@ contract Lend is ReentrancyGuard {
     }
 
     /// SEE ILend.sol FOR COMMENTS
-    function payInterest(uint256 _epoch, address _nft, uint256 _id) external payable nonReentrant {
+    function payInterest(uint256[] calldata _epoch, address _nft, uint256 _id) external payable nonReentrant {
         Position storage openLoan = loans[_nft][_id];
         Vault vault = Vault(payable(openLoan.pool));
+        uint256 length = _epoch.length;
+        uint256 totalInterest;
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
-        require(_epoch <= poolEpoch, "Improper epoch input");
-        require(!openLoan.interestPaid[_epoch], "Already paid interest");
         uint256 epochsMissed = poolEpoch - loans[_nft][_id].startEpoch - loans[_nft][_id].timesInterestPaid;
-        require(
-            msg.value == 
-                vault.interestRate() * vault.getPayoutPerReservation(_epoch) / 10_000 
-                    * vault.epochLength() / (52 weeks) * ((epochsMissed >= 2) ? 3 * epochsMissed / 2 : 1),
-            "Incorrect payment size"
-        );
-        openLoan.timesInterestPaid++;
-        openLoan.interestPaid[_epoch] = true;
+        for(uint256 i; i < length; i++) {
+            uint256 epoch = _epoch[i];
+            require(epoch <= poolEpoch, "Improper epoch input");
+            require(!openLoan.interestPaid[epoch], "Already paid interest");
+            totalInterest += vault.interestRate() * vault.getPayoutPerReservation(epoch) / 10_000 
+                        * vault.epochLength() / (52 weeks) * ((epochsMissed >= 2) ? 3 * epochsMissed / 2 : 1);
+            openLoan.interestPaid[epoch] = true;
+        }
+        require(msg.value == totalInterest, "Incorrect payment size");
+        openLoan.timesInterestPaid += length;
         vault.processFees{value: msg.value}();
     }
 
@@ -153,6 +155,8 @@ contract Lend is ReentrancyGuard {
                 nft,
                 id
             );
+        } else {
+            revert("Liquidation failed");
         }
     }
 
@@ -213,11 +217,13 @@ contract Lend is ReentrancyGuard {
             );
             totalBids += Closure(payable(vault.closePoolContract())).highestBid(_closureNonces[i], _nfts[i], _ids[i]);
         }
+        uint256 futureEpoch = (block.timestamp - vault.startTime() + 12 hours) / 1 days;
         return (
             95 * (
                 (totalBids
                 + (
-                    vault.getPayoutPerReservation((block.timestamp - vault.startTime() + 12 hours) / 1 days)
+                    vault.getTotalAvailableFunds(futureEpoch) 
+                        - vault.getPayoutPerReservation(futureEpoch)
                 )) / (vault.reservationsAvailable() + _nfts.length)
             ) / 100 <= loanAmount 
         );
@@ -245,11 +251,17 @@ contract Lend is ReentrancyGuard {
     }
 
     /// SEE ILend.sol FOR COMMENTS
-    function getInterestPayment(uint256 _epoch, address _nft, uint256 _id) external view returns(uint256) {
+    function getInterestPayment(uint256[] calldata _epoch, address _nft, uint256 _id) external view returns(uint256) {
         Vault vault = Vault(payable(loans[_nft][_id].pool));
+        uint256 totalInterest;
+        uint256 length = _epoch.length;
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
         uint256 epochsMissed = poolEpoch - loans[_nft][_id].startEpoch - loans[_nft][_id].timesInterestPaid;
-        return vault.interestRate() * vault.getPayoutPerReservation(_epoch) / 10_000 
-                    * vault.epochLength() / (52 weeks) * ((epochsMissed >= 2) ? 3 * epochsMissed / 2 : 1);
+        for(uint256 i; i < length; i++) {
+            uint256 epoch = _epoch[i];
+            totalInterest += vault.interestRate() * vault.getPayoutPerReservation(epoch) / 10_000 
+                        * vault.epochLength() / (52 weeks) * ((epochsMissed >= 2) ? 3 * epochsMissed / 2 : 1);
+        }
+        return totalInterest;
     }
 }
