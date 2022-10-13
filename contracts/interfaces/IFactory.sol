@@ -12,8 +12,7 @@ interface IFactory {
     /// @notice Update the recorded collateral slot count and amount of NFTs in a pool
     /// @param name Name of the pool
     /// @param slots Total amount of collateral slots in the pool
-    /// @param amountNfts Total amount of NFTs linked to the pool
-    function updateSlotCount(string memory name, uint256 slots, uint256 amountNfts) external;
+    function updateSlotCount(string memory name, uint256 slots) external;
 
     /// @notice Update a users pending return count
     /// @dev Pending returns come from funds that need to be returned from

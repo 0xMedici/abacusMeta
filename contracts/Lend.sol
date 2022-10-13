@@ -52,6 +52,7 @@ contract Lend is ReentrancyGuard {
 
     /* ======== EVENT ======== */
     event EthBorrowed(address _user, address _pool, address nft, uint256 id, uint256 _amount);
+    event InterestPaid(address _user, address _pool, address nft, uint256 id, uint256 _amount);
     event EthRepayed(address _user, address _pool, address nft, uint256 id, uint256 _amount);
     event BorrowerLiquidated(address _user, address _pool, address nft, uint256 id, uint256 _amount);
     event LoanTransferred(address _pool, address from, address to, address nft, uint256 id);
@@ -120,6 +121,7 @@ contract Lend is ReentrancyGuard {
         require(msg.value == totalInterest, "Incorrect payment size");
         openLoan.timesInterestPaid += length;
         vault.processFees{value: msg.value}();
+        emit InterestPaid(msg.sender, openLoan.pool, _nft, _id, msg.value);
     }
 
     /// SEE ILend.sol FOR COMMENTS

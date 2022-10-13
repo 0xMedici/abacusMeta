@@ -103,8 +103,8 @@ contract Closure is ReentrancyGuard, Initializable {
         ) {
             auctionEndTime[_nonce][_nft][_id] = block.timestamp + 12 hours;
         }
-        require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100, "IB");
-        require(block.timestamp < auctionEndTime[_nonce][_nft][_id], "TO");
+        require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100, "Invalid bid");
+        require(block.timestamp < auctionEndTime[_nonce][_nft][_id], "Time over");
         factory.updatePendingReturns{ 
             value:highestBid[_nonce][_nft][_id]
         } ( highestBidder[_nonce][_nft][_id] );
@@ -123,19 +123,14 @@ contract Closure is ReentrancyGuard, Initializable {
     /// SEE IClosure.sol FOR COMMENTS
     function endAuction(address _nft, uint256 _id) external nonReentrant {
         uint256 _nonce = nonce[_nft][_id];
-        require(auctionEndTime[_nonce][_nft][_id] != 0, "IA");
+        require(auctionEndTime[_nonce][_nft][_id] != 0, "Invalid auction");
         require(
             block.timestamp > auctionEndTime[_nonce][_nft][_id]
             && !auctionComplete[_nonce][_nft][_id],
-            "AO"
+            "Auction ongoing"
         );
         vault.updateSaleValue{value:highestBid[_nonce][_nft][_id]}(_nft, _id, highestBid[_nonce][_nft][_id]);
         auctionComplete[_nonce][_nft][_id] = true;
-        IERC721(_nft).transferFrom(
-            address(this), 
-            highestBidder[_nonce][_nft][_id],
-            _id
-        );
         liveAuctions--;
         factory.emitAuctionEnded(
             address(vault),
@@ -143,6 +138,16 @@ contract Closure is ReentrancyGuard, Initializable {
             _id,
             highestBidder[_nonce][_nft][_id],
             highestBid[_nonce][_nft][_id]
+        );
+    }
+
+    function claimNft(address _nft, uint256 _id) external nonReentrant {
+        uint256 _nonce = nonce[_nft][_id];
+        require(auctionComplete[_nonce][_nft][_id], "Auction ongoing");
+        IERC721(_nft).transferFrom(
+            address(this), 
+            highestBidder[_nonce][_nft][_id],
+            _id
         );
     }
 }

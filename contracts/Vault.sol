@@ -51,8 +51,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     string name;
 
     /* ======== UINT ======== */
-    uint256 amountNftsLinked;
-
     uint256 public epochLength;
 
     /// @notice Interest rate that the pool charges for usage of liquidity
@@ -191,7 +189,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             require(!tokenMapping[_compTokenInfo[i]], "AM");
             tokenMapping[_compTokenInfo[i]] = true;
         }
-        amountNftsLinked += length;
         factory.emitNftInclusion(_compTokenInfo);
     }
 
@@ -217,7 +214,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         ticketLimit = _ticketSize;
         reservationsAvailable = _slots;
         interestRate = _rate;
-        factory.updateSlotCount(name, _slots, amountNftsLinked);
+        factory.updateSlotCount(name, _slots);
         startTime = block.timestamp;
         factory.emitPoolBegun(_slots, _ticketSize, _rate, _epochLength);
     }

@@ -56,7 +56,6 @@ contract Factory is ReentrancyGuard {
     /// [pool] -> pool address
     struct SpotPool {
         uint32 slots;
-        uint64 nftsInPool;
         address pool;
     }
 
@@ -125,10 +124,9 @@ contract Factory is ReentrancyGuard {
     }
 
     /// SEE IFactory.sol FOR COMMENTS
-    function updateSlotCount(string memory name, uint256 slots, uint256 amountNfts) external {
+    function updateSlotCount(string memory name, uint256 slots) external {
         require(controller.accreditedAddresses(msg.sender));
         poolMapping[name].slots = uint32(slots);
-        poolMapping[name].nftsInPool = uint64(amountNfts);
     }
 
     /* ======== CLAIMING RETURNED FUNDS/EARNED FEES ======== */
