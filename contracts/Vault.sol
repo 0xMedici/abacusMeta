@@ -204,7 +204,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _epochLength
     ) external payable {
         require(
-            _epochLength >= 1 days
+            _epochLength >= 2 minutes 
             && _epochLength <= 2 weeks
         );
         require(startTime == 0, "AS");
@@ -377,9 +377,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 tempComp = compressedEpochVals[poolEpoch];
             uint256 tv = this.getTotalAvailableFunds(poolEpoch);
             uint256 prevPosition = 86;
+            uint256 addedValue = _saleValue > this.getPayoutPerReservation(poolEpoch) ? 
+                this.getPayoutPerReservation(poolEpoch) : _saleValue;
             tempComp = 
                 tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) 
-                    | (((tv + _saleValue) / reservationsAvailable) << 86);
+                    | ((((reservationsAvailable - 1) * tv / amountNft + addedValue) / reservationsAvailable) << 86);
             prevPosition += 84;
             if(_saleValue < ppr) {
                 tempComp = 
@@ -438,6 +440,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         adjustmentNonce[_nft][_id][closureNonce[_nft][_id]] = adjustmentsRequired;
         reservationsAvailable--;
         uint256 ppr = this.getPayoutPerReservation(poolEpoch);
+        require(ppr != 0, "Payout must be greater than 0!");
         if(closePoolContract == address(0)) {
             IClosure closePoolMultiDeployment = 
                 IClosure(Clones.clone(_closePoolMultiImplementation));
@@ -462,6 +465,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         payable(msg.sender).transfer(ppr - payout - liqAccessed[_nft][_id]);
         factory.emitNftClosed(
             msg.sender,
+            closureNonce[_nft][_id],
             _nft,
             _id,
             ppr,
@@ -478,8 +482,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _id,
         uint256 _closureNonce
     ) external nonReentrant returns(bool) {
-        require(!adjustCompleted[_user][_nonce][_closureNonce][_nft][_id]);
-        require(adjustmentsMade[_user][_nonce] < adjustmentsRequired);
+        require(!adjustCompleted[_user][_nonce][_closureNonce][_nft][_id], "Already adjusted for this input");
+        require(adjustmentsMade[_user][_nonce] < adjustmentsRequired, "Adjustments up to date");
         require(
             block.timestamp > Closure(payable(closePoolContract)).auctionEndTime(
                 _closureNonce, 
@@ -488,7 +492,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             )
         );
         Buyer storage trader = traderProfile[_user][_nonce];
-        require(adjustmentsMade[_user][_nonce] == adjustmentNonce[_nft][_id][_closureNonce] - 1);
+        require(adjustmentsMade[_user][_nonce] == adjustmentNonce[_nft][_id][_closureNonce] - 1, "Input proper adjustment nonce");
         adjustmentsMade[_user][_nonce]++;
         if(trader.unlockEpoch < epochOfClosure[_closureNonce][_nft][_id]) {
             return true;

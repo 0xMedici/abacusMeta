@@ -70,7 +70,7 @@ contract Factory is ReentrancyGuard {
     event Purchase(address _pool, address _buyer, uint256[] tickets, uint256[] amountPerTicket, uint256 nonce, uint256 startEpoch, uint256 finalEpoch);
     event SaleComplete(address _pool,  address _seller, uint256 nonce, uint256 ticketsSold, uint256 creditsPurchased);
     event SpotReserved(address _pool, uint256 reservationId, uint256 startEpoch, uint256 endEpoch);
-    event NftClosed(address _pool, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
+    event NftClosed(address _pool, uint256 _closureNonce, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
     event NewBid(address _pool, address _closePoolContract, address _collection, uint256 _id, address _bidder, uint256 _bid);
     event AuctionEnded(address _pool, address _closePoolContract, address _collection, uint256 _id, address _winner, uint256 _highestBid);
     event PrincipalCalculated(address _pool, address _closePoolContract, address _collection, uint256 _id, address _user, uint256 _nonce, uint256 _closureNonce);
@@ -216,15 +216,17 @@ contract Factory is ReentrancyGuard {
 
     function emitNftClosed(
         address _caller,
+        uint256 _closureNonce,
         address _nft,
-        uint256 _closedId,
+        uint256 _id,
         uint256 _payout,
         address _closePoolContract
     ) external onlyAccredited {
         emit NftClosed(
             msg.sender, 
+            _closureNonce,
             _nft,
-            _closedId, 
+            _id,
             _caller, 
             _payout, 
             _closePoolContract

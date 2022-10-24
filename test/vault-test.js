@@ -206,6 +206,10 @@ describe("Spot pool", function () {
         );
 
         await mockNft.approve(maPool.address, 1);
+
+        //Close an NFT
+        //  1. NFT address
+        //  2. NFT ID
         await maPool.closeNft(mockNft.address, 1);
     });
 

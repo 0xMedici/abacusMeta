@@ -52,7 +52,7 @@ contract Lend is ReentrancyGuard {
 
     /* ======== EVENT ======== */
     event EthBorrowed(address _user, address _pool, address nft, uint256 id, uint256 _amount);
-    event InterestPaid(address _user, address _pool, address nft, uint256 id, uint256 _amount);
+    event InterestPaid(address _user, address _pool, address nft, uint256 id, uint256[] _epoch, uint256 _amountPaid);
     event EthRepayed(address _user, address _pool, address nft, uint256 id, uint256 _amount);
     event BorrowerLiquidated(address _user, address _pool, address nft, uint256 id, uint256 _amount);
     event LoanTransferred(address _pool, address from, address to, address nft, uint256 id);
@@ -81,17 +81,19 @@ contract Lend is ReentrancyGuard {
             IERC721(_nft).transferFrom(msg.sender, address(this), _id);
         }
         require(
-            95 * vault.getPayoutPerReservation((block.timestamp - vault.startTime()) / 1 days) 
+            95 * vault.getPayoutPerReservation((block.timestamp - vault.startTime()) / vault.epochLength()) 
                 / 100 >= (_amount + openLoan.amount), "Exceed current LTV"
         );
         uint256 payoutPerResFuture = 
-            vault.getPayoutPerReservation((block.timestamp - vault.startTime() + 12 hours) / 1 days);
+            vault.getPayoutPerReservation(
+                (block.timestamp - vault.startTime() + vault.epochLength() / 12) / vault.epochLength()
+            );
         require(95 * payoutPerResFuture / 100 >= _amount + openLoan.amount, "Exceed future LTV");
         if(!loanDeployed[_nft][_id]) {
             openLoan.pool = _pool;
             openLoan.amount = _amount;
             openLoan.borrower = msg.sender;
-            openLoan.startEpoch = (block.timestamp - Vault(payable(openLoan.pool)).startTime()) / 1 days;
+            openLoan.startEpoch = (block.timestamp - Vault(payable(openLoan.pool)).startTime()) / vault.epochLength();
             loanDeployed[_nft][_id] = true;
         } else {
             uint256 epochsMissed = poolEpoch - loans[_nft][_id].startEpoch - loans[_nft][_id].timesInterestPaid;
@@ -121,12 +123,13 @@ contract Lend is ReentrancyGuard {
         require(msg.value == totalInterest, "Incorrect payment size");
         openLoan.timesInterestPaid += length;
         vault.processFees{value: msg.value}();
-        emit InterestPaid(msg.sender, openLoan.pool, _nft, _id, msg.value);
+        emit InterestPaid(msg.sender, openLoan.pool, _nft, _id, _epoch, msg.value);
     }
 
     /// SEE ILend.sol FOR COMMENTS
     function repay(address nft, uint256 id) external payable nonReentrant {
         Position storage openLoan = loans[nft][id];
+        address pool = openLoan.pool;
         uint256 poolEpoch = (block.timestamp - Vault(payable(openLoan.pool)).startTime()) / Vault(payable(openLoan.pool)).epochLength();
         require(msg.sender == openLoan.borrower, "Not borrower");
         require(poolEpoch - openLoan.startEpoch + 1 == openLoan.timesInterestPaid, "Must pay outstanding interest");
@@ -138,7 +141,7 @@ contract Lend is ReentrancyGuard {
             delete loanDeployed[nft][id];
             IERC721(nft).transferFrom(address(this), borrower, id);
         }
-        emit EthRepayed(msg.sender, openLoan.pool, nft, id, msg.value);
+        emit EthRepayed(msg.sender, pool, nft, id, msg.value);
     }
 
     /// SEE ILend.sol FOR COMMENTS
@@ -215,17 +218,16 @@ contract Lend is ReentrancyGuard {
             uint256 auctionEndTime = Closure(payable(vault.closePoolContract())).auctionEndTime(_closureNonces[i], _nfts[i], _ids[i]);
             require(
                 auctionEndTime != 0
-                && auctionEndTime < block.timestamp + 12 hours
+                && auctionEndTime < block.timestamp + 5 minutes, "Improper auction nonce entry!"
             );
             totalBids += Closure(payable(vault.closePoolContract())).highestBid(_closureNonces[i], _nfts[i], _ids[i]);
         }
-        uint256 futureEpoch = (block.timestamp - vault.startTime() + 12 hours) / 1 days;
+        uint256 futureEpoch = (block.timestamp - vault.startTime() + vault.epochLength() / 6) / vault.epochLength();
         return (
             95 * (
                 (totalBids
                 + (
-                    vault.getTotalAvailableFunds(futureEpoch) 
-                        - vault.getPayoutPerReservation(futureEpoch)
+                    vault.reservationsAvailable() * vault.getTotalAvailableFunds(futureEpoch) / vault.amountNft()
                 )) / (vault.reservationsAvailable() + _nfts.length)
             ) / 100 <= loanAmount 
         );
@@ -258,6 +260,12 @@ contract Lend is ReentrancyGuard {
         uint256 totalInterest;
         uint256 length = _epoch.length;
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
+        if(
+            loans[_nft][_id].amount == 0
+            || loans[_nft][_id].timesInterestPaid > poolEpoch - loans[_nft][_id].startEpoch
+        ) {
+            return 0;
+        }
         uint256 epochsMissed = poolEpoch - loans[_nft][_id].startEpoch - loans[_nft][_id].timesInterestPaid;
         for(uint256 i; i < length; i++) {
             uint256 epoch = _epoch[i];

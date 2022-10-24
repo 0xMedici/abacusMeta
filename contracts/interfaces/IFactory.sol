@@ -69,8 +69,9 @@ interface IFactory {
 
     function emitNftClosed(
         address _caller,
+        uint256 _closureNonce,
         address _nft,
-        uint256 _closedId,
+        uint256 _id,
         uint256 _payout,
         address _closePoolContract
     ) external;

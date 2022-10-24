@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import { AbacusController } from "./AbacusController.sol";
 import { IVault } from "./interfaces/IVault.sol";
+import { Vault } from "./Vault.sol";
 import { IFactory } from "./interfaces/IFactory.sol";
 
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -35,7 +36,7 @@ contract Closure is ReentrancyGuard, Initializable {
     
     /* ======== ADDRESS ======== */
     IFactory public factory;
-    IVault public vault;
+    Vault public vault;
     AbacusController public controller;
 
     /* ======== UINT ======== */
@@ -76,7 +77,7 @@ contract Closure is ReentrancyGuard, Initializable {
         address _vault,
         address _controller
     ) external initializer {
-        vault = IVault(payable(_vault));
+        vault = Vault(payable(_vault));
         controller = AbacusController(_controller);
         factory = IFactory(controller.factory());
     }
@@ -101,7 +102,7 @@ contract Closure is ReentrancyGuard, Initializable {
             nftVal[_nonce][_nft][_id] != 0
             && auctionEndTime[_nonce][_nft][_id] == 0
         ) {
-            auctionEndTime[_nonce][_nft][_id] = block.timestamp + 12 hours;
+            auctionEndTime[_nonce][_nft][_id] = block.timestamp + 10 minutes;
         }
         require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100, "Invalid bid");
         require(block.timestamp < auctionEndTime[_nonce][_nft][_id], "Time over");
