@@ -78,6 +78,7 @@ interface IFactory {
 
     function emitNewBid(
         address _pool,
+        uint256 _nonce,
         address _callerToken,
         uint256 _id,
         address _bidder,
@@ -86,10 +87,19 @@ interface IFactory {
 
     function emitAuctionEnded(
         address _pool,
+        uint256 _nonce,
         address _callerToken,
         uint256 _id,
         address _bidder,
         uint256 _bid
+    ) external;
+
+    function emitNftClaimed(
+        address _pool,
+        uint256 _nonce,
+        address _callerToken,
+        uint256 _id,
+        address _bidder
     ) external;
 
     function emitPrincipalCalculated(

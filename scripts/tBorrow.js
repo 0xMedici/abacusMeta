@@ -13,17 +13,18 @@ async function main() {
     Vault = await ethers.getContractFactory("Vault");
     Closure = await ethers.getContractFactory("Closure");
     MockNft = await ethers.getContractFactory("MockNft");
-    mockNft = await MockNft.attach('0x60F0bF9c655572E2E02FdBD262fb919C8E2BAD1A');
+    mockNft = await MockNft.attach('0x6F56FaB249A38BbB871E8A4411B0bAd340b7127C');
     let vaultAddress = await factory.getPoolAddress(ADDRESSES[3]);
     
-    await mockNft.approve(lend.address, '3');
-    await lend.borrow(
+    const approve = await mockNft.approve(lend.address, '3');
+    await approve.wait();
+    const borrow = await lend.borrow(
         vaultAddress, //Pool address
-        '0x60F0bF9c655572E2E02FdBD262fb919C8E2BAD1A', //NFT address
-        '1', //NFT ID
+        mockNft.address, //NFT address
+        '3', //NFT ID
         '5000000000000000', //Amount to borrow
     );
-
+    await borrow.wait();
     console.log("Borrow successful!");
 }
 

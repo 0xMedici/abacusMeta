@@ -153,7 +153,7 @@ describe("Life cycle", function () {
             maPool.address,
             mockNft.address,
             2,
-            '180000000000000000'
+            '270000000000000000'
         );
         await network.provider.send("evm_increaseTime", [86400 * 3]);
         await mockNft.approve(lend.address, 3);
@@ -177,8 +177,7 @@ describe("Life cycle", function () {
             1,
             { value: '90000000000000000' }
         );
-        await network.provider.send("evm_increaseTime", [86400 * 2]);
-
+        await network.provider.send("evm_increaseTime", [86400 + 80000]);
         //Liquidate a borrower
         //  1. NFT address
         //  2. NFT ID
@@ -192,6 +191,8 @@ describe("Life cycle", function () {
             [],
             []
         );
+
+        await network.provider.send("evm_increaseTime", [86400 * 2]);
         let closureMulti = await Closure.attach(await maPool.closePoolContract());
 
         //Bidding in a closure auction
@@ -204,13 +205,6 @@ describe("Life cycle", function () {
         //  1. NFT address
         //  2. NFT ID
         await closureMulti.endAuction(mockNft.address, 2);
-        await mockNft.approve(lend.address, 1);
-        await lend.borrow(
-            maPool.address,
-            mockNft.address,
-            1,
-            '90000000000000000'
-        );
         await network.provider.send("evm_increaseTime", [86400 * 2]);
 
         //Adjust an appraisers position to check for post closure accuracy
@@ -229,17 +223,6 @@ describe("Life cycle", function () {
         await maPool.sell(
             deployer.address,
             0
-        );
-        await lend.payInterest(
-            [10, 11, 12],
-            mockNft.address,
-            1,
-            { value: await lend.getInterestPayment([10, 11, 12], mockNft.address, 1) }
-        );
-        await lend.repay(
-            mockNft.address,
-            1,
-            { value: '90000000000000000' }
         );
         await maPool.sell(
             deployer.address,

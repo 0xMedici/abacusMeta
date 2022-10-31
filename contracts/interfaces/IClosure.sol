@@ -25,4 +25,6 @@ interface IClosure {
     /// @param _nft NFT collection address
     /// @param _id NFT ID
     function endAuction(address _nft, uint256 _id) external;
+
+    function claimNft(address _nft, uint256 _id) external;
 }

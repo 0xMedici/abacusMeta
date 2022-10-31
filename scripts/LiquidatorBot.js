@@ -1,12 +1,12 @@
-const { BigNumber } = require("ethers");
 const { ethers } = require("hardhat");
 const { ADDRESSES } = require('./Addresses.js');
+const { request, gql } = require('graphql-request');
 
 async function main() {
 
     const [deployer] = await ethers.getSigners();
     let poolList = [];
-    const poolTracker = new Map();
+    let poolTracker = new Map();
     let loanList = [];
     let loanTracker = new Map();
  
@@ -22,9 +22,83 @@ async function main() {
     Vault = await ethers.getContractFactory("Vault");
     Closure = await ethers.getContractFactory("Closure");
 
+    const updateBotInformation = () => {
+        const query = gql`
+        {
+            loans(where:{outstanding:${true}}) {
+                id
+                borrower {
+                    id
+                }
+                vault {
+                    id
+                }
+                nft {
+                    id
+                }
+                amount
+                outstanding
+            }
+        
+            auctions(where:{ended:${false}}) {
+                id
+                endTimestamp
+                highestBid
+                highestBidder
+                ended
+                closePoolContract
+                nonce
+            }
+        }
+        `
+
+        request('https://api.thegraph.com/subgraphs/name/lauchness/abacus-spot-graph-goerli', query).then(data => {
+            console.log(data);
+            data.loans.forEach(element => {
+                let nftInfo = element.nft.id.split('/');
+                let grouping = nftInfo.join('/');
+                console.log("GROUPING:", grouping);
+                console.log("NEW:", {
+                    nft: nftInfo[0],
+                    id: nftInfo[1],
+                    pool: element.vault.id,
+                    amount: element.amount
+                });
+                loanTracker.set(grouping, {
+                    nft: nftInfo[0],
+                    id: nftInfo[1],
+                    pool: element.vault.id,
+                    amount: element.amount
+                });
+                loanList.push(grouping);
+            });
+            console.log(loanList);
+
+            data.auctions.forEach(element => {
+                let nftInfo = element.id.split('/');
+                poolList.push(element.closePoolContract);
+                const newTrackerItem = {
+                    nft: nftInfo[0],
+                    id: nftInfo[1],
+                    closureNonce: element.nonce,
+                    bid: element.highestBid,
+                    pool: element.closePoolContract,
+                }
+                const currentList = poolTracker.get(element.closePoolContract) ? poolTracker.get(element.closePoolContract) : [];
+                const newTrackerList = [...currentList, newTrackerItem];
+                poolTracker.set(element.closePoolContract, newTrackerList);
+            });
+            console.log(poolList);
+        })
+    }
+
+    updateBotInformation();
+    console.log("Pool list:", poolList);
+    console.log("Loan list:", loanList);
+
     lend.on("EthBorrowed", async (_user,_pool,nft,id,_amount,event) => {
         console.log(`${_amount} ETH borrowed by ${_user} against Spot pool at address ${_pool} using ${nft} ${id}`);
-        let grouping = nft + id;
+        let grouping = [nft, id].join("/");
         let currentAmount = 0;
         if(loanTracker.get(grouping)) {
             currentAmount += parseInt(loanTracker.get(grouping).amount)
@@ -41,7 +115,7 @@ async function main() {
     lend.on("EthRepayed", async (_user,_pool,nft,id,_amount,event) => {
         console.log(`${_amount} ETH repaid by ${_user} in relation to a loan taken against pool at address ${_pool} using ${nft} ${id}`);
         if(!(await lend.loanDeployed(nft, id))) {
-            let grouping = nft + id;
+            let grouping = [nft, id].join("/");
             removalIndex = loanList.findIndex(item => {
                 return item === grouping
             });
@@ -52,14 +126,14 @@ async function main() {
 
     lend.on("BorrowerLiquidated", async (_user,_pool,nft,id,_amount,event) => {
         console.log(`${_user} liquidated on a loan taken against pool at address ${_pool}. Auction starting for ${nft} ${id}`);
-        let grouping = nft + id;
+        let grouping = [nft, id].join("/");
         removalIndex = loanList.findIndex(item => {
             return item === grouping
         });
         loanList.splice(removalIndex, 1);
     });
 
-    factory.on("NftClosed", (_pool,_collection,_id,_caller,payout,closePoolContract, event) => {
+    factory.on("NftClosed", (_pool,_closureNonce, _collection,_id,_caller,payout,closePoolContract, event) => {
         console.log(
             `
             ${_collection} ${_id} was closed into a Spot pool ${_pool} by ${_caller} in exchange for ${payout} wei and will now be auctioned off on ${closePoolContract}
@@ -150,10 +224,10 @@ async function main() {
             let pricePoint = 
                 (
                     totalBids + 
-                    parseInt(await vault.reservationsAvailable()) 
+                    parseInt(await vault.amountNft() - await vault.reservations()) 
                         * parseInt(await vault.getTotalAvailableFunds(futureEpoch)) 
                             / parseInt(await vault.amountNft()))
-                    / (parseInt(await vault.reservationsAvailable()) + bidAmount);
+                    / (parseInt(await vault.amountNft() - await vault.reservations()) + bidAmount);
             console.log(
                 "Current price point:", Math.floor(95 * pricePoint / 100)
             );
@@ -162,18 +236,21 @@ async function main() {
                 let loanTrack = loanTracker.get(poolLoans[k]);
                 if(pricePoint < 95 * parseInt(loanTrack.amount) / 100) {
                     console.log("BANG, LIQUIDATED!");
-                    await lend.liquidate(
+                    loanList = loanList.filter(item => item !== poolLoans[k]);
+                    const liquidate = await lend.liquidate(
                         loanTrack.nft,
                         loanTrack.id,
                         addressList,
                         idList,
                         closureNonceList
                     );
+                    await liquidate.wait();
+                    loanList = loanList.filter(item => item !== poolLoans[k]);
                 }
             }
             console.log("--------------");
         }
-    }, 6000);
+    }, 10000);
 }
 
 main();

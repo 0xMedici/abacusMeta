@@ -71,8 +71,9 @@ contract Factory is ReentrancyGuard {
     event SaleComplete(address _pool,  address _seller, uint256 nonce, uint256 ticketsSold, uint256 creditsPurchased);
     event SpotReserved(address _pool, uint256 reservationId, uint256 startEpoch, uint256 endEpoch);
     event NftClosed(address _pool, uint256 _closureNonce, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
-    event NewBid(address _pool, address _closePoolContract, address _collection, uint256 _id, address _bidder, uint256 _bid);
-    event AuctionEnded(address _pool, address _closePoolContract, address _collection, uint256 _id, address _winner, uint256 _highestBid);
+    event NewBid(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _bidder, uint256 _bid);
+    event AuctionEnded(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _winner, uint256 _highestBid);
+    event NftClaimed(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _winner);
     event PrincipalCalculated(address _pool, address _closePoolContract, address _collection, uint256 _id, address _user, uint256 _nonce, uint256 _closureNonce);
     event Payout(address _pool, address _closePoolContract, address _user, uint256 _payoutAmount);
     event LPTransferAllowanceChanged(address _pool, address from, address to);
@@ -125,7 +126,7 @@ contract Factory is ReentrancyGuard {
 
     /// SEE IFactory.sol FOR COMMENTS
     function updateSlotCount(string memory name, uint256 slots) external {
-        require(controller.accreditedAddresses(msg.sender));
+        require(controller.accreditedAddresses(msg.sender), "Not accredited");
         poolMapping[name].slots = uint32(slots);
     }
 
@@ -235,6 +236,7 @@ contract Factory is ReentrancyGuard {
 
     function emitNewBid(
         address _pool,
+        uint256 _nonce,
         address _callerToken,
         uint256 _id,
         address _bidder,
@@ -242,6 +244,7 @@ contract Factory is ReentrancyGuard {
     ) external onlyAccredited {
         emit NewBid(
             _pool, 
+            _nonce,
             msg.sender, 
             _callerToken, 
             _id, 
@@ -252,6 +255,7 @@ contract Factory is ReentrancyGuard {
 
     function emitAuctionEnded(
         address _pool,
+        uint256 _nonce,
         address _callerToken,
         uint256 _id,
         address _bidder,
@@ -259,11 +263,29 @@ contract Factory is ReentrancyGuard {
     ) external onlyAccredited {
         emit AuctionEnded(
             _pool, 
+            _nonce,
             msg.sender, 
             _callerToken, 
             _id, 
             _bidder,
             _bid
+        );
+    }
+
+    function emitNftClaimed(
+        address _pool,
+        uint256 _nonce,
+        address _callerToken,
+        uint256 _id,
+        address _bidder
+    ) external onlyAccredited {
+        emit NftClaimed(
+            _pool, 
+            _nonce,
+            msg.sender, 
+            _callerToken, 
+            _id, 
+            _bidder
         );
     }
 

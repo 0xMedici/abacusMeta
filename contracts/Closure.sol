@@ -114,6 +114,7 @@ contract Closure is ReentrancyGuard, Initializable {
 
         factory.emitNewBid(
             address(vault),
+            _nonce,
             _nft,
             _id,
             msg.sender,
@@ -135,6 +136,7 @@ contract Closure is ReentrancyGuard, Initializable {
         liveAuctions--;
         factory.emitAuctionEnded(
             address(vault),
+            _nonce,
             _nft,
             _id,
             highestBidder[_nonce][_nft][_id],
@@ -149,6 +151,13 @@ contract Closure is ReentrancyGuard, Initializable {
             address(this), 
             highestBidder[_nonce][_nft][_id],
             _id
+        );
+        factory.emitNftClaimed(
+            address(vault),
+            _nonce,
+            _nft,
+            _id,
+            msg.sender
         );
     }
 }

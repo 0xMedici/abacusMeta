@@ -19,14 +19,14 @@ async function main() {
     lend = await Lend.deploy(controller.address);
     console.log("Lender:", lend.address);
 
-    MockNft = await ethers.getContractFactory("MockNft");
-    mockNft = await MockNft.deploy();
-    console.log("NFT:", mockNft.address);
+    // MockNft = await ethers.getContractFactory("MockNft");
+    // mockNft = await MockNft.deploy();
+    // console.log("NFT:", mockNft.address);
 
-    for(let i = 0; i < 6; i++) {
-      await mockNft.mintNew();
-    }
-    console.log("NFT minted");
+    // for(let i = 0; i < 6; i++) {
+    //   await mockNft.mintNew();
+    // }
+    // console.log("NFT minted");
 
     const setBeta = await controller.setBeta(3);
     await setBeta.wait();

@@ -8,10 +8,10 @@
 
 //goerli
 let ADDRESSES = [
-    '0xD49738E09a05dAfD60F62AfCA9eAD73DD9B7EBCe', // controller
-    '0xD23f0DA23f0c7e7E5Fdc1Ce0acE0588bb11f2e7A', // factory
-    '0x33edee92B615533b415C40507259c130F55796Af', // lender
-    'HelloNewWorld1', // Spot pool name
+    '0x67ae1c06FaDd0B06Ff4E8E5957677fFb0509a16C', // controller
+    '0xABdC8225f0dE9B7603b3e2b620cfAEee4740E7d4', // factory
+    '0xbD2b1C6770cababAfdFB62a9A576b4D25e0C89b0', // lender
+    'NewWorld1', // Spot pool name
 ];
 
 //mainnet

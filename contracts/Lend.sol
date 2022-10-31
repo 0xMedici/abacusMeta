@@ -70,8 +70,10 @@ contract Lend is ReentrancyGuard {
     /// SEE ILend.sol FOR COMMENTS
     function borrow(address _pool, address _nft, uint256 _id, uint256 _amount) external nonReentrant {
         require(controller.accreditedAddresses(_pool), "Not accredited");
+        require(_amount > 0);
         Position storage openLoan = loans[_nft][_id];
         Vault vault = Vault(payable(_pool));
+        require(vault.getHeldTokenExistence(_nft, _id));
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
         require(
             msg.sender == IERC721(_nft).ownerOf(_id)
@@ -100,6 +102,7 @@ contract Lend is ReentrancyGuard {
             require(epochsMissed == 0);
             openLoan.amount += _amount;
         }
+        require(IERC721(_nft).ownerOf(_id) == address(this));
         vault.accessLiq(msg.sender, _nft, _id, _amount);
         emit EthBorrowed(msg.sender, _pool, _nft, _id, _amount);
     }
@@ -107,6 +110,7 @@ contract Lend is ReentrancyGuard {
     /// SEE ILend.sol FOR COMMENTS
     function payInterest(uint256[] calldata _epoch, address _nft, uint256 _id) external payable nonReentrant {
         Position storage openLoan = loans[_nft][_id];
+        require(openLoan.amount != 0, "No open loan");
         Vault vault = Vault(payable(openLoan.pool));
         uint256 length = _epoch.length;
         uint256 totalInterest;
@@ -129,6 +133,7 @@ contract Lend is ReentrancyGuard {
     /// SEE ILend.sol FOR COMMENTS
     function repay(address nft, uint256 id) external payable nonReentrant {
         Position storage openLoan = loans[nft][id];
+        require(openLoan.amount != 0, "No open loan");
         address pool = openLoan.pool;
         uint256 poolEpoch = (block.timestamp - Vault(payable(openLoan.pool)).startTime()) / Vault(payable(openLoan.pool)).epochLength();
         require(msg.sender == openLoan.borrower, "Not borrower");
@@ -141,6 +146,7 @@ contract Lend is ReentrancyGuard {
             delete loanDeployed[nft][id];
             IERC721(nft).transferFrom(address(this), borrower, id);
         }
+        require(IERC721(nft).ownerOf(id) == borrower);
         emit EthRepayed(msg.sender, pool, nft, id, msg.value);
     }
 
@@ -151,9 +157,17 @@ contract Lend is ReentrancyGuard {
         address[] calldata _nfts,
         uint256[] calldata _ids, 
         uint256[] calldata _closureNonces
-    ) external nonReentrant {
+    ) external payable nonReentrant {
         Vault vault = Vault(payable(loans[nft][id].pool));
         uint256 loanAmount = loans[nft][id].amount;
+        if(loanAmount > vault.getPayoutPerReservation((block.timestamp - vault.startTime()) / vault.epochLength())) {
+            require(msg.value == loanAmount, "Must cover entire loan");
+            payable(address(vault)).transfer(msg.value);
+            IERC721(nft).transferFrom(address(this), controller.multisig(), id);
+            vault.resetOutstanding(nft, id);
+            emit BorrowerLiquidated(loans[nft][id].borrower, address(vault), nft, id, loanAmount);
+            return;
+        }
         if(this.getPricePointViolation(vault, loanAmount, _nfts, _ids, _closureNonces)) {
             processLiquidation(
                 vault,
@@ -227,8 +241,8 @@ contract Lend is ReentrancyGuard {
             95 * (
                 (totalBids
                 + (
-                    vault.reservationsAvailable() * vault.getTotalAvailableFunds(futureEpoch) / vault.amountNft()
-                )) / (vault.reservationsAvailable() + _nfts.length)
+                    vault.getReservationsAvailable() * vault.getTotalAvailableFunds(futureEpoch) / vault.amountNft()
+                )) / (vault.getReservationsAvailable() + _nfts.length)
             ) / 100 <= loanAmount 
         );
     }

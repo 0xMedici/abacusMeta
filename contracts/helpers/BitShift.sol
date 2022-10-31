@@ -15,6 +15,7 @@ library BitShift {
     ) {
         uint256 length = tickets.length;
         for(uint256 i = 0; i < length; i++) {
+            require(tickets[i] < 2**25);
             if(tickets[i] > largestTicket) largestTicket = tickets[i];
             comTickets <<= 25;
             comAmounts <<= 25;

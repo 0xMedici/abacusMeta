@@ -1,4 +1,3 @@
-const { BigNumber } = require("ethers");
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const { ADDRESSES } = require('./Addresses.js');
@@ -21,7 +20,8 @@ async function main() {
   //localhost
   // mockNft = await MockNft.attach('');
   //goerli
-  mockNft = await MockNft.attach('0x64C73A6eB9c184DF3FCA8e2c0B249E8343C43108');
+  mockNft = await MockNft.attach('0x6F56FaB249A38BbB871E8A4411B0bAd340b7127C');
+  console.log("NFT:", mockNft.address);
   Vault = await ethers.getContractFactory("Vault");
   Closure = await ethers.getContractFactory("Closure");
 
@@ -29,33 +29,36 @@ async function main() {
   
   let nftIds = new Array();
   let nftAddresses = new Array();
+  let nftList = new Array();
   for(let i = 0; i < 6; i++) {
+    // const mint = await mockNft.mintNew();
+    // await mint.wait();
     nftIds[i] = i + 1;
     nftAddresses[i] = mockNft.address;
+    nftList.push([mockNft.address, i + 1].join('/'));
   }
-  await factory.initiateMultiAssetVault(
+  console.log("NFTs minted");
+  const initiateMultiAssetVault = await factory.initiateMultiAssetVault(
     ADDRESSES[3]
   );
+  await initiateMultiAssetVault.wait();
+  console.log("Pool started");
   let vaultAddress = await factory.getPoolAddress(ADDRESSES[3]);
   let maPool = await Vault.attach(vaultAddress);
-  await maPool.includeNft(
+  console.log("Attached to pool at", vaultAddress);
+  const includeNft = await maPool.includeNft(
     await factory.getEncodedCompressedValue(nftAddresses, nftIds)
   );
-  await maPool.begin(3, 100, 15, 600);
-  let costPerToken = 1e15;
-  let totalCost = costPerToken * 30;
-  await maPool.purchase(
-      deployer.address,
-      [
-          '0'
-      ],
-      [
-          '30'
-      ],
-      0,
-      2,
-      { value: totalCost.toString() }
-  );
+  await includeNft.wait();
+  nftList.forEach(async item => {
+    let itemInfo = item.split('/');
+    expect(await maPool.getHeldTokenExistence(itemInfo[0], itemInfo[1])).to.equal(true);
+  })
+  console.log("NFTs included");
+  const begin = await maPool.begin(3, 100, 15, 1200);
+  await begin.wait();
+  console.log("Start time:", (await maPool.startTime()).toString());
+  console.log("Pool started");
 }
 
 main()

@@ -293,7 +293,7 @@ describe("Lend", function () {
             1,
             '600000000000000000'
         );
-        await network.provider.send("evm_increaseTime", [86400 * 3 + 56000]);
+        await network.provider.send("evm_increaseTime", [86400 * 3 + 80000]);
         await lend.liquidate(
             mockNft.address,
             1,

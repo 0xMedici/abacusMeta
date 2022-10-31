@@ -658,10 +658,10 @@ describe("Spot pool", function () {
         await closureMulti.newBid(mockNft.address, 1, { value:(5e17).toString() });
         await network.provider.send("evm_increaseTime", [43201]);
         await closureMulti.endAuction(mockNft.address, 1);
+        await closureMulti.claimNft(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
-
         await closureMulti.newBid(mockNft.address, 1, { value:(5e17).toString() });
         await network.provider.send("evm_increaseTime", [43201]);
         await closureMulti.endAuction(mockNft.address, 1);

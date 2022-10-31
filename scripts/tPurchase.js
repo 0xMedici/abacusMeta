@@ -17,15 +17,16 @@ const { ADDRESSES } = require('./Addresses.js');
     let vaultAddress = await factory.getPoolAddress(ADDRESSES[3]);
     vault = await Vault.attach(vaultAddress);
     let costPerToken = 1e15;
-    let totalCost = costPerToken * 30;
-    await vault.purchase(
+    let totalCost = costPerToken * 150;
+    const purchase = await vault.purchase(
         deployer.address, //Buyer address
         ['0'], //Desired appraisal tranches
-        ['30'], //Amount per tranche
+        ['150'], //Amount per tranche
         '0', //Start epoch
         '2', //Unlock epoch 
         { value: totalCost.toString() }
     );
+    await purchase.wait();
     console.log("Purchase successful!");
 }
 
