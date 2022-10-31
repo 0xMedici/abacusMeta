@@ -209,8 +209,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(_ticketSize >= 10, "Ticket too small");
         require(msg.sender == creator, "NC");
         require(_slots > 0, "Must have at least 1 slot");
+        require(_rate > 10, "Rate must be greater than 0.1%");
         require(_slots * _ticketSize < 2**25);
-        require(_rate > 0, "Rate must be greater than 0");
+        require(_slots < 2**32);
         epochLength = _epochLength;
         amountNft = _slots;
         ticketLimit = _ticketSize;
@@ -454,6 +455,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         }
         IClosure(closePoolContract).startAuction(ppr, _nft, _id);
         IERC721(_nft).transferFrom(msg.sender, address(closePoolContract), _id);
+        require(IERC721(_nft).ownerOf(_id) == address(closePoolContract));
         epochOfClosure[closureNonce[_nft][_id]][_nft][_id] = poolEpoch;
         uint256 temp;
         temp |= ppr;
