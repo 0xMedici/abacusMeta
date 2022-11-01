@@ -6,7 +6,6 @@ import { IVault } from "./interfaces/IVault.sol";
 import { Closure } from "./Closure.sol";
 import { AbacusController } from "./AbacusController.sol";
 
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "hardhat/console.sol";
@@ -81,7 +80,7 @@ contract Factory is ReentrancyGuard {
 
     /* ======== MODIFIER ======== */
     modifier onlyAccredited {
-        require(controller.accreditedAddresses(msg.sender));
+        require(controller.accreditedAddresses(msg.sender), "Not accredited");
         _;
     }
 
@@ -125,8 +124,7 @@ contract Factory is ReentrancyGuard {
     }
 
     /// SEE IFactory.sol FOR COMMENTS
-    function updateSlotCount(string memory name, uint256 slots) external {
-        require(controller.accreditedAddresses(msg.sender), "Not accredited");
+    function updateSlotCount(string memory name, uint256 slots) external onlyAccredited {
         poolMapping[name].slots = uint32(slots);
     }
 

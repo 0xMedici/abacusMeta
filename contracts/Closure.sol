@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import { AbacusController } from "./AbacusController.sol";
-import { IVault } from "./interfaces/IVault.sol";
 import { Vault } from "./Vault.sol";
 import { IFactory } from "./interfaces/IFactory.sol";
 
@@ -104,7 +103,7 @@ contract Closure is ReentrancyGuard, Initializable {
         ) {
             auctionEndTime[_nonce][_nft][_id] = block.timestamp + 10 minutes;
         }
-        require(msg.value > 0.00001 ether, "Min bid must be greater than 0.00001 ether");
+        require(msg.value > 100, "Min bid must be greater than 0.00001 ether");
         require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100, "Invalid bid");
         require(block.timestamp < auctionEndTime[_nonce][_nft][_id], "Time over");
         factory.updatePendingReturns{ 
@@ -148,7 +147,7 @@ contract Closure is ReentrancyGuard, Initializable {
     function claimNft(address _nft, uint256 _id) external nonReentrant {
         uint256 _nonce = nonce[_nft][_id];
         require(auctionComplete[_nonce][_nft][_id], "Auction ongoing");
-        IERC721(_nft).transferFrom(
+        IERC721(_nft).safeTransferFrom(
             address(this), 
             highestBidder[_nonce][_nft][_id],
             _id

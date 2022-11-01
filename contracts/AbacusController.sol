@@ -26,7 +26,7 @@ import "hardhat/console.sol";
 contract AbacusController {
 
     /* ======== ADDRESS ======== */
-    address public multisig;
+    address public immutable multisig;
     address public factory;
     address public lender;
 
@@ -51,6 +51,7 @@ contract AbacusController {
 
     /* ======== CONSTRUCTOR ======== */
     constructor(address _multisig) {
+        require(_multisig != address(0));
         multisig = _multisig;
         beta = 1;
     }
@@ -58,10 +59,12 @@ contract AbacusController {
     /* ======== IMMUTABLE SETTERS ======== */
     function setLender(address _lender) external onlyMultisig {
         require(lender == address(0));
+        require(_lender != address(0));
         lender = _lender;
     }
 
     function setFactory(address _factory) external onlyMultisig {
+        require(_factory != address(0));
         require(factory == address(0));
         factory = _factory;
     }

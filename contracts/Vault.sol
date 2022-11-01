@@ -155,7 +155,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     ) external initializer {
         controller = AbacusController(_controller);
         factory = IFactory(controller.factory());
-
+        require(_creator != address(0));
+        require(closePoolImplementation_ != address(0));
         creator = _creator;
         name = _name;
         _closePoolMultiImplementation = closePoolImplementation_;
@@ -210,8 +211,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(msg.sender == creator, "NC");
         require(_slots > 0, "Must have at least 1 slot");
         require(_rate > 10, "Rate must be greater than 0.1%");
-        require(_slots * _ticketSize < 2**25);
-        require(_slots < 2**32);
+        require(_rate < 500000, "Chosen rate is too high");
+        require(_slots * _ticketSize < 2**25, "Invalid ticket size and slot count combo");
+        require(_slots < 2**32, "Too many slots chosen");
         epochLength = _epochLength;
         amountNft = _slots;
         ticketLimit = _ticketSize;
@@ -297,7 +299,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         if(poolEpoch >= trader.unlockEpoch) {
             finalEpoch = trader.unlockEpoch;
         } else {
-            require(reservations == 0);
+            require(reservations == 0, "Unable to sell position due to capital being is use");
             finalEpoch = poolEpoch;
         }
         for(uint256 j = trader.startEpoch; j < finalEpoch; j++) {
@@ -368,7 +370,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _id,
         uint256 _saleValue
     ) external payable nonReentrant {
-        require(msg.sender == closePoolContract);
+        require(msg.sender == closePoolContract, "Invalid caller");
         uint256 poolEpoch = epochOfClosure[closureNonce[_nft][_id]][_nft][_id];
         auctionSaleValue[closureNonce[_nft][_id]][_nft][_id] = _saleValue;
         closureNonce[_nft][_id]++;
@@ -418,9 +420,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     ) external nonReentrant returns(bool) {
         require(
             msg.sender == allowanceTracker[from] 
-            || msg.sender == from
+            || msg.sender == from, 
+            "Invalid caller"
         );
-        require(adjustmentsMade[from][nonce] == adjustmentsRequired);
+        require(adjustmentsMade[from][nonce] == adjustmentsRequired, "Must properly adjust position");
         adjustmentsMade[to][positionNonce[to]] = adjustmentsMade[from][nonce];
         traderProfile[to][positionNonce[to]] = traderProfile[from][nonce];
         positionNonce[to]++;
@@ -434,7 +437,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(this.getHeldTokenExistence(_nft, _id), "Token doesn't have access");
         uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         if(liqAccessed[_nft][_id] == 0) {
-            require(reservations < amountNft);
+            require(reservations < amountNft, "No reservations available");
         } else {
             delete liqAccessed[_nft][_id];
             reservations--;
@@ -455,7 +458,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         }
         IClosure(closePoolContract).startAuction(ppr, _nft, _id);
         IERC721(_nft).transferFrom(msg.sender, address(closePoolContract), _id);
-        require(IERC721(_nft).ownerOf(_id) == address(closePoolContract));
+        require(IERC721(_nft).ownerOf(_id) == address(closePoolContract), "Transfer failed");
         epochOfClosure[closureNonce[_nft][_id]][_nft][_id] = poolEpoch;
         uint256 temp;
         temp |= ppr;
@@ -492,7 +495,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 _closureNonce, 
                 _nft, 
                 _id
-            )
+            ), "Auction ongoing"
         );
         Buyer storage trader = traderProfile[_user][_nonce];
         require(adjustmentsMade[_user][_nonce] == adjustmentNonce[_nft][_id][_closureNonce] - 1, "Input proper adjustment nonce");
@@ -531,7 +534,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         return true;
     }
 
-    function processFees() external payable {
+    function processFees() external payable nonReentrant {
         require(controller.lender() == msg.sender, "Not accredited");
         uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         uint256 payout = msg.value / 20;
@@ -539,18 +542,19 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         epochEarnings[poolEpoch] += msg.value - payout;
     }
 
-    function accessLiq(address _user, address _nft, uint256 _id, uint256 _amount) external {
+    function accessLiq(address _user, address _nft, uint256 _id, uint256 _amount) external nonReentrant {
         require(controller.lender() == msg.sender, "Not accredited");
         require(this.getHeldTokenExistence(_nft, _id), "Token doesn't have access");
+        require(_user != address(0));
         if(liqAccessed[_nft][_id] == 0) {
-            require(reservations < amountNft);
+            require(reservations < amountNft, "No capital currently available");
             reservations++;
         }
         liqAccessed[_nft][_id] += _amount;
         payable(_user).transfer(_amount);
     }
 
-    function depositLiq(address _nft, uint256 _id) external payable {
+    function depositLiq(address _nft, uint256 _id) external payable nonReentrant {
         require(controller.lender() == msg.sender, "Not accredited");
         liqAccessed[_nft][_id] -= msg.value;
         if(liqAccessed[_nft][_id] == 0) {
@@ -558,9 +562,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         }
     }
 
-    function resetOutstanding(address _nft, uint256 _id) external payable {
+    function resetOutstanding(address _nft, uint256 _id) external payable nonReentrant {
         require(controller.lender() == msg.sender, "Not accredited");
-        require(liqAccessed[_nft][_id] != 0);
+        require(liqAccessed[_nft][_id] != 0, "No outstanding amount!");
         delete liqAccessed[_nft][_id];
         reservations--;
     }
@@ -629,8 +633,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 riskPoints += getSqrt((100 + ticket) / 10) ** 3 * ticketAmounts[i];
                 temp = this.getTicketInfo(j, ticket);
                 temp += ticketAmounts[i];
-                require(ticketAmounts[i] != 0);
-                require(temp <= amountNft * ticketLimit);
+                require(ticketAmounts[i] != 0, "Invalid ticket amount chosen");
+                require(temp <= amountNft * ticketLimit, "Ticket limit exceeded");
                 epochTickets[ticket / 10] &= ~((2**((ticket % 10 + 1)*25) - 1) 
                     - (2**(((ticket % 10))*25) - 1));
                 epochTickets[ticket / 10] |= (temp << ((ticket % 10)*25));

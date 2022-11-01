@@ -346,8 +346,8 @@ describe("Lend", function () {
         await mockNft.approve(maPool.address, 3);
         await maPool.closeNft(mockNft.address, 3);
         let closureMulti = await Closure.attach(await maPool.closePoolContract());
-        await closureMulti.newBid(mockNft.address, 2, { value:(1).toString() });
-        await closureMulti.newBid(mockNft.address, 3, { value:(1).toString() });
+        await closureMulti.newBid(mockNft.address, 2, { value:(1001e11).toString() });
+        await closureMulti.newBid(mockNft.address, 3, { value:(1001e11).toString() });
         await network.provider.send("evm_increaseTime", [40000]);
         await lend.liquidate(
             mockNft.address,

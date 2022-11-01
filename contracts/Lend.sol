@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import { Vault } from "./Vault.sol";
-import { IVault } from "./interfaces/IVault.sol";
 import { Closure } from "./Closure.sol";
 import { AbacusController } from "./AbacusController.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
