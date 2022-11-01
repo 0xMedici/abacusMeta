@@ -104,6 +104,7 @@ contract Closure is ReentrancyGuard, Initializable {
         ) {
             auctionEndTime[_nonce][_nft][_id] = block.timestamp + 10 minutes;
         }
+        require(msg.value > 0.00001 ether, "Min bid must be greater than 0.00001 ether");
         require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100, "Invalid bid");
         require(block.timestamp < auctionEndTime[_nonce][_nft][_id], "Time over");
         factory.updatePendingReturns{ 

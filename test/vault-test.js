@@ -398,7 +398,7 @@ describe("Spot pool", function () {
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
         let closureMulti = await Closure.attach(await maPool.closePoolContract());
-        await closureMulti.newBid(mockNft.address, 1, { value:(1).toString() });
+        await closureMulti.newBid(mockNft.address, 1, { value:(2e14).toString() });
         await network.provider.send("evm_increaseTime", [43201]);
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
@@ -455,7 +455,7 @@ describe("Spot pool", function () {
         await mockNft.approve(maPool.address, 1);
         await maPool.closeNft(mockNft.address, 1);
         let closureMulti = await Closure.attach(await maPool.closePoolContract());
-        await closureMulti.newBid(mockNft.address, 1, { value:(1).toString() });
+        await closureMulti.newBid(mockNft.address, 1, { value:(2e14).toString() });
         await network.provider.send("evm_increaseTime", [43201]);
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 0);
