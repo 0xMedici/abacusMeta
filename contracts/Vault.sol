@@ -196,7 +196,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         NC - Not creator
     */
     function begin(
-        uint256 _slots, 
+        uint32 _slots, 
         uint256 _ticketSize, 
         uint256 _rate,
         uint256 _epochLength
@@ -236,8 +236,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         address _buyer,
         uint256[] calldata tickets, 
         uint256[] calldata amountPerTicket,
-        uint256 startEpoch,
-        uint256 finalEpoch
+        uint32 startEpoch,
+        uint32 finalEpoch
     ) external payable nonReentrant {
         require(_buyer == msg.sender);
         require(startTime != 0, "NS");
@@ -373,7 +373,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(msg.sender == closePoolContract, "Invalid caller");
         uint256 poolEpoch = epochOfClosure[closureNonce[_nft][_id]][_nft][_id];
         auctionSaleValue[closureNonce[_nft][_id]][_nft][_id] = _saleValue;
-        closureNonce[_nft][_id]++;
         uint256 ppr = payoutInfo[closureNonce[_nft][_id]][_nft][_id] >> 128;
         uint256 propTrack = payoutInfo[closureNonce[_nft][_id]][_nft][_id] & (2**128 - 1);
         while(this.getTotalAvailableFunds(poolEpoch) > 0) {
@@ -436,14 +435,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function closeNft(address _nft, uint256 _id) external nonReentrant2 returns(uint256) {
         require(this.getHeldTokenExistence(_nft, _id), "Token doesn't have access");
         uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
-        if(liqAccessed[_nft][_id] == 0) {
-            require(reservations < amountNft, "No reservations available");
-        } else {
-            delete liqAccessed[_nft][_id];
-            reservations--;
-        }
         adjustmentsRequired++;
-        adjustmentNonce[_nft][_id][closureNonce[_nft][_id]] = adjustmentsRequired;
+        adjustmentNonce[_nft][_id][++closureNonce[_nft][_id]] = adjustmentsRequired;
         uint256 ppr = this.getPayoutPerReservation(poolEpoch);
         require(ppr != 0, "Payout must be greater than 0!");
         if(closePoolContract == address(0)) {
@@ -465,13 +458,18 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         temp <<= 128;
         temp |= this.getTotalAvailableFunds(poolEpoch);
         payoutInfo[closureNonce[_nft][_id]][_nft][_id] = temp;
-
         uint256 payout = 1 * ppr / 100;
         epochEarnings[poolEpoch] += payout;
         payable(msg.sender).transfer(ppr - payout - liqAccessed[_nft][_id]);
+        if(liqAccessed[_nft][_id] == 0) {
+            require(reservations < amountNft, "No reservations available");
+        } else {
+            delete liqAccessed[_nft][_id];
+            reservations--;
+        }
         factory.emitNftClosed(
             msg.sender,
-            closureNonce[_nft][_id]+1,
+            closureNonce[_nft][_id],
             _nft,
             _id,
             ppr,
@@ -495,7 +493,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 _closureNonce, 
                 _nft, 
                 _id
-            ), "Auction ongoing"
+            )
+            && Closure(payable(closePoolContract)).auctionEndTime(
+                _closureNonce, 
+                _nft, 
+                _id
+            ) != 0, "Auction ongoing"
         );
         Buyer storage trader = traderProfile[_user][_nonce];
         require(adjustmentsMade[_user][_nonce] == adjustmentNonce[_nft][_id][_closureNonce] - 1, "Input proper adjustment nonce");
@@ -743,11 +746,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
             userTokens += amountTokens / 100;
         }
-
         trader.ethLocked -= uint128(appLoss);
         trader.riskLost = uint32(trader.riskPoints - trader.ethLocked * trader.riskPoints / trader.ethStatic);
-        payable(_user).transfer(payout * (userTokens * premium / _totalTokens) / (payout + appLoss));
-        appLoss += appLoss * premium / (payout + appLoss);
+        uint256 userPremium = premium * userTokens / _totalTokens;
+        uint256 userPayout = userPremium * payout / (payout + appLoss);
+        payable(_user).transfer(userPayout);
+        appLoss += userPremium - userPayout;
     }
 
     function lossCalculator(

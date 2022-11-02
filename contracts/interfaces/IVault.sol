@@ -37,8 +37,8 @@ interface IVault {
         address _buyer,
         uint256[] calldata tickets, 
         uint256[] calldata amountPerTicket,
-        uint256 startEpoch,
-        uint256 finalEpoch
+        uint32 startEpoch,
+        uint32 finalEpoch
     ) external payable;
 
     /// @notice Close an LP position and receive credits earned

@@ -25,40 +25,44 @@ async function main() {
   Vault = await ethers.getContractFactory("Vault");
   Closure = await ethers.getContractFactory("Closure");
 
-  expect(await controller.lender() === lend.address).to.equal(true);
-  
-  let nftIds = new Array();
-  let nftAddresses = new Array();
-  let nftList = new Array();
-  for(let i = 0; i < 6; i++) {
-    // const mint = await mockNft.mintNew();
-    // await mint.wait();
-    nftIds[i] = i + 1;
-    nftAddresses[i] = mockNft.address;
-    nftList.push([mockNft.address, i + 1].join('/'));
-  }
-  console.log("NFTs minted");
-  const initiateMultiAssetVault = await factory.initiateMultiAssetVault(
-    ADDRESSES[3]
-  );
-  await initiateMultiAssetVault.wait();
-  console.log("Pool started");
-  let vaultAddress = await factory.getPoolAddress(ADDRESSES[3]);
-  let maPool = await Vault.attach(vaultAddress);
-  console.log("Attached to pool at", vaultAddress);
-  const includeNft = await maPool.includeNft(
-    await factory.getEncodedCompressedValue(nftAddresses, nftIds)
-  );
-  await includeNft.wait();
-  nftList.forEach(async item => {
-    let itemInfo = item.split('/');
-    expect(await maPool.getHeldTokenExistence(itemInfo[0], itemInfo[1])).to.equal(true);
-  })
-  console.log("NFTs included");
-  const begin = await maPool.begin(3, 100, 15, 1200);
-  await begin.wait();
-  console.log("Start time:", (await maPool.startTime()).toString());
-  console.log("Pool started");
+  vault = await Vault.attach('0x3a11ff3513e34d4b15294d72d34a0a5f18e5d77e');
+  console.log((await vault.startTime()).toString());
+  console.log((await vault.epochLength()).toString());
+  let epoch = Math.floor(parseInt((Date.now() / 1000 - await vault.startTime()) / await vault.epochLength()));
+  console.log(epoch);
+  console.log((await vault.getPayoutPerReservation(epoch)));
+  // let nftIds = new Array();
+  // let nftAddresses = new Array();
+  // let nftList = new Array();
+  // for(let i = 0; i < 6; i++) {
+  //   const mint = await mockNft.mintNew();
+  //   await mint.wait();
+  //   nftIds[i] = i + 1;
+  //   nftAddresses[i] = mockNft.address;
+  //   nftList.push([mockNft.address, i + 1].join('/'));
+  // }
+  // console.log("NFTs minted");
+  // const initiateMultiAssetVault = await factory.initiateMultiAssetVault(
+  //   ADDRESSES[3]
+  // );
+  // await initiateMultiAssetVault.wait();
+  // console.log("Pool started");
+  // let vaultAddress = await factory.getPoolAddress(ADDRESSES[3]);
+  // let maPool = await Vault.attach(vaultAddress);
+  // console.log("Attached to pool at", vaultAddress);
+  // const includeNft = await maPool.includeNft(
+  //   await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+  // );
+  // await includeNft.wait();
+  // nftList.forEach(async item => {
+  //   let itemInfo = item.split('/');
+  //   expect(await maPool.getHeldTokenExistence(itemInfo[0], itemInfo[1])).to.equal(true);
+  // })
+  // console.log("NFTs included");
+  // const begin = await maPool.begin(3, 100, 15, 1200);
+  // await begin.wait();
+  // console.log("Start time:", (await maPool.startTime()).toString());
+  // console.log("Pool started");
 }
 
 main()

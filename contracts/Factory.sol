@@ -124,7 +124,7 @@ contract Factory is ReentrancyGuard {
     }
 
     /// SEE IFactory.sol FOR COMMENTS
-    function updateSlotCount(string memory name, uint256 slots) external onlyAccredited {
+    function updateSlotCount(string memory name, uint32 slots) external onlyAccredited {
         poolMapping[name].slots = uint32(slots);
     }
 

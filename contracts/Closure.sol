@@ -103,7 +103,7 @@ contract Closure is ReentrancyGuard, Initializable {
         ) {
             auctionEndTime[_nonce][_nft][_id] = block.timestamp + 10 minutes;
         }
-        require(msg.value > 100, "Min bid must be greater than 0.00001 ether");
+        require(msg.value > 0.00001 ether, "Min bid must be greater than 0.00001 ether");
         require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100, "Invalid bid");
         require(block.timestamp < auctionEndTime[_nonce][_nft][_id], "Time over");
         factory.updatePendingReturns{ 
@@ -129,7 +129,7 @@ contract Closure is ReentrancyGuard, Initializable {
         require(
             block.timestamp > auctionEndTime[_nonce][_nft][_id]
             && !auctionComplete[_nonce][_nft][_id],
-            "Auction ongoing"
+            "Auction ongoing - EA"
         );
         vault.updateSaleValue{value:highestBid[_nonce][_nft][_id]}(_nft, _id, highestBid[_nonce][_nft][_id]);
         auctionComplete[_nonce][_nft][_id] = true;
@@ -146,7 +146,7 @@ contract Closure is ReentrancyGuard, Initializable {
 
     function claimNft(address _nft, uint256 _id) external nonReentrant {
         uint256 _nonce = nonce[_nft][_id];
-        require(auctionComplete[_nonce][_nft][_id], "Auction ongoing");
+        require(auctionComplete[_nonce][_nft][_id], "Auction ongoing - CN");
         IERC721(_nft).safeTransferFrom(
             address(this), 
             highestBidder[_nonce][_nft][_id],

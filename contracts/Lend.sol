@@ -69,10 +69,10 @@ contract Lend is ReentrancyGuard {
     /// SEE ILend.sol FOR COMMENTS
     function borrow(address _pool, address _nft, uint256 _id, uint256 _amount) external nonReentrant {
         require(controller.accreditedAddresses(_pool), "Not accredited");
-        require(_amount > 0);
+        require(_amount > 0, "Must borrow some amount");
         Position storage openLoan = loans[_nft][_id];
         Vault vault = Vault(payable(_pool));
-        require(vault.getHeldTokenExistence(_nft, _id));
+        require(vault.getHeldTokenExistence(_nft, _id), "Invalid borrow choice");
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
         require(
             msg.sender == IERC721(_nft).ownerOf(_id)
@@ -98,10 +98,10 @@ contract Lend is ReentrancyGuard {
             loanDeployed[_nft][_id] = true;
         } else {
             uint256 epochsMissed = poolEpoch - loans[_nft][_id].startEpoch - loans[_nft][_id].timesInterestPaid;
-            require(epochsMissed == 0);
+            require(epochsMissed == 0, "Must pay down interest owed before borrowing more");
             openLoan.amount += _amount;
         }
-        require(IERC721(_nft).ownerOf(_id) == address(this));
+        require(IERC721(_nft).ownerOf(_id) == address(this), "NFT custody transfer failed");
         vault.accessLiq(msg.sender, _nft, _id, _amount);
         emit EthBorrowed(msg.sender, _pool, _nft, _id, _amount);
     }
@@ -145,7 +145,7 @@ contract Lend is ReentrancyGuard {
             delete loanDeployed[nft][id];
             IERC721(nft).transferFrom(address(this), borrower, id);
         }
-        require(IERC721(nft).ownerOf(id) == borrower);
+        require(IERC721(nft).ownerOf(id) == borrower, "Transfer failed");
         emit EthRepayed(msg.sender, pool, nft, id, msg.value);
     }
 
@@ -210,8 +210,8 @@ contract Lend is ReentrancyGuard {
         uint256 loanAmount = loans[nft][id].amount;
         IERC721(nft).approve(address(vault), id);
         uint256 payout = vault.closeNft(nft, id);
-        payable(msg.sender).transfer((payout - loanAmount) / 100);
-        vault.processFees{value: payout - loanAmount - ((payout - loanAmount) / 100)}();
+        payable(msg.sender).transfer((payout - loanAmount) / 10);
+        vault.processFees{value: payout - loanAmount - ((payout - loanAmount) / 10)}();
         emit BorrowerLiquidated(loans[nft][id].borrower, address(vault), nft, id, loanAmount);
         delete loanDeployed[nft][id];
         delete loans[nft][id];

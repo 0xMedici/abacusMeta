@@ -319,16 +319,16 @@ describe("Lend", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400);
+        await maPool.begin(3, 1000, 15, 86400);
         let costPerToken = 1e15;
-        let totalCost = costPerToken * 2400;
+        let totalCost = costPerToken * 24000;
         await maPool.purchase(
             deployer.address,
             [
                 '0','1','2','3','4','5','6','7'
             ],
             [
-                '300', '300', '300','300', '300','300', '300', '300'
+                '3000', '3000', '3000','3000', '3000','3000', '3000', '3000'
             ],
             0,
             10,
@@ -339,7 +339,7 @@ describe("Lend", function () {
             maPool.address,
             mockNft.address,
             1,
-            '600000000000000000'
+            '6000000000000000000'
         );
         await mockNft.approve(maPool.address, 2);
         await maPool.closeNft(mockNft.address, 2);

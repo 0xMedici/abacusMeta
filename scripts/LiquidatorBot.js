@@ -177,9 +177,10 @@ async function main() {
         for(let j = 0; j < loanList.length; j++) {
             let totalBids = 0;
             let bidAmount = 0;
+            console.log("POOL:", loanTracker.get(loanList[j]).pool);
             vault = await Vault.attach(loanTracker.get(loanList[j]).pool);
             let tracker = poolTracker.get(await vault.closePoolContract());
-            closure = await Closure.attach(loanList[j]);
+            closure = await Closure.attach(await vault.closePoolContract());
             let currentEpoch = Math.floor(
                 (Date.now() / 1000 - parseInt(await vault.startTime())) 
                 / parseInt(await vault.epochLength())
@@ -221,13 +222,17 @@ async function main() {
                     }
                 }
             }
+            let amountAuctions = parseInt(
+                closure.address === ethers.constants.AddressZero ? 
+                    0 : await closure.liveAuctions()
+            );
             let pricePoint = 
                 (
                     totalBids + 
-                    parseInt(await vault.amountNft() - await vault.reservations()) 
+                    parseInt(await vault.amountNft() - amountAuctions) 
                         * parseInt(await vault.getTotalAvailableFunds(futureEpoch)) 
                             / parseInt(await vault.amountNft()))
-                    / (parseInt(await vault.amountNft() - await vault.reservations()) + bidAmount);
+                    / (parseInt(await vault.amountNft() - amountAuctions) + bidAmount);
             console.log(
                 "Current price point:", Math.floor(95 * pricePoint / 100)
             );
