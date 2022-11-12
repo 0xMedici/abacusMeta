@@ -174,6 +174,78 @@ describe("Spot pool", function () {
         );
     });
 
+    it("Buy - sale repetition", async function () {
+        let nftIds = new Array();
+        let nftAddresses = new Array();
+        for(let i = 0; i < 6; i++) {
+            await mockNft.mintNew();
+            nftIds[i] = i + 1;
+            nftAddresses[i] = mockNft.address;
+        }
+        await factory.initiateMultiAssetVault(
+            "HelloWorld"
+        );
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
+        let maPool = await Vault.attach(vaultAddress);
+        await maPool.includeNft(
+            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+        );
+        await maPool.begin(3, 100, 16, 86400);
+        let costPerToken = 1e15;
+        let totalCost = costPerToken * 300 * 3;
+        await maPool.purchase(
+            deployer.address,
+            [0, '1', '2'],
+            ['300', '300', '300'],
+            0,
+            2,
+            { value: totalCost.toString() }
+        );
+        await maPool.sell(
+            deployer.address,
+            0
+        );
+
+        await maPool.purchase(
+            deployer.address,
+            [0, '1', '2'],
+            ['300', '300', '300'],
+            0,
+            2,
+            { value: totalCost.toString() }
+        );
+        await maPool.sell(
+            deployer.address,
+            1
+        );
+
+        await maPool.purchase(
+            deployer.address,
+            [0, '1', '2'],
+            ['300', '300', '300'],
+            0,
+            2,
+            { value: totalCost.toString() }
+        );
+        await maPool.sell(
+            deployer.address,
+            2
+        );
+
+        await maPool.purchase(
+            deployer.address,
+            [0, '1', '2'],
+            ['300', '300', '300'],
+            0,
+            2,
+            { value: totalCost.toString() }
+        );
+        await maPool.sell(
+            deployer.address,
+            3
+        );
+    });
+
     it("Close nft", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
@@ -461,7 +533,7 @@ describe("Spot pool", function () {
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 1);
         await maPool.connect(user1).adjustTicketInfo(user1.address, 0, mockNft.address, 1, 1);
         await maPool.connect(user2).adjustTicketInfo(user2.address, 0, mockNft.address, 1, 1);
-        await network.provider.send("evm_increaseTime", [86400 * 5]);
+        await network.provider.send("evm_increaseTime", [86400]);
         await maPool.sell(
             deployer.address,
             0
@@ -528,7 +600,7 @@ describe("Spot pool", function () {
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 1);
         await maPool.connect(user1).adjustTicketInfo(user1.address, 0, mockNft.address, 1, 1);
         await maPool.connect(user2).adjustTicketInfo(user2.address, 0, mockNft.address, 1, 1);
-        await network.provider.send("evm_increaseTime", [86400 * 5]);
+        // await network.provider.send("evm_increaseTime", [86400 * 5]);
         await maPool.sell(
             deployer.address,
             0
@@ -602,7 +674,7 @@ describe("Spot pool", function () {
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 1);
         await maPool.connect(user1).adjustTicketInfo(user1.address, 0, mockNft.address, 1, 1);
         await maPool.connect(user2).adjustTicketInfo(user2.address, 0, mockNft.address, 1, 1);
-        await network.provider.send("evm_increaseTime", [86400 * 5]);
+        // await network.provider.send("evm_increaseTime", [86400 * 5]);
 
         await maPool.sell(
             deployer.address,
@@ -666,7 +738,7 @@ describe("Spot pool", function () {
         await network.provider.send("evm_increaseTime", [43201]);
         await closureMulti.endAuction(mockNft.address, 1);
         await maPool.adjustTicketInfo(deployer.address, 0, mockNft.address, 1, 2);
-        await network.provider.send("evm_increaseTime", [86400 * 2]);
+        // await network.provider.send("evm_increaseTime", [86400 * 2]);
         await maPool.sell(
             deployer.address,
             0

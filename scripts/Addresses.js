@@ -1,17 +1,19 @@
 //localhost 
 // let ADDRESSES = [
-//     '0x5FbDB2315678afecb367f032d93F642f64180aa3', // controller
-//     '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512', // factory
-//     '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0', // lender
-//     '', // Spot pool name
+//     '0xdb17f7d06987F0a8Ab90A046af0143e645F7CE53', // controller
+//     '0x5831ef7604b76a38F71E3Fe697482fd16FC7249c', // factory
+//     '0x22e3C859949122E676f7Eaa18653361504D05bd7', // lender
+//     'TestPool', // Spot pool name
 // ];
 
-//goerli
+let TIMEDIF = 2.3480000495910645;
+
+// goerli
 let ADDRESSES = [
-    '0x67ae1c06FaDd0B06Ff4E8E5957677fFb0509a16C', // controller
-    '0xABdC8225f0dE9B7603b3e2b620cfAEee4740E7d4', // factory
-    '0xbD2b1C6770cababAfdFB62a9A576b4D25e0C89b0', // lender
-    'NewWorld1', // Spot pool name
+    '0x7C20D84b1B48c41b7B9Ca920CbeB4D371d58ebc2', // controller
+    '0xa6475A0339BC3Ac25294F368EbA3250C0b38FC66', // factory
+    '0xD1D3B5466C4d511689958e1519c663Ce32709614', // lender
+    'I C U P', // Spot pool name
 ];
 
 //mainnet
@@ -22,4 +24,4 @@ let ADDRESSES = [
 //     '', // Spot pool name
 // ];
 
-module.exports = {ADDRESSES}
+module.exports = {ADDRESSES, TIMEDIF}

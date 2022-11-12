@@ -145,7 +145,7 @@ describe("Lend", function () {
         );
     });
 
-    it("Repay", async function () {
+    it("Repay, repetition", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -176,6 +176,44 @@ describe("Lend", function () {
             10,
             { value: totalCost.toString() }
         );
+        await mockNft.approve(lend.address, 1);
+        await lend.borrow(
+            maPool.address,
+            mockNft.address,
+            1,
+            '600000000000000000'
+        );
+        await lend.payInterest(
+            [0],
+            mockNft.address,
+            1,
+            { value: await lend.getInterestPayment([0], mockNft.address, 1) }
+        );
+        await lend.repay(
+            mockNft.address,
+            1,
+            { value:'600000000000000000' }
+        );
+        expect(await mockNft.ownerOf(1)).to.equal(deployer.address);
+        await mockNft.approve(lend.address, 1);
+        await lend.borrow(
+            maPool.address,
+            mockNft.address,
+            1,
+            '600000000000000000'
+        );
+        await lend.payInterest(
+            [0],
+            mockNft.address,
+            1,
+            { value: await lend.getInterestPayment([0], mockNft.address, 1) }
+        );
+        await lend.repay(
+            mockNft.address,
+            1,
+            { value:'600000000000000000' }
+        );
+        expect(await mockNft.ownerOf(1)).to.equal(deployer.address);
         await mockNft.approve(lend.address, 1);
         await lend.borrow(
             maPool.address,
@@ -291,7 +329,7 @@ describe("Lend", function () {
             maPool.address,
             mockNft.address,
             1,
-            '600000000000000000'
+            '760000000000000000'
         );
         await network.provider.send("evm_increaseTime", [86400 * 3 + 80000]);
         await lend.liquidate(

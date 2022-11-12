@@ -69,6 +69,7 @@ interface IFactory {
 
     function emitNftClosed(
         address _caller,
+        uint256 _adjustmentNonce,
         uint256 _closureNonce,
         address _nft,
         uint256 _id,

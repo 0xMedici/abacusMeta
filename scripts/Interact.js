@@ -18,23 +18,24 @@ async function main() {
   console.log("Lend:", lend.address);
   MockNft = await ethers.getContractFactory("MockNft");
   //localhost
-  // mockNft = await MockNft.attach('');
+  // mockNft = await MockNft.deploy();
   //goerli
-  mockNft = await MockNft.attach('0x6F56FaB249A38BbB871E8A4411B0bAd340b7127C');
+  mockNft = await MockNft.deploy();
   console.log("NFT:", mockNft.address);
   Vault = await ethers.getContractFactory("Vault");
   Closure = await ethers.getContractFactory("Closure");
+  
+  // MISC TASKS
+  console.log(await provider.getTransactionReceipt('0xc243e774071b08946378d1a9365cda0966d0d3dddb100ec71078a6450c6a2907'));
+  const txItem = await provider.getTransactionReceipt('0xc243e774071b08946378d1a9365cda0966d0d3dddb100ec71078a6450c6a2907');
+  console.log(txItem.blockNumber);
 
-  vault = await Vault.attach('0x3a11ff3513e34d4b15294d72d34a0a5f18e5d77e');
-  console.log((await vault.startTime()).toString());
-  console.log((await vault.epochLength()).toString());
-  let epoch = Math.floor(parseInt((Date.now() / 1000 - await vault.startTime()) / await vault.epochLength()));
-  console.log(epoch);
-  console.log((await vault.getPayoutPerReservation(epoch)));
+
+  // CREATION SCRIPT
   // let nftIds = new Array();
   // let nftAddresses = new Array();
   // let nftList = new Array();
-  // for(let i = 0; i < 6; i++) {
+  // for(let i = 0; i < 20; i++) {
   //   const mint = await mockNft.mintNew();
   //   await mint.wait();
   //   nftIds[i] = i + 1;
@@ -59,11 +60,14 @@ async function main() {
   //   expect(await maPool.getHeldTokenExistence(itemInfo[0], itemInfo[1])).to.equal(true);
   // })
   // console.log("NFTs included");
-  // const begin = await maPool.begin(3, 100, 15, 1200);
+  // const begin = await maPool.begin(10, 100, 15, 360);
   // await begin.wait();
   // console.log("Start time:", (await maPool.startTime()).toString());
   // console.log("Pool started");
+  // console.log("TIMEDIF:", Date.now() / 1000 - await maPool.startTime());
 }
+
+// main();
 
 main()
   .then(() => process.exit(0))
@@ -71,3 +75,4 @@ main()
     console.error(error);
     process.exit(1);
   });
+

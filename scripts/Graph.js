@@ -8,7 +8,7 @@ function main() {
     let poolTracker = new Map();
     const query = gql`
     {
-        loans {
+        loans(where:{outstanding:${true}}) {
             id
             borrower {
                 id

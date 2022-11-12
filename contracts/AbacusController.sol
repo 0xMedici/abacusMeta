@@ -26,9 +26,12 @@ import "hardhat/console.sol";
 contract AbacusController {
 
     /* ======== ADDRESS ======== */
-    address public immutable multisig;
+    address public multisig;
     address public factory;
     address public lender;
+
+    /* ======== BOOL ======== */
+    bool public finalMultisigSet;
 
     /* ======== UINT ======== */
     uint256 public beta;
@@ -57,6 +60,12 @@ contract AbacusController {
     }
 
     /* ======== IMMUTABLE SETTERS ======== */
+    function setMultisig(address _multisig) external onlyMultisig {
+        require(!finalMultisigSet);
+        finalMultisigSet = true;
+        multisig = _multisig;
+    }
+
     function setLender(address _lender) external onlyMultisig {
         require(lender == address(0));
         require(_lender != address(0));

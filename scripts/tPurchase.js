@@ -1,5 +1,5 @@
 const { ethers } = require("hardhat");
-const { ADDRESSES } = require('./Addresses.js');
+const { ADDRESSES, TIMEDIF } = require('./Addresses.js');
 
   async function main() {
     
@@ -17,17 +17,41 @@ const { ADDRESSES } = require('./Addresses.js');
     let vaultAddress = await factory.getPoolAddress(ADDRESSES[3]);
     vault = await Vault.attach(vaultAddress);
     let costPerToken = 1e15;
-    let totalCost = costPerToken * 150;
-    const purchase = await vault.purchase(
+    let totalCost = costPerToken * 10;
+    let tickets = ['1'];
+    let amounts = ['10'];
+    let currentEpoch = Math.floor((Date.now() / 1000 + parseInt(TIMEDIF) - await vault.startTime()) / await vault.epochLength());
+    console.log("Current epoch:", currentEpoch.toString());
+    let endEpoch = currentEpoch + 3;
+    console.log("End epoch:", endEpoch.toString());
+    console.log(`Initiating purchase from ${vault.address}...`);
+    let i = tickets.length;
+    for(let i = 0; i < tickets.length; i++) {
+      console.log(`Current ticket count in ${tickets[i]}: ${amounts[i]}`);
+    }
+    let hash;
+    const txHash = await vault.purchase(
         deployer.address, //Buyer address
-        ['0'], //Desired appraisal tranches
-        ['150'], //Amount per tranche
-        '0', //Start epoch
-        '2', //Unlock epoch 
+        tickets, //Desired appraisal tranches
+        amounts, //Amount per tranche
+        currentEpoch, //Start epoch
+        endEpoch, //Unlock epoch 
         { value: totalCost.toString() }
-    );
-    await purchase.wait();
-    console.log("Purchase successful!");
+    )
+    // .then((tx) => {
+    //   hash = tx.hash;
+    //   console.log(tx.hash);
+    // }).catch((error) => {
+    //   console.log(error);
+    // });
+
+    await txHash.wait()
+      .then((result) => {
+        console.log(txHash.hash)
+      })
+      .catch((error) => {
+        console.log(error.reason)
+      });
 }
 
 main()

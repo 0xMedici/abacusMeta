@@ -79,6 +79,7 @@ contract Lend is ReentrancyGuard {
             || msg.sender == openLoan.borrower, "Not owner"
         );
         if(openLoan.amount == 0) {
+            require(vault.getReservationsAvailable() > 0, "Unable to take out a new loan right now");
             IERC721(_nft).transferFrom(msg.sender, address(this), _id);
         }
         require(
@@ -111,6 +112,7 @@ contract Lend is ReentrancyGuard {
         Position storage openLoan = loans[_nft][_id];
         require(openLoan.amount != 0, "No open loan");
         Vault vault = Vault(payable(openLoan.pool));
+        require(openLoan.amount < vault.getPayoutPerReservation((block.timestamp - vault.startTime()) / vault.epochLength()));
         uint256 length = _epoch.length;
         uint256 totalInterest;
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
@@ -143,6 +145,7 @@ contract Lend is ReentrancyGuard {
         if(openLoan.amount == 0) {
             delete loans[nft][id];
             delete loanDeployed[nft][id];
+            delete loans[nft][id].interestPaid[poolEpoch];
             IERC721(nft).transferFrom(address(this), borrower, id);
         }
         require(IERC721(nft).ownerOf(id) == borrower, "Transfer failed");
@@ -162,12 +165,10 @@ contract Lend is ReentrancyGuard {
         if(loanAmount > vault.getPayoutPerReservation((block.timestamp - vault.startTime()) / vault.epochLength())) {
             require(msg.value == loanAmount, "Must cover entire loan");
             payable(address(vault)).transfer(msg.value);
-            IERC721(nft).transferFrom(address(this), controller.multisig(), id);
+            IERC721(nft).transferFrom(address(this), msg.sender, id);
             vault.resetOutstanding(nft, id);
-            emit BorrowerLiquidated(loans[nft][id].borrower, address(vault), nft, id, loanAmount);
-            return;
         }
-        if(this.getPricePointViolation(vault, loanAmount, _nfts, _ids, _closureNonces)) {
+        else if(this.getPricePointViolation(vault, loanAmount, _nfts, _ids, _closureNonces)) {
             processLiquidation(
                 vault,
                 nft,
@@ -176,6 +177,10 @@ contract Lend is ReentrancyGuard {
         } else {
             revert("Liquidation failed");
         }
+
+        emit BorrowerLiquidated(loans[nft][id].borrower, address(vault), nft, id, loanAmount);
+        delete loanDeployed[nft][id];
+        delete loans[nft][id];
     }
 
     /// SEE ILend.sol FOR COMMENTS
@@ -212,9 +217,6 @@ contract Lend is ReentrancyGuard {
         uint256 payout = vault.closeNft(nft, id);
         payable(msg.sender).transfer((payout - loanAmount) / 10);
         vault.processFees{value: payout - loanAmount - ((payout - loanAmount) / 10)}();
-        emit BorrowerLiquidated(loans[nft][id].borrower, address(vault), nft, id, loanAmount);
-        delete loanDeployed[nft][id];
-        delete loans[nft][id];
     }
 
     /* ======== GETTERS ======== */
@@ -236,13 +238,19 @@ contract Lend is ReentrancyGuard {
             totalBids += Closure(payable(vault.closePoolContract())).highestBid(_closureNonces[i], _nfts[i], _ids[i]);
         }
         uint256 futureEpoch = (block.timestamp - vault.startTime() + vault.epochLength() / 6) / vault.epochLength();
+        uint256 inPoolAmount;
+        if(address(vault.closePoolContract()) == address(0)) {
+            inPoolAmount = vault.amountNft();
+        } else {
+            inPoolAmount = (vault.amountNft() - (vault.closePoolContract()).liveAuctions());
+        }
         return (
             95 * (
                 (totalBids
                 + (
-                    vault.getReservationsAvailable() * vault.getTotalAvailableFunds(futureEpoch) / vault.amountNft()
-                )) / (vault.getReservationsAvailable() + _nfts.length)
-            ) / 100 <= loanAmount 
+                    inPoolAmount * vault.getTotalAvailableFunds(futureEpoch) / vault.amountNft()
+                )) / (inPoolAmount + _nfts.length)
+            ) / 100 < loanAmount 
         );
     }
 
