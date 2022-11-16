@@ -131,7 +131,7 @@ async function main() {
         );
     });
 
-    factory.on("NewBid", async (_pool,_closureNonce, _closePoolContract,_collection,_id,_bidder,_bid, event) => {
+    factory.on("NewBid", async (_pool,_token,_closureNonce,_closePoolContract,_collection,_id,_bidder,_bid, event) => {
         console.log(`New bid of ${_bid} for ${_collection} ${_id} has been submitted by ${_bidder}!`);
         closure = await Closure.attach(_closePoolContract);
         const closureNonce = await closure.nonce(_collection, _id);

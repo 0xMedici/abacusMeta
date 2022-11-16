@@ -19,6 +19,14 @@ async function main() {
     lend = await Lend.deploy(controller.address);
     console.log("Lender:", lend.address);
 
+    MockToken = await ethers.getContractFactory("MockToken");
+    mockToken = await MockToken.attach('0xa6D60724834Adc7A0D511C459A4Dcb499Aa16520');
+    console.log("Token:", mockToken.address);
+
+    VaultHelper = await ethers.getContractFactory("VaultHelper");
+    helper = await VaultHelper.deploy();
+    console.log("Helper:", helper.address);
+
     // MockNft = await ethers.getContractFactory("MockNft");
     // mockNft = await MockNft.deploy();
     // console.log("NFT:", mockNft.address);
@@ -39,6 +47,13 @@ async function main() {
     console.log("Lender address configured!");
     const wlAddress = await controller.addWlUser([deployer.address]);
     await wlAddress.wait();
+    const mint = await mockToken.mint();
+    await mint.wait();
+    const mintAgain = await mockToken.mint(); 
+    await mintAgain.wait();
+    console.log("Token minted!");
+    const transfer = await mockToken.transfer('0xE6dC2c1a17b093F4f236Fe8545aCb9D5Ad94334a', '1000000000000000000000');
+    await transfer.wait();
 
     console.log("DONE");
 }

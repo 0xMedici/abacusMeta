@@ -8,22 +8,23 @@ interface ILend {
     /// @notice Borrow against an NFT
     /// @dev Upon borrowing ETH is minted against the value of the backing pool
     /// @param _pool Backing pool address
-    /// @param nft NFT Collection address
-    /// @param id NFT ID 
+    /// @param _nft NFT Collection address
+    /// @param _id NFT ID 
     /// @param _amount Loan amount
-    function borrow(address _pool, address nft, uint256 id, uint256 _amount) external;
+    function borrow(address _pool, address _nft, uint256 _id, uint256 _amount) external;
 
     /// @notice Pay interest on an outstanding loan
     /// @dev The interest rate is stored on the backing Spot pool contract
     /// @param _epoch Epoch for which a user is paying interest
     /// @param _nft NFT for which a user is paying interest
     /// @param _id Corresponding NFT ID for which a user is paying interest
-    function payInterest(uint256 _epoch, address _nft, uint256 _id) external payable;
+    function payInterest(uint256[] calldata _epoch, address _nft, uint256 _id) external;
 
     /// @notice Repay an open loan
     /// @param nft NFT Collection address
     /// @param id NFT ID 
-    function repay(address nft, uint256 id) external payable;
+    /// @param _amount repayment amount
+    function repay(address nft, uint256 id, uint256 _amount) external;
 
     /// @notice Liquidate a borrower
     /// @dev A liquidator can check 'getLiqStatus' to see if a user is eligible for liquidation

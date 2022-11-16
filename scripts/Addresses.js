@@ -6,14 +6,17 @@
 //     'TestPool', // Spot pool name
 // ];
 
-let TIMEDIF = 2.3480000495910645;
+let TIMEDIF = 0;
 
 // goerli
 let ADDRESSES = [
-    '0x7C20D84b1B48c41b7B9Ca920CbeB4D371d58ebc2', // controller
-    '0xa6475A0339BC3Ac25294F368EbA3250C0b38FC66', // factory
-    '0xD1D3B5466C4d511689958e1519c663Ce32709614', // lender
+    '0xBfdADa8e05EA047c4dA9bd933800152C6ADD41D7', // controller
+    '0xDb660171935A51C4632fB101e5de7cB539C2033F', // factory
+    '0x99c983A526d29D14307F7944F299e2f07A6fc925', // lender
     'I C U P', // Spot pool name
+    {
+
+    }
 ];
 
 //mainnet

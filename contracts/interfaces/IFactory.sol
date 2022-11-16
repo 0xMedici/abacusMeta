@@ -18,10 +18,10 @@ interface IFactory {
     /// @dev Pending returns come from funds that need to be returned from
     /// various pool contracts
     /// @param _user The recipient of these returned funds
-    function updatePendingReturns(address _user) external payable;
+    function updatePendingReturns(address _token, address _user, uint256 _amount) external;
 
     /// @notice Claim the pending returns that have been sent for the user
-    function claimPendingReturns() external;
+    function claimPendingReturns(address _token) external;
 
     function emitNftInclusion(
         uint256[] calldata encodedNfts

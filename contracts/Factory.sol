@@ -6,6 +6,7 @@ import { IVault } from "./interfaces/IVault.sol";
 import { Closure } from "./Closure.sol";
 import { AbacusController } from "./AbacusController.sol";
 
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "hardhat/console.sol";
@@ -42,7 +43,7 @@ contract Factory is ReentrancyGuard {
     /// @notice ETH to be returned from all vaults is routed this mapping
     /// [address] -> User
     /// [uint256] -> Return amount 
-    mapping(address => uint256) public pendingReturns;
+    mapping(address => mapping(address => uint256)) public pendingReturns;
 
     /// @notice Track each pool using a unique multi asset mapping nonce
     /// [uint256] -> nonce
@@ -62,15 +63,15 @@ contract Factory is ReentrancyGuard {
     event VaultCreated(string name, address _creator, address _pool);
     event VaultSigned(address _pool, address _signer, address[] nftAddress, uint256[] ids);
     event NftInclusion(address _pool, uint256[] nfts);
-    event VaultBegun(address _pool, uint256 _collateralSlots, uint256 _ticketSize, uint256 _interest, uint256 _epoch);
+    event VaultBegun(address _pool, address _token, uint256 _collateralSlots, uint256 _ticketSize, uint256 _interest, uint256 _epoch);
     event NftRemoved(address _pool, address removedAddress, uint256 removedId);
-    event PendingReturnsUpdated(address _user, uint256 _amount);
-    event PendingReturnsClaimed(address _user, uint256 _amount);
+    event PendingReturnsUpdated(address _user, address _token, uint256 _amount);
+    event PendingReturnsClaimed(address _user, address _token, uint256 _amount);
     event Purchase(address _pool, address _buyer, uint256[] tickets, uint256[] amountPerTicket, uint256 nonce, uint256 startEpoch, uint256 finalEpoch);
     event SaleComplete(address _pool,  address _seller, uint256 nonce, uint256 ticketsSold, uint256 creditsPurchased);
     event SpotReserved(address _pool, uint256 reservationId, uint256 startEpoch, uint256 endEpoch);
     event NftClosed(address _pool, uint256 _adjustmentNonce, uint256 _closureNonce, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
-    event NewBid(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _bidder, uint256 _bid);
+    event NewBid(address _pool, address _token, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _bidder, uint256 _bid);
     event AuctionEnded(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _winner, uint256 _highestBid);
     event NftClaimed(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _winner);
     event PrincipalCalculated(address _pool, address _closePoolContract, address _collection, uint256 _id, address _user, uint256 _nonce, uint256 _closureNonce);
@@ -131,18 +132,18 @@ contract Factory is ReentrancyGuard {
 
     /* ======== CLAIMING RETURNED FUNDS/EARNED FEES ======== */
     /// SEE IFactory.sol FOR COMMENTS
-    function updatePendingReturns(address _user) external payable nonReentrant {
+    function updatePendingReturns(address _token, address _user, uint256 _amount) external nonReentrant {
         require(controller.accreditedAddresses(msg.sender), "NA");
-        pendingReturns[_user] += msg.value;
-        emit PendingReturnsUpdated(_user, msg.value);
+        pendingReturns[_token][_user] += _amount;
+        emit PendingReturnsUpdated(_user, _token, _amount);
     }
 
     /// SEE IFactory.sol FOR COMMENTS
-    function claimPendingReturns() external nonReentrant {
-        uint256 payout = pendingReturns[msg.sender];
-        delete pendingReturns[msg.sender];
-        payable(msg.sender).transfer(payout);
-        emit PendingReturnsClaimed(msg.sender, payout);
+    function claimPendingReturns(address _token) external nonReentrant {
+        uint256 payout = pendingReturns[_token][msg.sender];
+        delete pendingReturns[_token][msg.sender];
+        ERC20(_token).transfer(msg.sender, payout);
+        emit PendingReturnsClaimed(msg.sender, _token, payout);
     }
 
     /* ======== EVENT PROPAGATION ======== */
@@ -160,6 +161,7 @@ contract Factory is ReentrancyGuard {
     ) external onlyAccredited {
         emit VaultBegun(
             msg.sender,
+            address(Vault(payable(msg.sender)).token()),
             _collateralSlots,
             _ticketSize,
             _interestRate,
@@ -244,12 +246,13 @@ contract Factory is ReentrancyGuard {
         uint256 _bid
     ) external onlyAccredited {
         emit NewBid(
-            _pool, 
+            _pool,
+            address(Vault(payable(_pool)).token()),
             _nonce,
-            msg.sender, 
-            _callerToken, 
-            _id, 
-            _bidder, 
+            msg.sender,
+            _callerToken,
+            _id,
+            _bidder,
             _bid
         );
     }

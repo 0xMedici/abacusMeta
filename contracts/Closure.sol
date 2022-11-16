@@ -5,6 +5,7 @@ import { AbacusController } from "./AbacusController.sol";
 import { Vault } from "./Vault.sol";
 import { IFactory } from "./interfaces/IFactory.sol";
 
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
@@ -36,6 +37,7 @@ contract Closure is ReentrancyGuard, Initializable {
     /* ======== ADDRESS ======== */
     IFactory public factory;
     Vault public vault;
+    ERC20 public token;
     AbacusController public controller;
 
     /* ======== UINT ======== */
@@ -77,6 +79,7 @@ contract Closure is ReentrancyGuard, Initializable {
         address _controller
     ) external initializer {
         vault = Vault(payable(_vault));
+        token = ERC20(vault.token());
         controller = AbacusController(_controller);
         factory = IFactory(controller.factory());
     }
@@ -95,7 +98,7 @@ contract Closure is ReentrancyGuard, Initializable {
     }
 
     /// SEE IClosure.sol FOR COMMENTS
-    function newBid(address _nft, uint256 _id) external payable nonReentrant {
+    function newBid(address _nft, uint256 _id, uint256 _amount) external nonReentrant {
         uint256 _nonce = nonce[_nft][_id];
         if(
             nftVal[_nonce][_nft][_id] != 0
@@ -103,13 +106,19 @@ contract Closure is ReentrancyGuard, Initializable {
         ) {
             auctionEndTime[_nonce][_nft][_id] = block.timestamp + 10 minutes;
         }
-        require(msg.value > 0.00001 ether, "Min bid must be greater than 0.00001 ether");
-        require(msg.value > 101 * highestBid[_nonce][_nft][_id] / 100, "Invalid bid");
+        require(_amount > 10**token.decimals() / 10000, "Min bid must be greater than 0.0001 tokens");
+        require(_amount > 101 * highestBid[_nonce][_nft][_id] / 100, "Invalid bid");
         require(block.timestamp < auctionEndTime[_nonce][_nft][_id], "Time over");
-        factory.updatePendingReturns{ 
-            value:highestBid[_nonce][_nft][_id]
-        } ( highestBidder[_nonce][_nft][_id] );
-        highestBid[_nonce][_nft][_id] = msg.value;
+        require(token.transferFrom(msg.sender, address(this), _amount), "Bid transfer failed");
+        if(highestBid[_nonce][_nft][_id] != 0) {
+            require(token.transfer(address(factory), highestBid[_nonce][_nft][_id]), "Bid return failed");    
+        }
+        factory.updatePendingReturns(
+            highestBidder[_nonce][_nft][_id], 
+            address(token), 
+            highestBid[_nonce][_nft][_id]
+        );
+        highestBid[_nonce][_nft][_id] = _amount;
         highestBidder[_nonce][_nft][_id] = msg.sender;
 
         factory.emitNewBid(
@@ -118,7 +127,7 @@ contract Closure is ReentrancyGuard, Initializable {
             _nft,
             _id,
             msg.sender,
-            msg.value
+            _amount
         );
     }
 
@@ -131,7 +140,8 @@ contract Closure is ReentrancyGuard, Initializable {
             && !auctionComplete[_nonce][_nft][_id],
             "Auction ongoing - EA"
         );
-        vault.updateSaleValue{value:highestBid[_nonce][_nft][_id]}(_nft, _id, highestBid[_nonce][_nft][_id]);
+        vault.updateSaleValue(_nft, _id, highestBid[_nonce][_nft][_id]);
+        token.transfer(address(vault), highestBid[_nonce][_nft][_id]);
         auctionComplete[_nonce][_nft][_id] = true;
         liveAuctions--;
         factory.emitAuctionEnded(

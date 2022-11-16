@@ -5,6 +5,7 @@ import { Vault } from "./Vault.sol";
 import { Closure } from "./Closure.sol";
 import { AbacusController } from "./AbacusController.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./helpers/ReentrancyGuard.sol";
 import "hardhat/console.sol";
@@ -45,8 +46,7 @@ contract Lend is ReentrancyGuard {
         address transferFromPermission;
         uint256 startEpoch;
         uint256 amount;
-        uint256 timesInterestPaid;
-        mapping(uint256 => bool) interestPaid;
+        uint256 interestEpoch;
     }
 
     /* ======== EVENT ======== */
@@ -88,7 +88,7 @@ contract Lend is ReentrancyGuard {
         );
         uint256 payoutPerResFuture = 
             vault.getPayoutPerReservation(
-                (block.timestamp - vault.startTime() + vault.epochLength() / 12) / vault.epochLength()
+                (block.timestamp - vault.startTime() + vault.epochLength() / 6) / vault.epochLength()
             );
         require(95 * payoutPerResFuture / 100 >= _amount + openLoan.amount, "Exceed future LTV");
         if(!loanDeployed[_nft][_id]) {
@@ -96,9 +96,10 @@ contract Lend is ReentrancyGuard {
             openLoan.amount = _amount;
             openLoan.borrower = msg.sender;
             openLoan.startEpoch = (block.timestamp - Vault(payable(openLoan.pool)).startTime()) / vault.epochLength();
+            openLoan.interestEpoch = openLoan.startEpoch;
             loanDeployed[_nft][_id] = true;
         } else {
-            uint256 epochsMissed = poolEpoch - loans[_nft][_id].startEpoch - loans[_nft][_id].timesInterestPaid;
+            uint256 epochsMissed = poolEpoch + 1 - openLoan.interestEpoch;
             require(epochsMissed == 0, "Must pay down interest owed before borrowing more");
             openLoan.amount += _amount;
         }
@@ -108,48 +109,48 @@ contract Lend is ReentrancyGuard {
     }
 
     /// SEE ILend.sol FOR COMMENTS
-    function payInterest(uint256[] calldata _epoch, address _nft, uint256 _id) external payable nonReentrant {
+    function payInterest(uint256[] calldata _epoch, address _nft, uint256 _id) external nonReentrant {
         Position storage openLoan = loans[_nft][_id];
         require(openLoan.amount != 0, "No open loan");
         Vault vault = Vault(payable(openLoan.pool));
         require(openLoan.amount < vault.getPayoutPerReservation((block.timestamp - vault.startTime()) / vault.epochLength()));
-        uint256 length = _epoch.length;
         uint256 totalInterest;
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
-        uint256 epochsMissed = poolEpoch - loans[_nft][_id].startEpoch - loans[_nft][_id].timesInterestPaid;
-        for(uint256 i; i < length; i++) {
+        require(poolEpoch + 1 != openLoan.interestEpoch, "Interest already paid");
+        uint256 interestEpoch_ = openLoan.interestEpoch;
+        uint256 epochsMissed = poolEpoch + 1 - interestEpoch_;
+        for(uint256 i; i < _epoch.length; i++) {
             uint256 epoch = _epoch[i];
-            require(epoch <= poolEpoch, "Improper epoch input");
-            require(!openLoan.interestPaid[epoch], "Already paid interest");
+            require(epoch == interestEpoch_, "Already paid interest");
             totalInterest += vault.interestRate() * vault.getPayoutPerReservation(epoch) / 10_000 
                         * vault.epochLength() / (52 weeks) * ((epochsMissed >= 2) ? 3 * epochsMissed / 2 : 1);
-            openLoan.interestPaid[epoch] = true;
+            interestEpoch_++;
         }
-        require(msg.value == totalInterest, "Incorrect payment size");
-        openLoan.timesInterestPaid += length;
-        vault.processFees{value: msg.value}();
-        emit InterestPaid(msg.sender, openLoan.pool, _nft, _id, _epoch, msg.value);
+        openLoan.interestEpoch = interestEpoch_;
+        require((vault.token()).transferFrom(msg.sender, address(vault), totalInterest));
+        vault.processFees(totalInterest);
+        emit InterestPaid(msg.sender, openLoan.pool, _nft, _id, _epoch, totalInterest);
     }
 
     /// SEE ILend.sol FOR COMMENTS
-    function repay(address nft, uint256 id) external payable nonReentrant {
+    function repay(address nft, uint256 id, uint256 _amount) external nonReentrant {
         Position storage openLoan = loans[nft][id];
         require(openLoan.amount != 0, "No open loan");
         address pool = openLoan.pool;
         uint256 poolEpoch = (block.timestamp - Vault(payable(openLoan.pool)).startTime()) / Vault(payable(openLoan.pool)).epochLength();
         require(msg.sender == openLoan.borrower, "Not borrower");
-        require(poolEpoch - openLoan.startEpoch + 1 == openLoan.timesInterestPaid, "Must pay outstanding interest");
+        require(poolEpoch + 1 == openLoan.interestEpoch, "Must pay outstanding interest");
         address borrower = openLoan.borrower;
-        openLoan.amount -= msg.value;
-        Vault(payable(openLoan.pool)).depositLiq{value: msg.value}(nft, id);
+        openLoan.amount -= _amount;
+        require(Vault(payable(pool)).token().transferFrom(msg.sender, pool, _amount));
+        Vault(payable(pool)).depositLiq(nft, id, _amount);
         if(openLoan.amount == 0) {
             delete loans[nft][id];
             delete loanDeployed[nft][id];
-            delete loans[nft][id].interestPaid[poolEpoch];
             IERC721(nft).transferFrom(address(this), borrower, id);
         }
         require(IERC721(nft).ownerOf(id) == borrower, "Transfer failed");
-        emit EthRepayed(msg.sender, pool, nft, id, msg.value);
+        emit EthRepayed(msg.sender, pool, nft, id, _amount);
     }
 
     /// SEE ILend.sol FOR COMMENTS
@@ -159,12 +160,11 @@ contract Lend is ReentrancyGuard {
         address[] calldata _nfts,
         uint256[] calldata _ids, 
         uint256[] calldata _closureNonces
-    ) external payable nonReentrant {
+    ) external nonReentrant {
         Vault vault = Vault(payable(loans[nft][id].pool));
         uint256 loanAmount = loans[nft][id].amount;
         if(loanAmount > vault.getPayoutPerReservation((block.timestamp - vault.startTime()) / vault.epochLength())) {
-            require(msg.value == loanAmount, "Must cover entire loan");
-            payable(address(vault)).transfer(msg.value);
+            require((vault.token()).transferFrom(msg.sender, address(vault), loanAmount), "Must cover entire loan");
             IERC721(nft).transferFrom(address(this), msg.sender, id);
             vault.resetOutstanding(nft, id);
         }
@@ -215,8 +215,9 @@ contract Lend is ReentrancyGuard {
         uint256 loanAmount = loans[nft][id].amount;
         IERC721(nft).approve(address(vault), id);
         uint256 payout = vault.closeNft(nft, id);
-        payable(msg.sender).transfer((payout - loanAmount) / 10);
-        vault.processFees{value: payout - loanAmount - ((payout - loanAmount) / 10)}();
+        require((vault.token()).transfer(msg.sender, (payout - loanAmount) / 10));
+        require((vault.token()).transfer(address(vault), payout - loanAmount - ((payout - loanAmount) / 10)));
+        vault.processFees(payout - loanAmount - ((payout - loanAmount) / 10));
     }
 
     /* ======== GETTERS ======== */
@@ -263,8 +264,7 @@ contract Lend is ReentrancyGuard {
         address pool,
         address transferFromPermission,
         uint256 startEpoch,
-        uint256 amount,
-        uint256 timesInterestPaid
+        uint256 amount
     ) {
         Position storage loan = loans[nft][id];
         borrower = loan.borrower;
@@ -272,7 +272,6 @@ contract Lend is ReentrancyGuard {
         amount = loan.amount;
         transferFromPermission = loan.transferFromPermission;
         startEpoch = loan.startEpoch;
-        timesInterestPaid = loan.timesInterestPaid;
     }
 
     /// SEE ILend.sol FOR COMMENTS
@@ -283,11 +282,11 @@ contract Lend is ReentrancyGuard {
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
         if(
             loans[_nft][_id].amount == 0
-            || loans[_nft][_id].timesInterestPaid > poolEpoch - loans[_nft][_id].startEpoch
+            || loans[_nft][_id].interestEpoch == poolEpoch + 1
         ) {
             return 0;
         }
-        uint256 epochsMissed = poolEpoch - loans[_nft][_id].startEpoch - loans[_nft][_id].timesInterestPaid;
+        uint256 epochsMissed = poolEpoch + 1 - loans[_nft][_id].interestEpoch;
         for(uint256 i; i < length; i++) {
             uint256 epoch = _epoch[i];
             totalInterest += vault.interestRate() * vault.getPayoutPerReservation(epoch) / 10_000 

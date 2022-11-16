@@ -13,7 +13,18 @@ const { ADDRESSES, TIMEDIF } = require('./Addresses.js');
     console.log("Lender conntecteed.", lend.address);
     Vault = await ethers.getContractFactory("Vault");
     Closure = await ethers.getContractFactory("Closure");
-
+    // USING DAI ADDRESS AS EXAMPLE REPLACE WITH REAL ONE WHEN USING
+    const tokenAddress = "dai.tokens.ethers.eth";
+    // USING DAI ABI AS EXAMPLE REPLACE WITH REAL ONE WHEN USING
+    const tokenABI = [
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function balanceOf(address) view returns (uint)",
+      "function transfer(address to, uint amount)",
+      "event Transfer(address indexed from, address indexed to, uint amount)"
+    ];
+    // CONNECT TO DAI CONTRACT OBJECT AS EXAMPLE, REPLACE WITH REAL ONE WHEN USING
+    const token = new ethers.Contract(daiAddress, daiAbi, provider)
     let vaultAddress = await factory.getPoolAddress(ADDRESSES[3]);
     vault = await Vault.attach(vaultAddress);
     let costPerToken = 1e15;
@@ -29,14 +40,13 @@ const { ADDRESSES, TIMEDIF } = require('./Addresses.js');
     for(let i = 0; i < tickets.length; i++) {
       console.log(`Current ticket count in ${tickets[i]}: ${amounts[i]}`);
     }
-    let hash;
+    await token.approve(vault.address, totalCost.toString());
     const txHash = await vault.purchase(
         deployer.address, //Buyer address
         tickets, //Desired appraisal tranches
         amounts, //Amount per tranche
         currentEpoch, //Start epoch
         endEpoch, //Unlock epoch 
-        { value: totalCost.toString() }
     )
     // .then((tx) => {
     //   hash = tx.hash;

@@ -18,7 +18,14 @@ interface IVault {
     /// @param _slots The amount of collateral slots the pool will offer
     /// @param _ticketSize The size of a tranche
     /// @param _rate The chosen interest rate
-    function begin(uint256 _slots, uint256 _ticketSize, uint256 _rate) external payable;
+    /// @param _token the token denomination of the pool
+    function begin(
+        uint32 _slots, 
+        uint256 _ticketSize, 
+        uint256 _rate,
+        uint256 _epochLength,
+        address _token
+    ) external;
 
     /// @notice Purchase an LP position in a spot pool
     /// @dev Each position that is held by a user is tagged by a nonce which allows each 
@@ -39,7 +46,7 @@ interface IVault {
         uint256[] calldata amountPerTicket,
         uint32 startEpoch,
         uint32 finalEpoch
-    ) external payable;
+    ) external;
 
     /// @notice Close an LP position and receive credits earned
     /// @dev Users ticket balances are counted on a risk adjusted basis in comparison to the
@@ -54,11 +61,6 @@ interface IVault {
         uint256 _nonce
     ) external returns(uint256 interestEarned);
 
-    /// @notice Revoke an NFTs connection to a pool
-    /// @param _nft List of NFTs to be removed
-    /// @param _id List of token ID of the NFT to be removed
-    function remove(address[] calldata _nft, uint256[] calldata _id) external;
-
     /// @notice Update the 'totAvailFunds' count upon the conclusion of an auction
     /// @dev Called automagically by the closure contract 
     /// @param _nft NFT that was auctioned off
@@ -68,7 +70,7 @@ interface IVault {
         address _nft,
         uint256 _id,
         uint256 _saleValue
-    ) external payable;
+    ) external;
 
     /// @notice Allow another user permission to execute a single 'transferFrom' call
     /// @param recipient Allowee address
@@ -114,16 +116,13 @@ interface IVault {
     ) external returns(bool);
 
     /// @notice Receive and process an fees earned by the Spot pool
-    function processFees() external payable;
+    function processFees(uint256 _amount) external;
 
     /// @notice Send liquidity to borrower
     function accessLiq(address _user, address _nft, uint256 _id, uint256 _amount) external;
 
     /// @notice Receive liquidity from lending contract
-    function depositLiq(address _nft, uint256 _id) external payable;
-
-    /// @notice Get multi asset pool reference nonce
-    function getName() external view returns(string memory);
+    function depositLiq(address _nft, uint256 _id, uint256 _amount) external;
 
     /// @notice Returns the total available funds during an `_epoch`
     function getTotalAvailableFunds(uint256 _epoch) external view returns(uint256);
@@ -136,18 +135,6 @@ interface IVault {
 
     /// @notice Returns total amount of tokens purchased during an `_epoch`
     function getTokensPurchased(uint256 _epoch) external view returns(uint256);
-
-    /// @notice Returns a users position information
-    function getPosition(
-        address _user, 
-        uint256 _nonce
-    ) external view returns(
-        uint32 startEpoch,
-        uint32 endEpoch,
-        uint256 tickets, 
-        uint256 amounts,
-        uint256 ethLocked
-    );
 
     /// @notice Get the list of NFT address and corresponding token IDs in by this pool
     function getHeldTokenExistence(address _nft, uint256 _id) external view returns(bool);

@@ -19,7 +19,7 @@ interface IClosure {
     /// @dev The previous highest bid is added to a users credit on the parent factory
     /// @param _nft NFT collection address
     /// @param _id NFT ID
-    function newBid(address _nft, uint256 _id) external payable;
+    function newBid(address _nft, uint256 _id, uint256 _amount) external;
 
     /// @notice End an NFT auction
     /// @param _nft NFT collection address
