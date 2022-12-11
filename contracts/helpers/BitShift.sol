@@ -23,7 +23,7 @@ library BitShift {
             comTickets |= tickets[i];
             require(amountPerTicket[i] * 100 < (2**25 -1));
             comAmounts |= amountPerTicket[i] * 100;
-            base += uint128(amountPerTicket[i] * decimals / 1000);
+            base += uint128(amountPerTicket[i] * decimals);
         }
     }
 }

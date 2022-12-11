@@ -81,7 +81,7 @@ describe("Lend", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -124,7 +124,7 @@ describe("Lend", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -139,6 +139,7 @@ describe("Lend", function () {
             0,
             10,
         );
+        await network.provider.send("evm_increaseTime", [86401 * 2]);
         await mockNft.approve(lend.address, 1);
         await lend.borrow(
             maPool.address,
@@ -146,9 +147,12 @@ describe("Lend", function () {
             1,
             '600000000000000000'
         );
-        await mockToken.approve(lend.address, (await lend.getInterestPayment([0], mockNft.address, 1)).toString());
+        await network.provider.send("evm_increaseTime", [86401 * 4]);
+        await mockToken.approve(maPool.address, totalCost.toString());
+        console.log((await lend.getInterestPayment([0, 1, 2, 3, 4], mockNft.address, 1)).toString());
+        await mockToken.approve(lend.address, (await lend.getInterestPayment([0, 1, 2, 3, 4], mockNft.address, 1)).toString());
         await lend.payInterest(
-            [0], 
+            [0, 1, 2, 3, 4], 
             mockNft.address, 
             1, 
         );
@@ -170,7 +174,7 @@ describe("Lend", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -264,7 +268,7 @@ describe("Lend", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -325,7 +329,7 @@ describe("Lend", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -350,67 +354,7 @@ describe("Lend", function () {
         await network.provider.send("evm_increaseTime", [86400 * 3 + 80000]);
         await lend.liquidate(
             mockNft.address,
-            1,
-            [],
-            [],
-            []
-        );
-    });
-
-    it("Liquidate - ltv violation auction", async function () {
-        let nftIds = new Array();
-        let nftAddresses = new Array();
-        for(let i = 0; i < 6; i++) {
-            await mockNft.mintNew();
-            nftIds[i] = i + 1;
-            nftAddresses[i] = mockNft.address;
-        }
-        await factory.initiateMultiAssetVault(
-            "HelloWorld"
-        );
-        let vaultAddress = await factory.getPoolAddress("HelloWorld");
-        let maPool = await Vault.attach(vaultAddress);
-        await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
-        );
-        await maPool.begin(3, 1000, 15, 86400, mockToken.address);
-        let costPerToken = 1e15;
-        let totalCost = costPerToken * 24000;
-        await mockToken.approve(maPool.address, totalCost.toString());
-        await maPool.purchase(
-            deployer.address,
-            [
-                '0','1','2','3','4','5','6','7'
-            ],
-            [
-                '3000', '3000', '3000','3000', '3000','3000', '3000', '3000'
-            ],
-            0,
-            10,
-        );
-        await mockNft.approve(lend.address, 1);
-        await lend.borrow(
-            maPool.address,
-            mockNft.address,
-            1,
-            '6000000000000000000'
-        );
-        await mockNft.approve(maPool.address, 2);
-        await maPool.closeNft(mockNft.address, 2);
-        await mockNft.approve(maPool.address, 3);
-        await maPool.closeNft(mockNft.address, 3);
-        let closureMulti = await Closure.attach(await maPool.closePoolContract());
-        await mockToken.approve(closureMulti.address, (1001e11).toString());
-        await closureMulti.newBid(mockNft.address, 2, (1001e11).toString());
-        await mockToken.approve(closureMulti.address, (1001e11).toString());
-        await closureMulti.newBid(mockNft.address, 3, (1001e11).toString());
-        await network.provider.send("evm_increaseTime", [40000]);
-        await lend.liquidate(
-            mockNft.address,
-            1,
-            [mockNft.address, mockNft.address],
-            [2, 3],
-            [1, 1]
+            1
         );
     });
 });

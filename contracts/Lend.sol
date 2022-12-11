@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { Vault } from "./Vault.sol";
-import { Closure } from "./Closure.sol";
+import { Auction } from "./Auction.sol";
 import { AbacusController } from "./AbacusController.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -156,19 +156,26 @@ contract Lend is ReentrancyGuard {
     /// SEE ILend.sol FOR COMMENTS
     function liquidate(
         address nft, 
-        uint256 id, 
-        address[] calldata _nfts,
-        uint256[] calldata _ids, 
-        uint256[] calldata _closureNonces
+        uint256 id,
+        uint256[] calldata _auctionNonces
     ) external nonReentrant {
         Vault vault = Vault(payable(loans[nft][id].pool));
+        Position storage openLoan = loans[nft][id];
+        uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
         uint256 loanAmount = loans[nft][id].amount;
-        if(loanAmount > vault.getPayoutPerReservation((block.timestamp - vault.startTime()) / vault.epochLength())) {
+        uint256 liquidationRule = vault.liquidationRule();
+        if(loanAmount > vault.getPayoutPerReservation(poolEpoch)) {
             require((vault.token()).transferFrom(msg.sender, address(vault), loanAmount), "Must cover entire loan");
             IERC721(nft).transferFrom(address(this), msg.sender, id);
             vault.resetOutstanding(nft, id);
         }
-        else if(this.getPricePointViolation(vault, loanAmount, _nfts, _ids, _closureNonces)) {
+        else if(this.getPricePointViolation(vault, loanAmount, _auctionNonces)) {
+            processLiquidation(
+                vault,
+                nft,
+                id
+            );
+        } else if((liquidationRule & 1) == 1 && (liquidationRule << 1) > (poolEpoch + 1 - openLoan.interestEpoch)) {
             processLiquidation(
                 vault,
                 nft,
@@ -224,33 +231,26 @@ contract Lend is ReentrancyGuard {
     /// SEE ILend.sol FOR COMMENTS
     function getPricePointViolation(
         Vault vault,
-        uint256 loanAmount,
-        address[] calldata _nfts,
-        uint256[] calldata _ids, 
-        uint256[] calldata _closureNonces
+        uint256 loanAmount, 
+        uint256[] calldata _nonces
     ) external view returns(bool) {
         uint256 totalBids;
-        for(uint256 i; i < _closureNonces.length; i++) {
-            uint256 auctionEndTime = Closure(payable(vault.closePoolContract())).auctionEndTime(_closureNonces[i], _nfts[i], _ids[i]);
+        for(uint256 i; i < _nonces.length; i++) {
+            (,,,,,,uint256 auctionEndTime,,uint256 highestBid) = (controller.auction()).auctions(_nonces[i]);
             require(
                 auctionEndTime != 0
                 && auctionEndTime < block.timestamp + 5 minutes, "Improper auction nonce entry!"
             );
-            totalBids += Closure(payable(vault.closePoolContract())).highestBid(_closureNonces[i], _nfts[i], _ids[i]);
+            totalBids += highestBid;
         }
         uint256 futureEpoch = (block.timestamp - vault.startTime() + vault.epochLength() / 6) / vault.epochLength();
-        uint256 inPoolAmount;
-        if(address(vault.closePoolContract()) == address(0)) {
-            inPoolAmount = vault.amountNft();
-        } else {
-            inPoolAmount = (vault.amountNft() - (vault.closePoolContract()).liveAuctions());
-        }
+        uint256 inPoolAmount = vault.amountNft() - controller.auction().liveAuctions(address(vault));
         return (
             95 * (
                 (totalBids
                 + (
                     inPoolAmount * vault.getTotalAvailableFunds(futureEpoch) / vault.amountNft()
-                )) / (inPoolAmount + _nfts.length)
+                )) / (inPoolAmount + _nonces.length)
             ) / 100 < loanAmount 
         );
     }

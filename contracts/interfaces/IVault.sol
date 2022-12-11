@@ -4,9 +4,8 @@ pragma solidity ^0.8.0;
 interface IVault {
 
     function initialize(
-        string memory name,
+        string memory _name,
         address _controller,
-        address closePoolImplementation_,
         address _creator
     ) external;
 

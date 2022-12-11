@@ -1,6 +1,12 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import { Factory } from "./Factory.sol";
+import { Lend } from "./Lend.sol";
+import { Auction } from "./Auction.sol";
+import { TrancheCalculator } from "./TrancheCalculator.sol";
+import { RiskPointCalculator } from "./RiskPointCalculator.sol";
+
 import "hardhat/console.sol";
 
                //\\                 ||||||||||||||||||||||||||                   //\\                 ||||||||||||||||||||||||||||  ||||||||            ||||||||  ||||||||||||||||||||||||||||
@@ -27,8 +33,11 @@ contract AbacusController {
 
     /* ======== ADDRESS ======== */
     address public multisig;
-    address public factory;
-    address public lender;
+    Factory public factory;
+    Lend public lender;
+    Auction public auction;
+    TrancheCalculator public calculator;
+    RiskPointCalculator public riskCalculator;
 
     /* ======== BOOL ======== */
     bool public finalMultisigSet;
@@ -67,20 +76,38 @@ contract AbacusController {
     }
 
     function setLender(address _lender) external onlyMultisig {
-        require(lender == address(0));
+        require(address(lender) == address(0));
         require(_lender != address(0));
-        lender = _lender;
+        lender = Lend(payable(_lender));
     }
 
     function setFactory(address _factory) external onlyMultisig {
         require(_factory != address(0));
-        require(factory == address(0));
-        factory = _factory;
+        require(address(factory) == address(0));
+        factory = Factory(payable(_factory));
+    }
+
+    function setAuction(address _auction) external onlyMultisig {
+        require(_auction != address(0));
+        require(address(auction) == address(0));
+        auction = Auction(payable(_auction));
+    }
+
+    function setCalculator(address _calculator) external onlyMultisig {
+        require(_calculator != address(0));
+        require(address(calculator) == address(0));
+        calculator = TrancheCalculator(_calculator);
+    }
+
+    function setRiskCalculator(address _calculator) external onlyMultisig {
+        require(_calculator != address(0));
+        require(address(calculator) == address(0));
+        riskCalculator = RiskPointCalculator(_calculator);
     }
 
     /* ======== AUTOMATED SETTERS ======== */
     function addAccreditedAddressesMulti(address newAddress) external {
-        require(factory == msg.sender || accreditedAddresses[msg.sender]);
+        require(address(factory) == msg.sender || accreditedAddresses[msg.sender]);
         accreditedAddresses[newAddress] = true;
     }
 

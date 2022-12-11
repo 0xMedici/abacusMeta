@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import { Vault } from "./Vault.sol";
 import { IVault } from "./interfaces/IVault.sol";
-import { Closure } from "./Closure.sol";
+import { Auction } from "./Auction.sol";
 import { AbacusController } from "./AbacusController.sol";
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -37,7 +37,6 @@ contract Factory is ReentrancyGuard {
     /* ======== ADDRESS ======== */
     AbacusController public immutable controller;
     address private immutable _vaultMultiImplementation;
-    address private immutable _closePoolImplementation;
 
     /* ======== MAPPING ======== */
     /// @notice ETH to be returned from all vaults is routed this mapping
@@ -63,14 +62,14 @@ contract Factory is ReentrancyGuard {
     event VaultCreated(string name, address _creator, address _pool);
     event VaultSigned(address _pool, address _signer, address[] nftAddress, uint256[] ids);
     event NftInclusion(address _pool, uint256[] nfts);
-    event VaultBegun(address _pool, address _token, uint256 _collateralSlots, uint256 _ticketSize, uint256 _interest, uint256 _epoch);
+    event VaultBegun(address _pool, address _token, uint256 _collateralSlots, uint256 _interest, uint256 _epoch);
     event NftRemoved(address _pool, address removedAddress, uint256 removedId);
     event PendingReturnsUpdated(address _user, address _token, uint256 _amount);
     event PendingReturnsClaimed(address _user, address _token, uint256 _amount);
     event Purchase(address _pool, address _buyer, uint256[] tickets, uint256[] amountPerTicket, uint256 nonce, uint256 startEpoch, uint256 finalEpoch);
     event SaleComplete(address _pool,  address _seller, uint256 nonce, uint256 ticketsSold, uint256 creditsPurchased);
     event SpotReserved(address _pool, uint256 reservationId, uint256 startEpoch, uint256 endEpoch);
-    event NftClosed(address _pool, uint256 _adjustmentNonce, uint256 _closureNonce, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
+    event NftClosed(address _pool, uint256 _adjustmentNonce, uint256 _closureNonce, address _collection, uint256 _id, address _caller, uint256 payout); 
     event NewBid(address _pool, address _token, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _bidder, uint256 _bid);
     event AuctionEnded(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _winner, uint256 _highestBid);
     event NftClaimed(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _winner);
@@ -87,7 +86,6 @@ contract Factory is ReentrancyGuard {
 
     /* ======== CONSTRUCTOR ======== */
     constructor(address _controller) {
-        _closePoolImplementation = address(new Closure());
         _vaultMultiImplementation = address(new Vault());
         controller = AbacusController(_controller);
     }
@@ -116,7 +114,6 @@ contract Factory is ReentrancyGuard {
         vaultMultiDeployment.initialize(
             name,
             address(controller),
-            _closePoolImplementation,
             msg.sender
         );
 
@@ -139,11 +136,15 @@ contract Factory is ReentrancyGuard {
     }
 
     /// SEE IFactory.sol FOR COMMENTS
-    function claimPendingReturns(address _token) external nonReentrant {
-        uint256 payout = pendingReturns[_token][msg.sender];
-        delete pendingReturns[_token][msg.sender];
-        ERC20(_token).transfer(msg.sender, payout);
-        emit PendingReturnsClaimed(msg.sender, _token, payout);
+    function claimPendingReturns(address[] calldata _token) external nonReentrant {
+        uint256 length = _token.length;
+        for(uint256 i; i < length; i++) {
+            address token = _token[i];
+            uint256 payout = pendingReturns[token][msg.sender];
+            delete pendingReturns[token][msg.sender];
+            ERC20(token).transfer(msg.sender, payout);
+            emit PendingReturnsClaimed(msg.sender, token, payout);
+        }
     }
 
     /* ======== EVENT PROPAGATION ======== */
@@ -155,7 +156,6 @@ contract Factory is ReentrancyGuard {
 
     function emitPoolBegun(
         uint256 _collateralSlots,
-        uint256 _ticketSize,
         uint256 _interestRate,
         uint256 _epochLength
     ) external onlyAccredited {
@@ -163,7 +163,6 @@ contract Factory is ReentrancyGuard {
             msg.sender,
             address(Vault(payable(msg.sender)).token()),
             _collateralSlots,
-            _ticketSize,
             _interestRate,
             _epochLength
         );
@@ -203,112 +202,122 @@ contract Factory is ReentrancyGuard {
         );
     }
 
-    function emitSpotReserved(
-        uint256 _reservationId,
-        uint256 _startEpoch,
-        uint256 _endEpoch
-    ) external onlyAccredited {
-        emit SpotReserved(
-            msg.sender, 
-            _reservationId, 
-            _startEpoch,
-            _endEpoch
-        );
-    }
-
     function emitNftClosed(
         address _caller,
         uint256 _adjustmentNonce,
-        uint256 _closureNonce,
+        uint256 _auctionNonce,
         address _nft,
         uint256 _id,
-        uint256 _payout,
-        address _closePoolContract
+        uint256 _payout
     ) external onlyAccredited {
         emit NftClosed(
             msg.sender, 
             _adjustmentNonce,
-            _closureNonce,
+            _auctionNonce,
             _nft,
             _id,
             _caller, 
-            _payout, 
-            _closePoolContract
+            _payout
         ); 
     }
 
     function emitNewBid(
-        address _pool,
-        uint256 _nonce,
-        address _callerToken,
-        uint256 _id,
-        address _bidder,
-        uint256 _bid
+        uint256 _nonce
     ) external onlyAccredited {
+        (
+            ,
+            ,
+            address pool,
+            address highestBidder,
+            address nft,
+            uint256 id,
+            ,
+            ,
+            uint256 highestBid
+        ) = controller.auction().auctions(_nonce);
         emit NewBid(
-            _pool,
-            address(Vault(payable(_pool)).token()),
+            pool,
+            address(Vault(payable(pool)).token()),
             _nonce,
             msg.sender,
-            _callerToken,
-            _id,
-            _bidder,
-            _bid
+            nft,
+            id,
+            highestBidder,
+            highestBid
         );
     }
 
     function emitAuctionEnded(
-        address _pool,
-        uint256 _nonce,
-        address _callerToken,
-        uint256 _id,
-        address _bidder,
-        uint256 _bid
+        uint256 _nonce
     ) external onlyAccredited {
+        (
+            ,
+            ,
+            address pool,
+            address highestBidder,
+            address nft,
+            uint256 id,
+            ,
+            ,
+            uint256 highestBid
+        ) = controller.auction().auctions(_nonce);
         emit AuctionEnded(
-            _pool, 
+            pool,
             _nonce,
             msg.sender, 
-            _callerToken, 
-            _id, 
-            _bidder,
-            _bid
+            nft,
+            id,
+            highestBidder,
+            highestBid
         );
     }
 
     function emitNftClaimed(
-        address _pool,
-        uint256 _nonce,
-        address _callerToken,
-        uint256 _id,
-        address _bidder
+        uint256 _nonce
     ) external onlyAccredited {
+        (
+            ,
+            ,
+            address pool,
+            address highestBidder,
+            address nft,
+            uint256 id,
+            ,
+            ,
+        ) = controller.auction().auctions(_nonce);
         emit NftClaimed(
-            _pool, 
+            pool,
             _nonce,
             msg.sender, 
-            _callerToken, 
-            _id, 
-            _bidder
+            nft,
+            id,
+            highestBidder
         );
     }
 
     function emitPrincipalCalculated(
-        address _pool,
-        address _callerToken,
-        uint256 _id,
         address _user,
         uint256 _nonce,
-        uint256 _closureNonce
+        uint256 _auctionNonce
     ) external onlyAccredited {
+        (
+            ,
+            ,
+            address pool,
+            ,
+            address nft,
+            uint256 id,
+            ,
+            ,
+        ) = controller.auction().auctions(_nonce);
         emit PrincipalCalculated(
-            _pool, 
+            pool,
             msg.sender, 
-            _callerToken, 
-            _id, 
+            nft,
+            id,
             _user, 
             _nonce,
-            _closureNonce
+            _auctionNonce
         );
     }
 

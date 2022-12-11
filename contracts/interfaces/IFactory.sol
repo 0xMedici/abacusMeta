@@ -29,16 +29,8 @@ interface IFactory {
 
     function emitPoolBegun(
         uint256 _collateralSlots,
-        uint256 _ticketSize,
         uint256 _interestRate,
         uint256 _epochLength
-    ) external;
-
-    function emitToggle(
-        address _nft,
-        uint256 _id,
-        bool _chosenToggle, 
-        uint256 _totalToggles
     ) external;
 
     function emitPurchase(
@@ -54,62 +46,34 @@ interface IFactory {
         address _seller,
         uint256 _nonce,
         uint256 _ticketsSold,
-        uint256 _creditsPurchased
-    ) external;
-
-    function emitPoolRestored(
-        uint256 _payoutPerReservation
-    ) external;
-
-    function emitSpotReserved(
-        uint256 _reservationId,
-        uint256 _startEpoch,
-        uint256 _endEpoch
+        uint256 _interestEarned
     ) external;
 
     function emitNftClosed(
         address _caller,
         uint256 _adjustmentNonce,
-        uint256 _closureNonce,
+        uint256 _auctionNonce,
         address _nft,
         uint256 _id,
-        uint256 _payout,
-        address _closePoolContract
+        uint256 _payout
     ) external;
 
     function emitNewBid(
-        address _pool,
-        uint256 _nonce,
-        address _callerToken,
-        uint256 _id,
-        address _bidder,
-        uint256 _bid
+        uint256 _nonce
     ) external;
 
     function emitAuctionEnded(
-        address _pool,
-        uint256 _nonce,
-        address _callerToken,
-        uint256 _id,
-        address _bidder,
-        uint256 _bid
+        uint256 _nonce
     ) external;
 
     function emitNftClaimed(
-        address _pool,
-        uint256 _nonce,
-        address _callerToken,
-        uint256 _id,
-        address _bidder
+        uint256 _nonce
     ) external;
 
     function emitPrincipalCalculated(
-        address _pool,
-        address _callerToken,
-        uint256 _id,
         address _user,
         uint256 _nonce,
-        uint256 _closureNonce
+        uint256 _auctionNonce
     ) external;
 
     function emitLPTransfer(

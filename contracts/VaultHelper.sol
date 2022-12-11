@@ -5,7 +5,7 @@ import { Vault } from "./Vault.sol";
 
 contract VaultHelper {
 
-    mapping(address => mapping(uint256 => bool)) public saltStatus;
+    mapping(bytes32 => bool) public hashes;
 
     event TxHash(bytes32 txHash);
 
@@ -19,6 +19,7 @@ contract VaultHelper {
         uint32 finalEpoch,
         bytes memory signature
     ) external {
+        Vault vault = Vault(payable(_pool));
         bytes32 txHash = this.generateHash(
             _pool,
             _buyer,
@@ -34,11 +35,16 @@ contract VaultHelper {
                 signature
             );
             require(signer == _buyer, "");
-            require(!saltStatus[_buyer][_salt], "duplicated");
-            saltStatus[_buyer][_salt]=true;
         }
-
-        Vault(payable(_pool)).purchase(
+        require(!hashes[txHash], "already executed");
+        hashes[txHash] = true;
+        uint256 _amount;
+        for(uint256 i = 0; i < amountPerTicket.length; i++) {
+            _amount += amountPerTicket[i];
+        }
+        (vault.token()).transferFrom(_buyer, address(this), _amount * (10 ** vault.token().decimals()) / 1000);
+        (vault.token()).approve(_pool, _amount * (10 ** vault.token().decimals()) / 1000);
+        vault.purchase(
             _buyer,
             tickets, 
             amountPerTicket,
