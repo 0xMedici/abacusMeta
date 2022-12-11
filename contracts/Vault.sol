@@ -315,7 +315,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         interestRate = _rate;
         riskBase = _riskBase;
         riskStep = _riskStep;
-        factory.updateSlotCount(name, _slots);
         startTime = block.timestamp;
         token = ERC20(_token);
         modTokenDecimal = 10**ERC20(_token).decimals() / 1000;
@@ -1048,7 +1047,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     function getReservationsAvailable() external view returns(uint256) {
-        return amountNft - reservations - spotsRemoved - auction.liveAuctions(address(this));
+        return amountNft - reservations - spotsRemoved;
     }
 
     function getTotalAvailableFunds(uint256 _epoch) external view returns(uint256) {

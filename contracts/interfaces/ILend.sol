@@ -28,25 +28,13 @@ interface ILend {
 
     /// @notice Liquidate a borrower
     /// @dev A liquidator can check 'getLiqStatus' to see if a user is eligible for liquidation
-    /// Liquidation criteria is as follows:
-        /// 1. 95% of the pools payout IN THE NEXT EPOCH will not cover the outstanding loan amount
-            /// > This can be checked by inputing NFTs currently at auction within the liquidation window
-            /// The protocol will calculate the outstanding auction offers and add that to the payout
-            /// attributed per NFT and use that to decide the current price point and check whether or not
-            /// a users loan is violating the allowed LTV
-        /// 2. A borrower is missing 2 or more interest payments
-        /// 3. A user does not have an outstanding reservation set IN THE NEXT EPOCH
+    /// Liquidation occurs if a user is within the liquidation window of a pool and they have yet to repay their loan
+    /// or bring their outstanding amount below 95% the pools value.
     /// @param nft NFT Collection address
     /// @param id NFT ID
-    /// @param _nfts Set of NFTs currently at auction 
-    /// @param _ids Set of NFT IDs currently at auction
-    /// @param _closureNonces Corresponding closure nonces of inputted NFTs
     function liquidate(
         address nft, 
-        uint256 id, 
-        address[] calldata _nfts,
-        uint256[] calldata _ids, 
-        uint256[] calldata _closureNonces
+        uint256 id
     ) external;
 
     /// @notice Grant a third party transfer permission
@@ -65,53 +53,30 @@ interface ILend {
         uint256 id
     ) external;
 
-    /// @notice Get liquidation status of an open loan
-    /// @param nft NFT Collection address
-    /// @param id NFT ID
-    function getLiqStatus(
-        address nft, 
-        uint256 id, 
-        address[] calldata _nfts,
-        uint256[] calldata _ids, 
-        uint256[] calldata _closureNonces
-    ) external view returns(bool);
-
-    /// @notice Calculate the current price point and check for LTV violation
-    /// @param vault Vault being used for the loan
-    /// @param loanAmount Outstanding loan amount
-    /// @param _nfts Set of NFTs at auction
-    /// @param _ids Set of NFT IDs at auction
-    /// @param _closureNonces Closure nonces of chosen NFTs
-    function getPricePointViolation(
-        Vault vault,
-        uint256 loanAmount,
-        address[] calldata _nfts,
-        uint256[] calldata _ids, 
-        uint256[] calldata _closureNonces
-    ) external view returns(bool);
-
-    /// @notice Check whether or not an existing loan is in violation of missing interest payments
-    /// @param nft NFT of outstanding loan
-    /// @param id ID of outstanding loan
-    function getInterestViolation(
-        address nft, 
-        uint256 id 
-    ) external view returns(bool);
-
     /// @notice Get position information regarding -> borrower, pool backing, loan amount
     /// @param nft NFT Collection address
     /// @param id NFT ID
     /// @return borrower Loan borrower
     /// @return pool Pool backing the loan
-    /// @return outstandingAmount Loan amount
+    /// @return transferFromPermission address of a user that has permission to transfer loan
+    /// @return startEpoch first epoch of the loan
+    /// @return amount loan amount outstanding 
+    /// @return interestEpoch last epoch that interest was paid
     function getPosition(
         address nft, 
         uint256 id
-    ) external view returns(address borrower, address pool, uint256 outstandingAmount);
+    ) external view returns(
+        address borrower,
+        address pool,
+        address transferFromPermission,
+        uint256 startEpoch,
+        uint256 amount,
+        uint256 interestEpoch
+    );
 
     /// @notice Return required interest payment during an epoch
     /// @param _epoch Epoch of interest
     /// @param _nft NFT collection address borrowed against
     /// @param _id NFT ID being borrowed against
-    function getInterestPayment(uint256 _epoch, address _nft, uint256 _id) external view returns(uint256);
+    function getInterestPayment(uint256[] calldata _epoch, address _nft, uint256 _id) external view returns(uint256);
 }

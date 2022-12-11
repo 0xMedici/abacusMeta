@@ -93,10 +93,10 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         expect(await maPool.epochLength()).to.equal(86400);
         expect(await maPool.amountNft()).to.equal(3);
-        expect(await maPool.interestRate()).to.equal(15);
+        expect(await maPool.interestRate()).to.equal(100);
         expect(await maPool.ticketLimit()).to.equal(100);
     });
 
@@ -116,7 +116,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 750;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -152,7 +152,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 750;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -231,7 +231,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 16, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -271,7 +271,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 16, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -310,7 +310,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 16, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -386,7 +386,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -417,7 +417,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -462,7 +462,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses1, nftIds1)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -495,7 +495,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -532,7 +532,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(6, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(6, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 6;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -608,7 +608,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -678,7 +678,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -749,7 +749,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -786,7 +786,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -838,7 +838,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -936,7 +936,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1073,7 +1073,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1211,7 +1211,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1283,7 +1283,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1367,7 +1367,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1457,7 +1457,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1577,7 +1577,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1698,7 +1698,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1787,7 +1787,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1908,7 +1908,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -2001,7 +2001,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -2123,7 +2123,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -2248,7 +2248,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -2338,7 +2338,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -2453,7 +2453,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -2612,7 +2612,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -2745,7 +2745,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -2838,7 +2838,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -2959,7 +2959,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -3111,7 +3111,7 @@ describe("Spot pool", function () {
         await maPool.includeNft(
             await factory.getEncodedCompressedValue(nftAddresses, nftIds)
         );
-        await maPool.begin(3, 100, 15, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 400;
         await mockToken.approve(maPool.address, totalCost.toString());
