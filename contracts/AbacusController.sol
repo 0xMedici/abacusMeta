@@ -101,7 +101,7 @@ contract AbacusController {
 
     function setRiskCalculator(address _calculator) external onlyMultisig {
         require(_calculator != address(0));
-        require(address(calculator) == address(0));
+        require(address(riskCalculator) == address(0));
         riskCalculator = RiskPointCalculator(_calculator);
     }
 

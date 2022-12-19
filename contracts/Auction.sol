@@ -45,6 +45,7 @@ contract Auction is ReentrancyGuard {
 
     mapping(uint256 => CurrentAuction) public auctions; 
 
+    /* ======== STRUCT ======== */
     struct CurrentAuction {
         bool auctionComplete;
         address previousOwner;
@@ -56,6 +57,12 @@ contract Auction is ReentrancyGuard {
         uint256 nftVal;
         uint256 highestBid;
     }
+
+    /* ======== EVENTS ======== */
+    event NewBid(address _pool, address _token, uint256 _closureNonce, address _bidder, uint256 _bid);
+    event Buyback(address _pool, address _token, uint256 _closureNonce, address _buyer, uint256 _amount);
+    event AuctionEnded(address _pool, address _token, uint256 _closureNonce, address _winner, uint256 _highestBid);
+    event NftClaimed(address _pool, uint256 _closureNonce, address _winner);
 
     /* ======== CONSTRUCTOR ======== */
     constructor(address _controller) {
@@ -105,9 +112,12 @@ contract Auction is ReentrancyGuard {
         );
         auction.highestBid = _amount;
         auction.highestBidder = msg.sender;
-
-        factory.emitNewBid(
-            _nonce
+        emit NewBid(
+            auctions[_nonce].pool,
+            address(token),
+            _nonce,
+            msg.sender,
+            _amount
         );
     }
 
@@ -133,8 +143,12 @@ contract Auction is ReentrancyGuard {
         vault.updateSaleValue(_nonce, cost);
         auction.auctionComplete = true;
         liveAuctions[auction.pool]--;
-        factory.emitAuctionEnded(
-            _nonce
+        emit Buyback(
+            auctions[_nonce].pool,
+            address(vault.token()),
+            _nonce,
+            msg.sender,
+            cost
         );
     }
 
@@ -153,8 +167,12 @@ contract Auction is ReentrancyGuard {
         token.transfer(address(vault), auction.highestBid);
         auction.auctionComplete = true;
         liveAuctions[auction.pool]--;
-        factory.emitAuctionEnded(
-            _nonce
+        emit AuctionEnded(
+            auctions[_nonce].pool,
+            address(token),
+            _nonce,
+            auction.highestBidder,
+            auction.highestBid
         );
     }
 
@@ -166,8 +184,10 @@ contract Auction is ReentrancyGuard {
             auction.highestBidder,
             auction.id
         );
-        factory.emitNftClaimed(
-            _nonce
+        emit NftClaimed(
+            auction.pool,
+            _nonce,
+            auction.highestBidder
         );
     }
 }

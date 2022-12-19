@@ -6,7 +6,6 @@ interface IVault {
     function initialize(
         string memory name,
         address _controller,
-        address closePoolImplementation_,
         address _creator
     ) external;
 

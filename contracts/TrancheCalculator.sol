@@ -10,8 +10,8 @@ contract TrancheCalculator {
 
     mapping(uint256 => bytes4) public operations;
     mapping(address => uint256) public computation;
-    mapping(address => address) public customComputationContract;
     mapping(address => bytes4) public customSelector;
+    mapping(uint256 => mapping(uint256 => uint256)) public outputStorage;
 
     constructor(
         address _controller
@@ -27,35 +27,65 @@ contract TrancheCalculator {
     }
 
     function setMetrics(
-        uint256[] calldata val,
-        uint256[] calldata op
+        uint256[] calldata ops
     ) external {
-        require(val.length < 20);
+        require(ops.length < 28);
         require(controller.accreditedAddresses(msg.sender));
-        computation[msg.sender] = this.getComputationBitString(val, op);
+        computation[msg.sender] = this.getComputationBitString(ops);
     }
 
-    function findBounds(uint256 ticket, uint256 ticketSize) external returns(uint256 lowerBound, uint256 upperBound) {
-        lowerBound = ticket * ticketSize;
-        upperBound = (ticket + 1) * ticketSize;
-        uint256 computationPath = computation[msg.sender];
-        if(computationPath == 8) {
-            this.custom(msg.sender, lowerBound, upperBound);
+    function calculateBound(uint256 _ticket) external returns(uint256 bound) {
+        if(outputStorage[computation[msg.sender]][_ticket] != 0) {
+            return outputStorage[computation[msg.sender]][_ticket];
         }
+        uint256 tranche = _ticket;
+        uint256 computationPath = computation[msg.sender];
         while(computationPath > 0) {
-            uint256 val = computationPath & (2**9 - 1);
+            uint256 val1 = computationPath & (2**9 - 1);
             computationPath >>= 9;
-            uint256 operation = computationPath & (2**3 - 1);
-            computationPath >>= 3;
-            bytes memory dataLower = abi.encodeWithSelector(operations[operation], lowerBound, val);
-            bytes memory dataUpper = abi.encodeWithSelector(operations[operation], upperBound, val);
-            (, bytes memory returnLower) = (address(this)).call(dataLower);
-            (, bytes memory returnUpper) = (address(this)).call(dataUpper);
+            // console.log("V1s", val1);
+            if(val1 == 8) {
+                // console.log("DIVE1");
+                // console.log(1);
+                (val1, computationPath) = this.executeCalculation(
+                    tranche,
+                    computationPath
+                );
+                // console.log(computationPath);
+                // console.log("POST DIVE1", val1);
+            } else if(val1 == 0) {
+                // console.log(2);
+                val1 = bound;
+            } else if(val1 == 10) {
+                val1 = tranche;
+            } else if(val1 > 10) {
+                // console.log(3);
+                val1 -= 10;
+            }
+            uint256 operation = computationPath & (2**9 - 1);
+            computationPath >>= 9;
+            uint256 val2 = computationPath & (2**9 - 1);
+            computationPath >>= 9;
+            if(val2 == 8) {
+                (val2, computationPath) = this.executeCalculation(
+                    tranche,
+                    computationPath
+                );
+            } else if(val2 == 0) {
+                val2 = bound;
+            } else if(val2 == 10) {
+                val2 = tranche;
+            } else if(val2 > 10) {
+                val2 -= 10;
+            }
+            bytes memory data = abi.encodeWithSelector(operations[operation], val1, val2);
+            (, bytes memory returnData) = (address(this)).call(data);
             assembly {
-                lowerBound := mload(add(returnLower, add(0x20, 0)))
-                upperBound := mload(add(returnUpper, add(0x20, 0)))
+                bound := mload(add(returnData, add(0x20, 0)))
             }
         }
+        outputStorage[computation[msg.sender]][_ticket] = bound;
+        console.log(bound);
     }
 
     function add(uint256 x, uint256 y) external pure returns(uint256) {
@@ -91,28 +121,88 @@ contract TrancheCalculator {
         }
     }
 
-    function custom(address _caller, uint256 _lowerBound, uint256 _upperBound) external returns (uint256 lowerBound, uint256 upperBound) {
-        bytes memory dataLower = abi.encodeWithSelector(customSelector[_caller], _lowerBound);
-        bytes memory dataUpper = abi.encodeWithSelector(customSelector[_caller], _upperBound);
-        (, bytes memory returnLower) = (customComputationContract[_caller]).call(dataLower);
-        (, bytes memory returnUpper) = (customComputationContract[_caller]).call(dataUpper);
-        assembly {
-            lowerBound := mload(add(returnLower, add(0x20, 0)))
-            upperBound := mload(add(returnUpper, add(0x20, 0)))
+    function executeCalculation(
+        uint256 _tranche,
+        uint256 _computationPath
+    ) external returns(uint256 mainValue, uint256 computationPath) {
+        computationPath = _computationPath;
+        uint256 val1;
+        uint256 val2;
+        uint256 operation;
+        while(operation != 9) {
+            val1 = computationPath & (2**9 - 1);
+            // console.log("V1s", val1);
+            computationPath >>= 9;
+            if(val1 == 8) {
+                // console.log("DIVE");
+                // console.log("a1");
+                (val1, computationPath) = this.executeCalculation(
+                    _tranche,
+                    computationPath
+                );
+                // console.log(computationPath);
+                // console.log(val1);
+            } else if(val1 == 0) {
+                // console.log("a2");
+                val1 = mainValue;
+            } else if(val1 == 9) {
+                break;
+            } else if(val1 == 10) {
+                val1 = _tranche;
+            } else {
+                // console.log("a3");
+                val1 -= 10;
+            }
+            // console.log("V1p", val1);
+            operation = computationPath & (2**9 - 1);
+            // console.log("OP", operation);
+            computationPath >>= 9;
+            val2 = computationPath & (2**9 - 1);
+            // console.log("V2s", val2);
+            computationPath >>= 9;
+            if(val2 == 8) {
+                // console.log("DIVE");
+                // console.log("a1");
+                (val2, computationPath) = this.executeCalculation(
+                    _tranche,
+                    computationPath
+                );
+                // console.log(computationPath);
+                // console.log(val2);
+            } else if(val2 == 0) {
+                // console.log("a2");
+                val2 = mainValue;
+            } else if(val2 == 9) {
+                break;
+            } else if(val2 == 10) {
+                val2 = _tranche;
+            } else {
+                // console.log("a3");
+                val2 -= 10;
+            }
+            // console.log("V2p", val2);
+            bytes memory data = abi.encodeWithSelector(operations[operation], val1, val2);
+            (, bytes memory returnData) = (address(this)).call(data);
+            assembly {
+                mainValue := mload(add(returnData, add(0x20, 0)))
+            }
         }
     }
 
     function getComputationBitString(
-        uint256[] calldata val,
-        uint256[] calldata op
+        uint256[] calldata ops
     ) external pure returns (uint256 bitString) {
-        uint256 length = val.length;
+        uint256 length = ops.length;
+        uint256 parenthesisBalance;
         for(uint256 i = 0; i < length; i++) {
-            bitString <<= 3;
-            bitString |= val[i];
             bitString <<= 9;
-            bitString |= op[i];
+            bitString |= ops[i];
+            if(ops[i] == 8) {
+                parenthesisBalance--;
+            } else if(ops[i] == 9) {
+                parenthesisBalance++;
+            }
         }
-
+        require(parenthesisBalance == 0);
     }
 }
