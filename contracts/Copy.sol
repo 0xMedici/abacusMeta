@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import { AbacusController } from "./AbacusController.sol";
 import { Auction } from "./Auction.sol";
 import { Factory } from "./Factory.sol";
+import { Position } from "./Position.sol";
 import { RiskPointCalculator } from "./RiskPointCalculator.sol";
 import { TrancheCalculator } from "./TrancheCalculator.sol";
 import { BitShift } from "./helpers/BitShift.sol";
@@ -46,6 +47,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     RiskPointCalculator riskCalc;
     TrancheCalculator trancheCalc;
     Auction auction;
+    Position positionManager;
 
     ERC20 public token;
 
@@ -349,28 +351,35 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 largestTicket;
         uint256 riskStart;
         uint256 riskNorm;
-        for(uint256 i = 0; i < tickets.length / 10 + 1; i++) {
-            if(tickets.length % 10 == 0 && i == tickets.length / 10) break;
-            uint256 tempVal;
-            uint256 upperBound;
-            if(10 + i * 10 > tickets.length) {
-                upperBound = tickets.length;
-            } else {
-                upperBound = 10 + i * 10;
-            }
-            tempVal = choppedPosition(
-                _buyer,
-                tickets[0 + i * 10:upperBound],
-                amountPerTicket[0 + i * 10:upperBound],
-                startEpoch,
-                finalEpoch
-            );
-            riskNorm += tempVal & (2**32 - 1);
-            tempVal >>= 32;
-            riskStart += tempVal & (2**32 - 1);
-            tempVal >>= 32;
-            if(tempVal > largestTicket) largestTicket = tempVal;
-        }
+        (largestTicket, riskNorm) = positionManager.createPosition(
+            _buyer,
+            tickets, 
+            amountPerTicket,
+            startEpoch,
+            finalEpoch
+        );
+        // for(uint256 i = 0; i < tickets.length / 10 + 1; i++) {
+        //     if(tickets.length % 10 == 0 && i == tickets.length / 10) break;
+        //     uint256 tempVal;
+        //     uint256 upperBound;
+        //     if(10 + i * 10 > tickets.length) {
+        //         upperBound = tickets.length;
+        //     } else {
+        //         upperBound = 10 + i * 10;
+        //     }
+        //     tempVal = choppedPosition(
+        //         _buyer,
+        //         tickets[0 + i * 10:upperBound],
+        //         amountPerTicket[0 + i * 10:upperBound],
+        //         startEpoch,
+        //         finalEpoch
+        //     );
+        //     riskNorm += tempVal & (2**32 - 1);
+        //     tempVal >>= 32;
+        //     riskStart += tempVal & (2**32 - 1);
+        //     tempVal >>= 32;
+        //     if(tempVal > largestTicket) largestTicket = tempVal;
+        // }
         riskNorm <<= 128;
         riskNorm |= riskStart;
         totalTokensRequested = updateProtocol(
@@ -778,62 +787,62 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     /* ======== INTERNAL ======== */
-    function choppedPosition(
-        address _buyer,
-        uint256[] calldata tickets,
-        uint256[] calldata amountPerTicket,
-        uint256 startEpoch,
-        uint256 finalEpoch
-    ) internal returns(uint256 tempReturn) {
-        uint256 _nonce = positionNonce[_buyer];
-        positionNonce[_buyer]++;
-        Buyer storage trader = traderProfile[_nonce];
-        adjustmentsMade[_nonce] = adjustmentsRequired;
-        trader.startEpoch = uint32(startEpoch);
-        trader.unlockEpoch = uint32(finalEpoch);
-        trader.active = true;
-        uint256 riskPoints;
-        uint256 length = tickets.length;
-        for(uint256 i; i < length; i++) {
-            require(
-                tickets[i] <= 100
-                || trancheCalc.calculateBound(tickets[i]) * modTokenDecimal 
-                    < this.getPayoutPerReservation(startEpoch) * 50
-            );
-            riskPoints += riskCalc.calculateMultiplier(tickets[i]) * amountPerTicket[i];
-        }
-        (trader.comListOfTickets, trader.comAmountPerTicket, tempReturn, trader.tokensLocked) = BitShift.bitShift(
-            modTokenDecimal,
-            tickets,
-            amountPerTicket
-        );
-        trader.tokensStatic = trader.tokensLocked;
-        trader.riskStart = 
-            uint32(
-                riskPoints * (epochLength - (block.timestamp - (startTime + startEpoch * epochLength)) / 10 minutes * 10 minutes)
-                    /  epochLength
-            );
-        tempReturn <<= 32;
-        tempReturn |= trader.riskStart;
-        trader.riskPoints = uint32(riskPoints);
-        tempReturn <<= 32;
-        tempReturn |= riskPoints;
-        for(uint256 i; i < length; i++) {
-            require(
-                !nftClosed[startEpoch] || this.getTicketInfo(startEpoch, tickets[i]) == 0
-                // , "TC"
-            );
-        }
+    // function choppedPosition(
+    //     address _buyer,
+    //     uint256[] calldata tickets,
+    //     uint256[] calldata amountPerTicket,
+    //     uint256 startEpoch,
+    //     uint256 finalEpoch
+    // ) internal returns(uint256 tempReturn) {
+    //     uint256 _nonce = positionNonce[_buyer];
+    //     positionNonce[_buyer]++;
+    //     Buyer storage trader = traderProfile[_nonce];
+    //     adjustmentsMade[_nonce] = adjustmentsRequired;
+    //     trader.startEpoch = uint32(startEpoch);
+    //     trader.unlockEpoch = uint32(finalEpoch);
+    //     trader.active = true;
+    //     uint256 riskPoints;
+    //     uint256 length = tickets.length;
+    //     for(uint256 i; i < length; i++) {
+    //         require(
+    //             tickets[i] <= 100
+    //             || trancheCalc.calculateBound(tickets[i]) * modTokenDecimal 
+    //                 < this.getPayoutPerReservation(startEpoch) * 50
+    //         );
+    //         riskPoints += riskCalc.calculateMultiplier(tickets[i]) * amountPerTicket[i];
+    //     }
+    //     (trader.comListOfTickets, trader.comAmountPerTicket, tempReturn, trader.tokensLocked) = BitShift.bitShift(
+    //         modTokenDecimal,
+    //         tickets,
+    //         amountPerTicket
+    //     );
+    //     trader.tokensStatic = trader.tokensLocked;
+    //     trader.riskStart = 
+    //         uint32(
+    //             riskPoints * (epochLength - (block.timestamp - (startTime + startEpoch * epochLength)) / 10 minutes * 10 minutes)
+    //                 /  epochLength
+    //         );
+    //     tempReturn <<= 32;
+    //     tempReturn |= trader.riskStart;
+    //     trader.riskPoints = uint32(riskPoints);
+    //     tempReturn <<= 32;
+    //     tempReturn |= riskPoints;
+    //     for(uint256 i; i < length; i++) {
+    //         require(
+    //             !nftClosed[startEpoch] || this.getTicketInfo(startEpoch, tickets[i]) == 0
+    //             // , "TC"
+    //         );
+    //     }
 
-        emit Purchase(
-            _buyer,
-            tickets,
-            amountPerTicket,
-            _nonce,
-            startEpoch,
-            finalEpoch
-        );
-    }
+    //     emit Purchase(
+    //         _buyer,
+    //         tickets,
+    //         amountPerTicket,
+    //         _nonce,
+    //         startEpoch,
+    //         finalEpoch
+    //     );
+    // }
 
     function updateProtocol(
         uint256 largestTicket,

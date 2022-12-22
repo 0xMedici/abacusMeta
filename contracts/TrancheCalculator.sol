@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { AbacusController } from "./AbacusController.sol";
+import { Vault } from "./Vault.sol";
 import "hardhat/console.sol";
 
 contract TrancheCalculator {
@@ -85,6 +86,7 @@ contract TrancheCalculator {
             }
         }
         outputStorage[computation[msg.sender]][_ticket] = bound;
+        bound *= Vault(msg.sender).modTokenDecimal();
         console.log(bound);
     }
 
