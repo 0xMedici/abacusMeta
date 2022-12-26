@@ -60,13 +60,8 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// @notice Total amount of slots to be collateralized
     uint256 public amountNft;
 
-    /// @notice Total amount of adjustments required (every time an NFT is 
-    /// closed this value increments)
-    uint256 public adjustmentsRequired;
-
     /* ======== MAPPINGS ======== */
     mapping(uint256 => bool) nftClosed;
-    mapping(uint256 => uint256) adjustmentNonce;
     mapping(uint256 => uint256) loss;
     mapping(uint256 => uint256) epochOfClosure;
     mapping(uint256 => uint256) payoutInfo;
@@ -140,7 +135,6 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
         auction = Auction(controller.auction());
         riskCalc = controller.riskCalculator();
         trancheCalc = controller.calculator();
-        adjustmentsRequired = 1;
     }
 
     function setVault(address _vault) external {
@@ -239,7 +233,7 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
             , " PC"
         );
         require(
-            adjustmentsMade[_nonce] == adjustmentsRequired
+            adjustmentsMade[_nonce] == vault.adjustmentsRequired()
             , " ANM"
         );
         if(_poolEpoch >= trader.unlockEpoch) {
@@ -280,15 +274,19 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     function adjustTicketInfo(
         uint256 _nonce,
-        uint256 _auctionNonce
-    ) external nonReentrant returns(bool) {
+        uint256 _auctionNonce,
+        uint256 _payoutInfo,
+        uint256 _auctionSaleValue,
+        uint256 _epochOfClosure
+    ) external nonReentrant returns(bool result, uint256 payout, uint256 mPayout) {
+        require(msg.sender == address(vault));
         Buyer storage trader = traderProfile[_nonce];
         require(
             !adjustCompleted[_nonce][_auctionNonce]
             , " AA"
         );
         require(
-            adjustmentsMade[_nonce] < adjustmentsRequired
+            adjustmentsMade[_nonce] < vault.adjustmentsRequired()
             , " AU"
         );
         uint256 auctionEndTime;
@@ -299,29 +297,25 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
             , " AO"
         );
         require(
-            msg.sender == trader.owner
-            , " IC"
-        );
-        require(
-            adjustmentsMade[_nonce] == adjustmentNonce[_auctionNonce] - 1
+            adjustmentsMade[_nonce] == vault.adjustmentNonce(_auctionNonce) - 1
             , "IAN"
         );
         adjustmentsMade[_nonce]++;
         if(
-            trader.unlockEpoch <= epochOfClosure[_auctionNonce]
+            trader.unlockEpoch <= _epochOfClosure
         ) {
             adjustCompleted[_nonce][_auctionNonce] = true;
-            return true;
+            result = true;
+            return (result, payout, mPayout);
         }
-        uint256 epoch = epochOfClosure[_auctionNonce];
-        internalAdjustment(
+        (payout, mPayout) = internalAdjustment(
             _nonce,
             _auctionNonce,
-            payoutInfo[_auctionNonce],
-            auctionSaleValue[_auctionNonce],
+            _payoutInfo,
+            _auctionSaleValue,
             trader.comListOfTickets,
             trader.comAmountPerTicket,
-            epoch
+            _epochOfClosure
         );
         emit PrincipalCalculated(
             address(auction),
@@ -330,7 +324,8 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
             _auctionNonce
         );
         adjustCompleted[_nonce][_auctionNonce] = true;
-        return true;
+        result = true;
+        return (result, payout, mPayout);
     }
 
     function changeTransferPermission(
@@ -378,7 +373,7 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _nonce = nonce;
         nonce++;
         Buyer storage trader = traderProfile[_nonce];
-        adjustmentsMade[_nonce] = adjustmentsRequired;
+        adjustmentsMade[_nonce] = vault.adjustmentsRequired();
         trader.owner = _buyer;
         trader.startEpoch = uint32(startEpoch);
         trader.unlockEpoch = uint32(finalEpoch);
@@ -418,7 +413,6 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 , "TC"
             );
         }
-
         emit Purchase(
             _buyer,
             tickets,
@@ -437,9 +431,8 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _comTickets,
         uint256 _comAmounts,
         uint256 _epoch
-    ) internal {
+    ) internal returns(uint256 payout, uint256) {
         Buyer storage trader = traderProfile[_nonce];
-        uint256 payout;
         uint256 riskLost;
         uint256 tokensLost;
         uint256 appLoss;
@@ -459,16 +452,15 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
             _finalNftVal,
             _riskParam
         ); 
-        _comAmounts = 0;
         if(_payout > _finalNftVal) {
-            if(loss[_auctionNonce] > _payout - _finalNftVal) {
-                _comAmounts += appLoss;
-            } else if(loss[_auctionNonce] + appLoss > _payout - _finalNftVal) {
-                _comAmounts += loss[_auctionNonce] + appLoss - (_payout - _finalNftVal);
+            uint256 currentLoss = loss[_auctionNonce];
+            if(currentLoss > _payout - _finalNftVal) {
+                _comTickets += appLoss;
+            } else if(currentLoss + appLoss > _payout - _finalNftVal) {
+                _comTickets += currentLoss + appLoss - (_payout - _finalNftVal);
             }
         }
-        token.transfer(controller.multisig(), _comAmounts);
-        loss[_auctionNonce] += 
+        loss[_auctionNonce] += appLoss;
         appLoss += (appLoss % amountNft == 0 ? 0 : 1);
         if(trader.tokensLocked > appLoss) {
             trader.tokensLocked -= uint128(appLoss);
@@ -482,7 +474,7 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
         if(_payout > _finalNftVal) {
             trader.tokensLocked -= uint128(payout);
         }
-        token.transfer(trader.owner, payout);
+        return (payout, _comTickets);
     }
 
     function internalCalculation(

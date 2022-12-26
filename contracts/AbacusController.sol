@@ -90,6 +90,7 @@ contract AbacusController {
     function setAuction(address _auction) external onlyMultisig {
         require(_auction != address(0));
         require(address(auction) == address(0));
+        accreditedAddresses[_auction] = true;
         auction = Auction(payable(_auction));
     }
 

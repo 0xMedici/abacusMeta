@@ -34,7 +34,6 @@ import "hardhat/console.sol";
 contract Auction is ReentrancyGuard {
     
     /* ======== ADDRESS ======== */
-    Factory public factory;
     AbacusController public controller;
 
     /* ======== UINT ======== */
@@ -43,7 +42,7 @@ contract Auction is ReentrancyGuard {
     /* ======== MAPPING ======== */
     mapping(address => uint256) public liveAuctions;
 
-    mapping(uint256 => CurrentAuction) public auctions; 
+    mapping(uint256 => CurrentAuction) public auctions;
 
     /* ======== STRUCT ======== */
     struct CurrentAuction {
@@ -67,7 +66,6 @@ contract Auction is ReentrancyGuard {
     /* ======== CONSTRUCTOR ======== */
     constructor(address _controller) {
         controller = AbacusController(_controller);
-        factory = controller.factory();
         nonce = 1;
     }
 
@@ -103,9 +101,9 @@ contract Auction is ReentrancyGuard {
         require(block.timestamp < auction.auctionEndTime, "Time over");
         require(token.transferFrom(msg.sender, address(this), _amount), "Bid transfer failed");
         if(auction.highestBid != 0) {
-            require(token.transfer(address(factory), auction.highestBid), "Bid return failed");    
+            require(token.transfer(address(controller.factory()), auction.highestBid), "Bid return failed");    
         }
-        factory.updatePendingReturns(
+        (controller.factory()).updatePendingReturns(
             auction.highestBidder, 
             address(token), 
             auction.highestBid
@@ -132,7 +130,7 @@ contract Auction is ReentrancyGuard {
             "Auction complete - EA"
         );
         uint256 cost = auction.highestBid > auction.nftVal ? 11 * auction.highestBid / 10 : 11 * auction.nftVal / 10;
-        factory.updatePendingReturns(
+        (controller.factory()).updatePendingReturns(
             auction.highestBidder, 
             address(vault.token()), 
             auction.highestBid
