@@ -46,19 +46,34 @@ describe("Lend", function () {
 
         MockToken = await ethers.getContractFactory("MockToken");
         mockToken = await MockToken.deploy();
+        
+        RiskPointCalculator = await ethers.getContractFactory("RiskPointCalculator");
+        riskCalc = await RiskPointCalculator.deploy(controller.address);
+
+        TrancheCalculator = await ethers.getContractFactory("TrancheCalculator");
+        trancheCalc = await TrancheCalculator.deploy(controller.address);
+
+        Auction = await ethers.getContractFactory("Auction");
+        auction = await Auction.deploy(controller.address);
 
         Vault = await ethers.getContractFactory("Vault");
-        Closure = await ethers.getContractFactory("Closure");
+        Position = await ethers.getContractFactory("Position");
 
         const setBeta = await controller.setBeta(3);
         await setBeta.wait();
-        const setFactory = await controller.setFactory(factory.address);
-        await setFactory.wait();
         const setLender = await controller.setLender(lend.address);
         await setLender.wait();
+        const setAuction = await controller.setAuction(auction.address);
+        await setAuction.wait();
+        const setFactory = await controller.setFactory(factory.address);
+        await setFactory.wait();
         const wlAddress = await controller.addWlUser([deployer.address]);
         await wlAddress.wait();
-        await mockToken.mint();
+        const setCalc = await controller.setCalculator(trancheCalc.address);
+        await setCalc.wait();
+        const setRisk = await controller.setRiskCalculator(riskCalc.address);
+        await setRisk.wait();
+        mockToken.mint();
     });
 
     it("Proper compilation and setting", async function () {
@@ -79,9 +94,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -122,9 +143,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -165,9 +192,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -225,9 +258,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -277,9 +316,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -337,9 +382,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -386,9 +437,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -465,9 +522,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -519,9 +582,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -544,13 +613,15 @@ describe("Lend", function () {
             '600000000000000000'
         );
         await mockNft.approve(lend.address, 2);
-        await mockToken.approve(lend.address, (parseInt(await lend.getInterestPayment([0], mockNft.address, 1))).toString());
         expect(lend.payInterest(
             [0],
             mockNft.address,
             1,
         )).to.reverted;
-        await mockToken.approve(lend.address, (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
+        await mockToken.approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.repay(
             mockNft.address,
             1,
@@ -574,9 +645,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -606,7 +683,10 @@ describe("Lend", function () {
             mockNft.address,
             1,
         );
-        await mockToken.approve(lend.address, (parseInt(await lend.getInterestPayment([3], mockNft.address, 1)) + parseInt('760000000000000000')).toString());
+        await mockToken.approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([3], mockNft.address, 1)) + parseInt('760000000000000000')).toString()
+        );
         await lend.repay(
             mockNft.address,
             1,
@@ -629,9 +709,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -653,12 +739,10 @@ describe("Lend", function () {
             1,
             '600000000000000000'
         );
-        await mockToken.approve(lend.address, (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
-        expect(lend.payInterest(
-            [0],
-            mockNft.address,
-            1,
-        )).to.reverted;
+        await mockToken.approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.repay(
             mockNft.address,
             1,
@@ -672,12 +756,10 @@ describe("Lend", function () {
             1,
             '600000000000000000'
         );
-        await mockToken.approve(lend.address, (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
-        expect(lend.payInterest(
-            [0],
-            mockNft.address,
-            1,
-        )).to.reverted;
+        await mockToken.approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.repay(
             mockNft.address,
             1,
@@ -691,12 +773,10 @@ describe("Lend", function () {
             1,
             '600000000000000000'
         );
-        await mockToken.approve(lend.address, (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
-        expect(lend.payInterest(
-            [0],
-            mockNft.address,
-            1,
-        )).to.reverted;
+        await mockToken.approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.repay(
             mockNft.address,
             1,
@@ -719,9 +799,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -743,12 +829,10 @@ describe("Lend", function () {
             1,
             '600000000000000000'
         );
-        await mockToken.approve(lend.address, (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
-        expect(lend.payInterest(
-            [0],
-            mockNft.address,
-            1,
-        )).to.reverted;
+        await mockToken.approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.repay(
             mockNft.address,
             1,
@@ -763,12 +847,10 @@ describe("Lend", function () {
             1,
             '600000000000000000'
         );
-        await mockToken.approve(lend.address, (parseInt(await lend.getInterestPayment([1], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
-        expect(lend.payInterest(
-            [0],
-            mockNft.address,
-            1,
-        )).to.reverted;
+        await mockToken.approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.repay(
             mockNft.address,
             1,
@@ -783,12 +865,10 @@ describe("Lend", function () {
             1,
             '600000000000000000'
         );
-        await mockToken.approve(lend.address, (parseInt(await lend.getInterestPayment([2], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
-        expect(lend.payInterest(
-            [0],
-            mockNft.address,
-            1,
-        )).to.reverted;
+        await mockToken.approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.repay(
             mockNft.address,
             1,
@@ -812,9 +892,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -842,7 +928,10 @@ describe("Lend", function () {
             mockNft.address,
             1
         );
-        await mockToken.connect(user1).approve(lend.address, (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
+        await mockToken.connect(user1).approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.connect(user1).repay(
             mockNft.address,
             1,
@@ -866,9 +955,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -914,7 +1009,10 @@ describe("Lend", function () {
         );
         loan = await lend.loans(mockNft.address, 1);
         expect(loan.borrower).to.equal(user1.address);
-        await mockToken.connect(user1).approve(lend.address, (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
+        await mockToken.connect(user1).approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.connect(user1).repay(
             mockNft.address,
             1,
@@ -938,9 +1036,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -973,7 +1077,10 @@ describe("Lend", function () {
             mockNft.address,
             1
         );
-        await mockToken.connect(user1).approve(lend.address, (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString());
+        await mockToken.connect(user1).approve(
+            lend.address, 
+            (parseInt(await lend.getInterestPayment([0], mockNft.address, 1)) + parseInt('600000000000000000')).toString()
+        );
         await lend.connect(user1).repay(
             mockNft.address,
             1,
@@ -998,9 +1105,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -1045,9 +1158,15 @@ describe("Lend", function () {
         let vaultAddress = await factory.getPoolAddress("HelloWorld");
         let maPool = await Vault.attach(vaultAddress);
         await maPool.includeNft(
-            await factory.getEncodedCompressedValue(nftAddresses, nftIds)
+            nftAddresses, 
+            nftIds
         );
-        await maPool.begin(3, 100, 100, 86400, mockToken.address, 100, 10);
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 2400;
         await mockToken.approve(maPool.address, totalCost.toString());

@@ -12,7 +12,6 @@ import { BitShift } from "./helpers/BitShift.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "./helpers/ReentrancyGuard.sol";
 import "./helpers/ReentrancyGuard2.sol";

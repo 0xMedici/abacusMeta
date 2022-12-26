@@ -7,12 +7,10 @@ import { Factory } from "./Factory.sol";
 import { Position } from "./Position.sol";
 import { RiskPointCalculator } from "./RiskPointCalculator.sol";
 import { TrancheCalculator } from "./TrancheCalculator.sol";
-import { BitShift } from "./helpers/BitShift.sol";
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "./helpers/ReentrancyGuard.sol";
 import "./helpers/ReentrancyGuard2.sol";
@@ -89,8 +87,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     uint256 public adjustmentsRequired;
 
     /* ======== MAPPINGS ======== */
-    mapping(uint256 => bool) nftClosed;
-    mapping(uint256 => uint256) loss;
     mapping(uint256 => uint256) epochOfClosure;
     mapping(uint256 => uint256) payoutInfo;
     mapping(uint256 => uint256) auctionSaleValue;
@@ -104,20 +100,9 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     mapping(uint256 => uint256) public epochEarnings;
 
     /// @notice Tracking the adjustments made by each user for each open nonce
-    /// [uint256] -> nonce
-    /// [uint256] -> amount of adjustments made
-    mapping(uint256 => uint256) public adjustmentsMade;
-
-    /// @notice Tracking the adjustments made by each user for each open nonce
     /// [uint256] -> auction nonce
     /// [uint256] -> adjustment nonce
     mapping(uint256 => uint256) public adjustmentNonce;
-
-    /// @notice Track adjustment status of closed NFTs
-    /// [uint256] -> nonce
-    /// [uint256] -> auction nonce
-    /// [bool] -> Status of adjustment
-    mapping(uint256 => mapping(uint256 => bool)) public adjustCompleted;
 
     /// @notice Tracks the amount of liquidity that has been accessed on behalf of an NFT
     /// [address] -> NFT collection address
@@ -128,10 +113,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     event NftInclusion(address[] nfts, uint256[] ids);
     event VaultBegun(address _token, uint256 _collateralSlots, uint256 _interest, uint256 _epoch);
     event Purchase(address _buyer, uint256[] tickets, uint256[] amountPerTicket, uint256 nonce, uint256 startEpoch, uint256 finalEpoch);
-    event SaleComplete(address _seller, uint256 nonce, uint256 ticketsSold);
     event NftClosed(uint256 _adjustmentNonce, uint256 _closureNonce, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
-    event LPTransferAllowanceChanged(address from, address to);
-    event LPTransferred(address from, address to, uint256 nonce);
     event PrincipalCalculated(address _closePoolContract, address _user, uint256 _nonce, uint256 _closureNonce);
 
     /* ======== CONSTRUCTOR ======== */
@@ -460,7 +442,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         );
         token.transfer(controller.multisig(), 5 * payout / 100);
         token.transfer(msg.sender, ppr - payout - liqAccessed[_nft][_id]);
-        nftClosed[poolEpoch] = true;
         if(liqAccessed[_nft][_id] == 0) {
             require(
                 this.getReservationsAvailable() > 0
@@ -659,7 +640,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 largestTicket,
         uint256 startEpoch,
         uint256 endEpoch,
-        uint256[] calldata tickets, 
+        uint256[] calldata tickets,
         uint256[] calldata ticketAmounts,
         uint256 riskPoints
     ) internal returns(uint256 totalTokens) {
