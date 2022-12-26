@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import { Vault } from "./Vault.sol";
 import { IVault } from "./interfaces/IVault.sol";
+import { Position } from "./Position.sol";
 import { Auction } from "./Auction.sol";
 import { AbacusController } from "./AbacusController.sol";
 
@@ -37,6 +38,7 @@ contract Factory is ReentrancyGuard {
     /* ======== ADDRESS ======== */
     AbacusController public immutable controller;
     address private immutable _vaultMultiImplementation;
+    address private immutable _positionManagerImplementation;
 
     /* ======== MAPPING ======== */
     /// @notice ETH to be returned from all vaults is routed this mapping
@@ -87,6 +89,7 @@ contract Factory is ReentrancyGuard {
     /* ======== CONSTRUCTOR ======== */
     constructor(address _controller) {
         _vaultMultiImplementation = address(new Vault());
+        _positionManagerImplementation = address(new Position()); 
         controller = AbacusController(_controller);
     }
 
@@ -110,13 +113,21 @@ contract Factory is ReentrancyGuard {
         IVault vaultMultiDeployment = IVault(
             Clones.clone(_vaultMultiImplementation)
         );
-
+        Position positionManagerDeployment = Position(
+            Clones.clone(_positionManagerImplementation)
+        );
+        positionManagerDeployment.initialize(
+            address(controller)
+        );
         vaultMultiDeployment.initialize(
             name,
             address(controller),
-            msg.sender
+            msg.sender,
+            address(positionManagerDeployment)
         );
-
+        positionManagerDeployment.setVault(
+            address(vaultMultiDeployment)
+        );
         controller.addAccreditedAddressesMulti(address(vaultMultiDeployment));
         pool.pool = address(vaultMultiDeployment);
         emit VaultCreated(name, msg.sender, address(vaultMultiDeployment));

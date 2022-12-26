@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import { AbacusController } from "./AbacusController.sol";
 import { Auction } from "./Auction.sol";
 import { Factory } from "./Factory.sol";
+import { Position } from "./Position.sol";
 import { RiskPointCalculator } from "./RiskPointCalculator.sol";
 import { TrancheCalculator } from "./TrancheCalculator.sol";
 import { BitShift } from "./helpers/BitShift.sol";
@@ -47,7 +48,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     TrancheCalculator trancheCalc;
     Auction auction;
 
+    Position public positionManager;
     ERC20 public token;
+
+    /* ======== ENUMS ======== */
+    enum Stage{ INITIALIZED, INCLUDED_NFT, SET_METRICS, STARTED }
+    Stage stage;
 
     /* ======== ADDRESSES ======== */
     address creator;
@@ -92,11 +98,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     mapping(uint256 => uint256[]) ticketsPurchased;
     mapping(address => mapping(uint256 => uint256)) tokenMapping;
 
-    /// @notice A users position nonce
-    /// [address] -> User address
-    /// [uint256] -> Next nonce value 
-    mapping(address => uint256) public positionNonce;
-
     /// @notice Payout size for each reservation during an epoch
     /// [uint256] -> epoch
     /// [uint256] -> payout size
@@ -107,15 +108,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> nonce
     /// [uint256] -> amount of adjustments made
     mapping(uint256 => uint256) public adjustmentsMade;
-
-    /// @notice Track an addresses allowance status to trade another addresses position
-    /// [address] allowance recipient
-    mapping(uint256 => address) public allowanceTracker;
-
-    /// @notice Track a traders profile for each nonce
-    /// [address] -> user
-    /// [uint256] -> nonce
-    mapping(uint256 => Buyer) public traderProfile;
 
     /// @notice Track adjustment status of closed NFTs
     /// [address] -> User 
@@ -130,37 +122,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     /// [uint256] -> NFT ID
     mapping(address => mapping(uint256 => uint256)) public liqAccessed;
     
-    /* ======== STRUCTS ======== */
-    /// @notice Holds core metrics for each trader
-    /// [active] -> track if a position is closed
-    /// [multiplier] -> the multiplier applied to a users credit intake when closing a position
-    /// [startEpoch] -> epoch that the position was opened
-    /// [unlockEpoch] -> epoch that the position can be closed
-    /// [comListOfTickets] -> compressed (using bit shifts) value containing the list of tranches
-    /// [comAmountPerTicket] -> compressed (using bit shifts) value containing the list of amounts
-    /// of tokens purchased in each tranche
-    /// [ethLocked] -> total amount of eth locked in the position
-    struct Buyer {
-        bool active;
-        uint32 startEpoch;
-        uint32 unlockEpoch;
-        uint32 riskStart;
-        uint32 riskPoints;
-        uint32 riskLost;
-        uint32 riskStartLost;
-        uint128 tokensLocked;
-        uint128 tokensStatic;
-        uint128 tokensLost;
-        address owner;
-        uint256 comListOfTickets;
-        uint256 comAmountPerTicket;
-    }
-
     /* ======== EVENTS ======== */
     event NftInclusion(address[] nfts, uint256[] ids);
     event VaultBegun(address _token, uint256 _collateralSlots, uint256 _interest, uint256 _epoch);
     event Purchase(address _buyer, uint256[] tickets, uint256[] amountPerTicket, uint256 nonce, uint256 startEpoch, uint256 finalEpoch);
-    event SaleComplete(address _seller, uint256 nonce, uint256 ticketsSold, uint256 creditsPurchased);
+    event SaleComplete(address _seller, uint256 nonce, uint256 ticketsSold);
     event NftClosed(uint256 _adjustmentNonce, uint256 _closureNonce, address _collection, uint256 _id, address _caller, uint256 payout, address closePoolContract); 
     event LPTransferAllowanceChanged(address from, address to);
     event LPTransferred(address from, address to, uint256 nonce);
@@ -170,16 +136,19 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function initialize(
         string memory _name,
         address _controller,
-        address _creator
+        address _creator,
+        address _positionManager
     ) external initializer {
         controller = AbacusController(_controller);
         factory = controller.factory();
         require(_creator != address(0));
+        stage = Stage.INITIALIZED;
         creator = _creator;
         name = _name;
         auction = Auction(controller.auction());
         riskCalc = controller.riskCalculator();
         trancheCalc = controller.calculator();
+        positionManager = Position(_positionManager);
         adjustmentsRequired = 1;
     }
 
@@ -197,11 +166,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     ) external {
         require(
             startTime == 0
-            // , "AS"
+            , "AS"
         );
         require(
             msg.sender == creator
-            // , " NC"
+            , " NC"
         );
         uint256 length = _collection.length;
         for(uint256 i = 0; i < length; i++) {
@@ -209,14 +178,15 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             uint256 id = _id[i];
             require(
                 IERC721(collection).ownerOf(id) != address(0)
-                // , " NO"
+                , " NO"
             );
             require(
                 (tokenMapping[collection][id / 250] & 2**(id % 250) == 0)
-                // , " AM"
+                , " AM"
             );
             tokenMapping[collection][id / 250] |= 2**(id % 250);
         }
+        stage = Stage.INCLUDED_NFT;
         emit NftInclusion(_collection, _id);
     }
 
@@ -224,12 +194,18 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256[] calldata risk,
         uint256[] calldata tranche
     ) external {
+        require(stage == Stage.INCLUDED_NFT);
         riskCalc.setMetrics(
             risk
         );
         trancheCalc.setMetrics(
             tranche
         );
+        positionManager.setEquations(
+            risk,
+            tranche
+        );
+        stage = Stage.SET_METRICS;
     }
 
     /** 
@@ -254,38 +230,39 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _creatorFee,
         uint256 _liquidationRule
     ) external {
+        require(stage == Stage.SET_METRICS);
         require(
             _epochLength >= 2 minutes 
             && _epochLength <= 2 weeks
-            // , " Out of time bounds"
+            , " Out of time bounds"
         );
         require(
             msg.sender == creator
-            // , " NC"
+            , " NC"
         );
         require(
             startTime == 0
-            // , " AS"
+            , " AS"
         );
         require(
             _rate > 10
-            // , " RTS"
+            , " RTS"
         );
         require(
             _rate < 500000
-            // , " RTH"
+            , " RTH"
         );
         require(
             _slots > 0
-            // , " TLS"
+            , " TLS"
         );
         require(
             _slots < 2**32
-            // , " TMS"
+            , " TMS"
         );
         require(
-            _creatorFee < 100
-            // , " CFH"
+            _creatorFee < 400
+            , " CFH"
         );
         require(
             ERC20(_token).decimals() > 3
@@ -298,6 +275,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         modTokenDecimal = 10**ERC20(_token).decimals() / 1000;
         creatorFee = _creatorFee;
         liquidationRule = _liquidationRule;
+        positionManager.setVaultInfo();
+        stage = Stage.STARTED;
         emit VaultBegun(address(token), _slots, _rate, _epochLength);
     }
 
@@ -322,57 +301,39 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     ) external nonReentrant {
         require(tickets.length >= 1);
         require(
-            startTime != 0
-            // , " NS"
+            stage == Stage.STARTED
+            , " NS"
         );
         require(
             tickets.length == amountPerTicket.length
-            // , " II"
+            , " II"
         );
         require(
             tickets.length <= 100
-            // , " PTL"
+            , " PTL"
         );
         require(
             startEpoch == (block.timestamp - startTime) / epochLength
-            // , " IT"
+            , " IT"
         );
         require(
             finalEpoch - startEpoch > 1
-            // , " TS"
+            , " TS"
         );
         require(
             finalEpoch - startEpoch <= 10
-            // , " TL"
+            , " TL"
         );
         uint256 totalTokensRequested;
         uint256 largestTicket;
-        uint256 riskStart;
         uint256 riskNorm;
-        for(uint256 i = 0; i < tickets.length / 10 + 1; i++) {
-            if(tickets.length % 10 == 0 && i == tickets.length / 10) break;
-            uint256 tempVal;
-            uint256 upperBound;
-            if(10 + i * 10 > tickets.length) {
-                upperBound = tickets.length;
-            } else {
-                upperBound = 10 + i * 10;
-            }
-            tempVal = choppedPosition(
-                _buyer,
-                tickets[0 + i * 10:upperBound],
-                amountPerTicket[0 + i * 10:upperBound],
-                startEpoch,
-                finalEpoch
-            );
-            riskNorm += tempVal & (2**32 - 1);
-            tempVal >>= 32;
-            riskStart += tempVal & (2**32 - 1);
-            tempVal >>= 32;
-            if(tempVal > largestTicket) largestTicket = tempVal;
-        }
-        riskNorm <<= 128;
-        riskNorm |= riskStart;
+        (largestTicket, riskNorm) = positionManager.createPosition(
+            _buyer,
+            tickets,
+            amountPerTicket,
+            startEpoch,
+            finalEpoch
+        );
         totalTokensRequested = updateProtocol(
             largestTicket,
             startEpoch,
@@ -394,51 +355,32 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     */
     function sell(
         uint256 _nonce
-    ) external nonReentrant returns(uint256 interestEarned) {
-        Buyer storage trader = traderProfile[_nonce];
-        require(
-            msg.sender == trader.owner
-            // , " IC"
-        );
-        require(
-            trader.active
-            // , " PC"
-        );
-        require(
-            adjustmentsMade[_nonce] == adjustmentsRequired
-            // , " ANM"
-        );
-        require(
-            trader.unlockEpoch != 0
-            // , " PNE"
-        );
+    ) external nonReentrant returns(uint256 payout, uint256 lost) {
         uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         uint256 finalEpoch;
-        uint256 interestLost;
-        if(poolEpoch >= trader.unlockEpoch) {
-            finalEpoch = trader.unlockEpoch;
-        } else {
+        uint256 unlockEpoch;        
+        (
+            payout, 
+            lost, 
+            finalEpoch,
+            unlockEpoch
+        ) = positionManager.sellPosition(
+            msg.sender,
+            _nonce,
+            poolEpoch
+        );
+        if(finalEpoch == poolEpoch) {
             require(
                 reservations == 0
-                // , " USPE"
+                , " USPE"
             );
-            finalEpoch = poolEpoch;
         }
-        for(uint256 j = trader.startEpoch; j < finalEpoch; j++) {
-            uint256 riskPoints = this.getRiskPoints(j);
-            if(j == trader.startEpoch) {
-                interestLost = (trader.riskStart > trader.riskStartLost ? trader.riskStartLost : trader.riskStart) * epochEarnings[j] / riskPoints; 
-                interestEarned = (trader.riskStart > trader.riskStartLost ? (trader.riskStart - trader.riskStartLost) : 0) * epochEarnings[j] / riskPoints;
-            } else {
-                interestLost = (trader.riskPoints > trader.riskLost ? trader.riskLost : trader.riskPoints) * epochEarnings[j] / riskPoints; 
-                interestEarned = (trader.riskPoints > trader.riskLost ? (trader.riskPoints - trader.riskLost) : 0) * epochEarnings[j] / riskPoints;
-            }
-        }
-        if(poolEpoch < trader.unlockEpoch) {
-            for(poolEpoch; poolEpoch < trader.unlockEpoch; poolEpoch++) {
+        if(finalEpoch == poolEpoch) {
+            for(poolEpoch; poolEpoch < unlockEpoch; poolEpoch++) {
                 uint256[] memory epochTickets = ticketsPurchased[poolEpoch];
-                uint256 comTickets = trader.comListOfTickets;
-                uint256 comAmounts = trader.comAmountPerTicket;
+                uint256 comTickets;
+                uint256 comAmounts;
+                (, comTickets, comAmounts) = positionManager.getPositionOverallInfo(_nonce);
                 while(comAmounts > 0) {
                     uint256 ticket = comTickets & (2**25 - 1);
                     uint256 amount = (comAmounts & (2**25 - 1)) / 100;
@@ -453,13 +395,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 ticketsPurchased[poolEpoch] = epochTickets;
                 uint256 tempComp = compressedEpochVals[poolEpoch];
                 uint256 prevPosition;
+                (, comAmounts,) = positionManager.getPositionTokenInfo(_nonce);
                 prevPosition += 35;
                 tempComp = 
                     tempComp & ~((2**(prevPosition + 51) - 1) - (2**prevPosition - 1)) 
                         | (
                             (
                                 ((compressedEpochVals[poolEpoch] >> 35) & (2**51 -1)) 
-                                - (trader.startEpoch == poolEpoch ? trader.riskStart : trader.riskPoints)
+                                - positionManager.getUserRiskPoints(_nonce, poolEpoch)
                             ) << prevPosition
                         );
                 prevPosition += 135;
@@ -468,56 +411,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                         | (
                             (
                                 ((compressedEpochVals[poolEpoch] >> 170) & (2**84 -1)) 
-                                - trader.tokensStatic
+                                - comAmounts
                             ) << prevPosition
                         );
                 compressedEpochVals[poolEpoch] = tempComp;
             }
         }
-        emit SaleComplete(
-            msg.sender,
-            _nonce,
-            trader.comListOfTickets,
-            interestEarned
-        );
-        token.transfer(controller.multisig(), trader.tokensLost + interestLost);
-        token.transfer(msg.sender, trader.tokensLocked + interestEarned);
-        delete traderProfile[_nonce].active;
-    }
-
-    /* ======== POSITION MOVEMENT ======== */
-    function changeTransferPermission(
-        address recipient,
-        uint256 _nonce
-    ) external nonReentrant returns(bool) {
-        require(traderProfile[_nonce].owner == msg.sender);
-        allowanceTracker[_nonce] = recipient;
-        emit LPTransferAllowanceChanged(
-            msg.sender,
-            recipient
-        );
-        return true;
-    }
-
-    /** 
-    Error chart:
-        IC - invalid caller (caller is not the owner or doesn’t have permission)
-        MAP - must adjust position (positions must be fully adjusted before being traded)
-    */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 nonce
-    ) external nonReentrant returns(bool) {
-        require(
-            msg.sender == allowanceTracker[nonce]
-            || msg.sender == traderProfile[nonce].owner
-            // , " IC"
-        );
-        traderProfile[nonce].owner = to;
-        delete allowanceTracker[nonce];
-        emit LPTransferred(from, to, nonce);
-        return true;
+        token.transfer(controller.multisig(), lost);
+        token.transfer(msg.sender, payout);
     }
 
     /* ======== POOL CLOSURE ======== */
@@ -531,7 +432,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function closeNft(address _nft, uint256 _id) external nonReentrant2 returns(uint256) {
         require(
             this.getHeldTokenExistence(_nft, _id)
-            // , " TNA"
+            , " TNA"
         );
         uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         uint256 nonce = auction.nonce();
@@ -540,7 +441,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 ppr = this.getPayoutPerReservation(poolEpoch);
         require(
             ppr != 0
-            // , " PE0"
+            , " PE0"
         );
         epochOfClosure[nonce] = poolEpoch;
         uint256 temp = ppr;
@@ -548,7 +449,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         temp |= this.getRiskPoints(poolEpoch);
         payoutInfo[nonce] = temp;
         uint256 payout = 1 * ppr / 100;
-        epochEarnings[poolEpoch] += (950 - creatorFee) * payout / 100;
+        epochEarnings[poolEpoch] += (950 - creatorFee) * payout / 1000;
         token.transfer(address(factory), creatorFee * payout / 1000);
         factory.updatePendingReturns(
             address(token),
@@ -561,18 +462,19 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         if(liqAccessed[_nft][_id] == 0) {
             require(
                 this.getReservationsAvailable() > 0
-                // , " NRA"
+                , " NRA"
             );
         } else {
             delete liqAccessed[_nft][_id];
             reservations--;
         }
         spotsRemoved++;
-        auction.startAuction(msg.sender, _nft, _id, ppr);
         IERC721(_nft).transferFrom(msg.sender, address(auction), _id);
         require(
-            IERC721(_nft).ownerOf(_id) == address(auction)
+            IERC721(_nft).ownerOf(_id) == address(auction),
+            "TF"
         );
+        auction.startAuction(msg.sender, _nft, _id, ppr);
         emit NftClosed(
             adjustmentsRequired,
             nonce,
@@ -620,15 +522,15 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         require(
             auction.liveAuctions(address(this)) == 0
-            // , " AOG"
+            , " AOG"
         );
         require(
             poolEpoch >= resetEpoch
-            // , " NTY"
+            , " NTY"
         );
         require(
             spotsRemoved != 0
-            // , " RNN"
+            , " RNN"
         );
         delete spotsRemoved;
     }
@@ -641,60 +543,60 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         AO - auction ongoing (there is a auction ongoing and adjustments can’t take place until the completion of an auction) 
         IAN - invalid adjustment nonce (check the NFT, ID, and closure nonce) 
     */
-    function adjustTicketInfo(
-        uint256 _nonce,
-        uint256 _auctionNonce
-    ) external nonReentrant returns(bool) {
-        Buyer storage trader = traderProfile[_nonce];
-        require(
-            !adjustCompleted[_nonce][_auctionNonce]
-            // , " AA"
-        );
-        require(
-            adjustmentsMade[_nonce] < adjustmentsRequired
-            // , " AU"
-        );
-        uint256 auctionEndTime;
-        (,,,,,,auctionEndTime,,) = auction.auctions(_auctionNonce);
-        require(
-            block.timestamp > auctionEndTime
-            && auctionEndTime != 0
-            // , " AO"
-        );
-        require(
-            msg.sender == trader.owner
-            // , " IC"
-        );
-        require(
-            adjustmentsMade[_nonce] == adjustmentNonce[_auctionNonce] - 1
-            // , "IAN"
-        );
-        adjustmentsMade[_nonce]++;
-        if(
-            trader.unlockEpoch <= epochOfClosure[_auctionNonce]
-        ) {
-            adjustCompleted[_nonce][_auctionNonce] = true;
-            return true;
-        }
-        uint256 epoch = epochOfClosure[_auctionNonce];
-        internalAdjustment(
-            _nonce,
-            _auctionNonce,
-            payoutInfo[_auctionNonce],
-            auctionSaleValue[_auctionNonce],
-            trader.comListOfTickets,
-            trader.comAmountPerTicket,
-            epoch
-        );
-        emit PrincipalCalculated(
-            address(auction),
-            msg.sender,
-            _nonce,
-            _auctionNonce
-        );
-        adjustCompleted[_nonce][_auctionNonce] = true;
-        return true;
-    }
+    // function adjustTicketInfo(
+    //     uint256 _nonce,
+    //     uint256 _auctionNonce
+    // ) external nonReentrant returns(bool) {
+    //     Buyer storage trader = traderProfile[_nonce];
+    //     require(
+    //         !adjustCompleted[_nonce][_auctionNonce]
+    //         , " AA"
+    //     );
+    //     require(
+    //         adjustmentsMade[_nonce] < adjustmentsRequired
+    //         , " AU"
+    //     );
+    //     uint256 auctionEndTime;
+    //     (,,,,,,auctionEndTime,,) = auction.auctions(_auctionNonce);
+    //     require(
+    //         block.timestamp > auctionEndTime
+    //         && auctionEndTime != 0
+    //         , " AO"
+    //     );
+    //     require(
+    //         msg.sender == trader.owner
+    //         , " IC"
+    //     );
+    //     require(
+    //         adjustmentsMade[_nonce] == adjustmentNonce[_auctionNonce] - 1
+    //         , "IAN"
+    //     );
+    //     adjustmentsMade[_nonce]++;
+    //     if(
+    //         trader.unlockEpoch <= epochOfClosure[_auctionNonce]
+    //     ) {
+    //         adjustCompleted[_nonce][_auctionNonce] = true;
+    //         return true;
+    //     }
+    //     uint256 epoch = epochOfClosure[_auctionNonce];
+    //     internalAdjustment(
+    //         _nonce,
+    //         _auctionNonce,
+    //         payoutInfo[_auctionNonce],
+    //         auctionSaleValue[_auctionNonce],
+    //         trader.comListOfTickets,
+    //         trader.comAmountPerTicket,
+    //         epoch
+    //     );
+    //     emit PrincipalCalculated(
+    //         address(auction),
+    //         msg.sender,
+    //         _nonce,
+    //         _auctionNonce
+    //     );
+    //     adjustCompleted[_nonce][_auctionNonce] = true;
+    //     return true;
+    // }
 
     /**
         Error chart: 
@@ -703,7 +605,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function processFees(uint256 _amount) external nonReentrant {
         require(
             address(controller.lender()) == msg.sender
-            // , "NA"
+            , "NA"
         );
         uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         uint256 payout = (50 + creatorFee) * _amount / 1000;
@@ -726,17 +628,17 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function accessLiq(address _user, address _nft, uint256 _id, uint256 _amount) external nonReentrant {
         require(
             address(controller.lender()) == msg.sender
-            // , "NA"
+            , "NA"
         );
         require(
             this.getHeldTokenExistence(_nft, _id)
-            // , "TNI"
+            , "TNI"
         );
         require(_user != address(0));
         if(liqAccessed[_nft][_id] == 0) {
             require(
                 this.getReservationsAvailable() > 0
-                // , "NRA"
+                , "NRA"
             );
             reservations++;
         }
@@ -751,7 +653,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function depositLiq(address _nft, uint256 _id, uint256 _amount) external nonReentrant {
         require(
             address(controller.lender()) == msg.sender
-            // , "NA"
+            , "NA"
         );
         liqAccessed[_nft][_id] -= _amount;
         if(liqAccessed[_nft][_id] == 0) {
@@ -767,74 +669,17 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function resetOutstanding(address _nft, uint256 _id) external nonReentrant {
         require(
             address(controller.lender()) == msg.sender
-            // , "NA"
+            , "NA"
         );
         require(
             liqAccessed[_nft][_id] != 0
-            // , "NLE"
+            , "NLE"
         );
         delete liqAccessed[_nft][_id];
         reservations--;
     }
 
     /* ======== INTERNAL ======== */
-    function choppedPosition(
-        address _buyer,
-        uint256[] calldata tickets,
-        uint256[] calldata amountPerTicket,
-        uint256 startEpoch,
-        uint256 finalEpoch
-    ) internal returns(uint256 tempReturn) {
-        uint256 _nonce = positionNonce[_buyer];
-        positionNonce[_buyer]++;
-        Buyer storage trader = traderProfile[_nonce];
-        adjustmentsMade[_nonce] = adjustmentsRequired;
-        trader.startEpoch = uint32(startEpoch);
-        trader.unlockEpoch = uint32(finalEpoch);
-        trader.active = true;
-        uint256 riskPoints;
-        uint256 length = tickets.length;
-        for(uint256 i; i < length; i++) {
-            require(
-                tickets[i] <= 100
-                || trancheCalc.calculateBound(tickets[i]) * modTokenDecimal 
-                    < this.getPayoutPerReservation(startEpoch) * 50
-            );
-            riskPoints += riskCalc.calculateMultiplier(tickets[i]) * amountPerTicket[i];
-        }
-        (trader.comListOfTickets, trader.comAmountPerTicket, tempReturn, trader.tokensLocked) = BitShift.bitShift(
-            modTokenDecimal,
-            tickets,
-            amountPerTicket
-        );
-        trader.tokensStatic = trader.tokensLocked;
-        trader.riskStart = 
-            uint32(
-                riskPoints * (epochLength - (block.timestamp - (startTime + startEpoch * epochLength)) / 10 minutes * 10 minutes)
-                    /  epochLength
-            );
-        tempReturn <<= 32;
-        tempReturn |= trader.riskStart;
-        trader.riskPoints = uint32(riskPoints);
-        tempReturn <<= 32;
-        tempReturn |= riskPoints;
-        for(uint256 i; i < length; i++) {
-            require(
-                !nftClosed[startEpoch] || this.getTicketInfo(startEpoch, tickets[i]) == 0
-                // , "TC"
-            );
-        }
-
-        emit Purchase(
-            _buyer,
-            tickets,
-            amountPerTicket,
-            _nonce,
-            startEpoch,
-            finalEpoch
-        );
-    }
-
     function updateProtocol(
         uint256 largestTicket,
         uint256 startEpoch,
@@ -858,11 +703,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 temp += ticketAmounts[i];
                 require(
                     ticketAmounts[i] != 0
-                    // , "ITA"
+                    , "ITA"
                 );
                 require(
-                    temp <= amountNft * (trancheCalc.calculateBound(ticket + 1) - trancheCalc.calculateBound(ticket))
-                    // , "TLE"
+                    temp <= 
+                        amountNft * 
+                            (trancheCalc.calculateBound(ticket + 1) - trancheCalc.calculateBound(ticket))
+                                / modTokenDecimal
+                    , "TLE"
                 );
                 epochTickets[ticket / 10] &= ~((2**((ticket % 10 + 1)*25) - 1) 
                     - (2**(((ticket % 10))*25) - 1));
@@ -907,138 +755,138 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         }
     }
 
-    function internalAdjustment(
-        uint256 _nonce,
-        uint256 _auctionNonce,
-        uint256 _payout,
-        uint256 _finalNftVal,
-        uint256 _comTickets,
-        uint256 _comAmounts,
-        uint256 _epoch
-    ) internal {
-        Buyer storage trader = traderProfile[_nonce];
-        uint256 payout;
-        uint256 riskLost;
-        uint256 tokensLost;
-        uint256 appLoss;
-        uint256 _riskParam = this.getUserRiskPoints(_nonce, _epoch);
-        _riskParam <<= 128;
-        _riskParam |= trader.riskPoints;
-        (
-            payout,
-            appLoss,
-            riskLost,
-            tokensLost
-        ) = internalCalculation(
-            _comTickets,
-            _comAmounts,
-            _epoch,
-            _payout,
-            _finalNftVal,
-            _riskParam
-        ); 
-        _comAmounts = 0;
-        if(_payout > _finalNftVal) {
-            if(loss[_auctionNonce] > _payout - _finalNftVal) {
-                _comAmounts += appLoss;
-            } else if(loss[_auctionNonce] + appLoss > _payout - _finalNftVal) {
-                _comAmounts += loss[_auctionNonce] + appLoss - (_payout - _finalNftVal);
-            }
-        }
-        token.transfer(controller.multisig(), _comAmounts);
-        loss[_auctionNonce] += 
-        appLoss += (appLoss % amountNft == 0 ? 0 : 1);
-        if(trader.tokensLocked > appLoss) {
-            trader.tokensLocked -= uint128(appLoss);
-        } else {
-            trader.tokensLocked = 0;
-        }
-        trader.riskLost += uint32(riskLost);
-        trader.riskStartLost += uint32(trader.riskStart * riskLost / trader.riskPoints);
-        trader.tokensLost += uint128(tokensLost);
-        _payout >>= 128;
-        if(_payout > _finalNftVal) {
-            trader.tokensLocked -= uint128(payout);
-        }
-        token.transfer(trader.owner, payout);
-    }
+    // function internalAdjustment(
+    //     uint256 _nonce,
+    //     uint256 _auctionNonce,
+    //     uint256 _payout,
+    //     uint256 _finalNftVal,
+    //     uint256 _comTickets,
+    //     uint256 _comAmounts,
+    //     uint256 _epoch
+    // ) internal {
+    //     Buyer storage trader = traderProfile[_nonce];
+    //     uint256 payout;
+    //     uint256 riskLost;
+    //     uint256 tokensLost;
+    //     uint256 appLoss;
+    //     uint256 _riskParam = this.getUserRiskPoints(_nonce, _epoch);
+    //     _riskParam <<= 128;
+    //     _riskParam |= trader.riskPoints;
+    //     (
+    //         payout,
+    //         appLoss,
+    //         riskLost,
+    //         tokensLost
+    //     ) = internalCalculation(
+    //         _comTickets,
+    //         _comAmounts,
+    //         _epoch,
+    //         _payout,
+    //         _finalNftVal,
+    //         _riskParam
+    //     ); 
+    //     _comAmounts = 0;
+    //     if(_payout > _finalNftVal) {
+    //         if(loss[_auctionNonce] > _payout - _finalNftVal) {
+    //             _comAmounts += appLoss;
+    //         } else if(loss[_auctionNonce] + appLoss > _payout - _finalNftVal) {
+    //             _comAmounts += loss[_auctionNonce] + appLoss - (_payout - _finalNftVal);
+    //         }
+    //     }
+    //     token.transfer(controller.multisig(), _comAmounts);
+    //     loss[_auctionNonce] += 
+    //     appLoss += (appLoss % amountNft == 0 ? 0 : 1);
+    //     if(trader.tokensLocked > appLoss) {
+    //         trader.tokensLocked -= uint128(appLoss);
+    //     } else {
+    //         trader.tokensLocked = 0;
+    //     }
+    //     trader.riskLost += uint32(riskLost);
+    //     trader.riskStartLost += uint32(trader.riskStart * riskLost / trader.riskPoints);
+    //     trader.tokensLost += uint128(tokensLost);
+    //     _payout >>= 128;
+    //     if(_payout > _finalNftVal) {
+    //         trader.tokensLocked -= uint128(payout);
+    //     }
+    //     token.transfer(trader.owner, payout);
+    // }
 
-    function internalCalculation(
-        uint256 _comTickets,
-        uint256 _comAmounts,
-        uint256 _epoch,
-        uint256 _payout,
-        uint256 _finalNftVal,
-        uint256 _riskParams
-    ) internal returns(
-        uint256 payout,
-        uint256 appLoss,
-        uint256 riskLost,
-        uint256 tokensLost
-    ) {
-        uint256 totalRiskPoints = _payout & (2**128 - 1);
-        _payout >>= 128;
-        while(_comAmounts > 0) {
-            uint256 ticket = _comTickets & (2**25 - 1);
-            uint256 amountTokens = _comAmounts & (2**25 - 1);
-            uint256 totalTicketTokens = this.getTicketInfo(_epoch, ticket);
-            uint256 payoutContribution = amountTokens * modTokenDecimal / amountNft / 100;
-            if(trancheCalc.calculateBound(ticket + 1) <= _finalNftVal) {
-                if(_finalNftVal >= _payout) {
-                    payout += (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints;
-                } else {
-                    payout += payoutContribution;
-                }
-                delete amountTokens;
-            } else if(trancheCalc.calculateBound(ticket) > _finalNftVal) {
-                if(_finalNftVal >= _payout) {
-                    tokensLost += (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints;
-                } 
-                appLoss += payoutContribution;
-            } else if(
-                trancheCalc.calculateBound(ticket + 1) > _finalNftVal
-            ) {
-                if(
-                    totalTicketTokens * modTokenDecimal / amountNft 
-                        > (_finalNftVal - trancheCalc.calculateBound(ticket))
-                ) {
-                    uint256 lossAmount;
-                    lossAmount = (
-                        totalTicketTokens * modTokenDecimal / amountNft - (_finalNftVal - trancheCalc.calculateBound(ticket))
-                    );
-                    lossAmount = lossAmount * amountTokens / totalTicketTokens / 100;
-                    appLoss += lossAmount;
-                    if(_finalNftVal >= _payout) {
-                        lossAmount *= (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints / payoutContribution;
-                        tokensLost += lossAmount;
-                        payout += (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints - lossAmount;
-                    } else {
-                        payout += payoutContribution - lossAmount;
-                    }
-                } else {
-                    if(_finalNftVal >= _payout) {
-                        payout += (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints;
-                    } else {
-                        payout += payoutContribution;
-                    }
-                    delete amountTokens;
-                }
-            }
-            riskLost += findProperRisk(_riskParams, ticket, amountTokens) / amountNft;
-            _comTickets >>= 25;
-            _comAmounts >>= 25;
-        }
-    }
+    // function internalCalculation(
+    //     uint256 _comTickets,
+    //     uint256 _comAmounts,
+    //     uint256 _epoch,
+    //     uint256 _payout,
+    //     uint256 _finalNftVal,
+    //     uint256 _riskParams
+    // ) internal returns(
+    //     uint256 payout,
+    //     uint256 appLoss,
+    //     uint256 riskLost,
+    //     uint256 tokensLost
+    // ) {
+    //     uint256 totalRiskPoints = _payout & (2**128 - 1);
+    //     _payout >>= 128;
+    //     while(_comAmounts > 0) {
+    //         uint256 ticket = _comTickets & (2**25 - 1);
+    //         uint256 amountTokens = _comAmounts & (2**25 - 1);
+    //         uint256 totalTicketTokens = this.getTicketInfo(_epoch, ticket);
+    //         uint256 payoutContribution = amountTokens * modTokenDecimal / amountNft / 100;
+    //         if(trancheCalc.calculateBound(ticket + 1) <= _finalNftVal) {
+    //             if(_finalNftVal >= _payout) {
+    //                 payout += (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints;
+    //             } else {
+    //                 payout += payoutContribution;
+    //             }
+    //             delete amountTokens;
+    //         } else if(trancheCalc.calculateBound(ticket) > _finalNftVal) {
+    //             if(_finalNftVal >= _payout) {
+    //                 tokensLost += (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints;
+    //             } 
+    //             appLoss += payoutContribution;
+    //         } else if(
+    //             trancheCalc.calculateBound(ticket + 1) > _finalNftVal
+    //         ) {
+    //             if(
+    //                 totalTicketTokens * modTokenDecimal / amountNft 
+    //                     > (_finalNftVal - trancheCalc.calculateBound(ticket))
+    //             ) {
+    //                 uint256 lossAmount;
+    //                 lossAmount = (
+    //                     totalTicketTokens * modTokenDecimal / amountNft - (_finalNftVal - trancheCalc.calculateBound(ticket))
+    //                 );
+    //                 lossAmount = lossAmount * amountTokens / totalTicketTokens / 100;
+    //                 appLoss += lossAmount;
+    //                 if(_finalNftVal >= _payout) {
+    //                     lossAmount *= (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints / payoutContribution;
+    //                     tokensLost += lossAmount;
+    //                     payout += (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints - lossAmount;
+    //                 } else {
+    //                     payout += payoutContribution - lossAmount;
+    //                 }
+    //             } else {
+    //                 if(_finalNftVal >= _payout) {
+    //                     payout += (_finalNftVal - _payout) * findProperRisk(_riskParams, ticket, amountTokens) / totalRiskPoints;
+    //                 } else {
+    //                     payout += payoutContribution;
+    //                 }
+    //                 delete amountTokens;
+    //             }
+    //         }
+    //         riskLost += findProperRisk(_riskParams, ticket, amountTokens) / amountNft;
+    //         _comTickets >>= 25;
+    //         _comAmounts >>= 25;
+    //     }
+    // }
 
-    function findProperRisk(
-        uint256 _riskParams,
-        uint256 _ticket,
-        uint256 _amountTokens
-    ) internal returns(uint256 riskPoints) {
-        return (_riskParams >> 128) * 
-                    riskCalc.calculateMultiplier(_ticket) * _amountTokens / 100 / 
-                        (_riskParams & (2**128 - 1));
-    }
+    // function findProperRisk(
+    //     uint256 _riskParams,
+    //     uint256 _ticket,
+    //     uint256 _amountTokens
+    // ) internal returns(uint256 riskPoints) {
+    //     return (_riskParams >> 128) * 
+    //                 riskCalc.calculateMultiplier(_ticket) * _amountTokens / 100 / 
+    //                     (_riskParams & (2**128 - 1));
+    // }
 
     /* ======== GETTER ======== */
     function getReservationsAvailable() external view returns(uint256) {
@@ -1072,17 +920,5 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 temp = epochTickets[ticket / 10];
         temp &= (2**((ticket % 10 + 1)*25) - 1) - (2**(((ticket % 10))*25) - 1);
         return temp >> ((ticket % 10) * 25);
-    }
-
-    function getUserRiskPoints(
-        uint256 _nonce,
-        uint256 _epoch
-    ) external view returns(uint256 riskPoints) {
-        Buyer memory trader = traderProfile[_nonce];
-        if(_epoch == trader.startEpoch) {
-            riskPoints = trader.riskStart;
-        } else if(_epoch > trader.startEpoch && _epoch < trader.unlockEpoch){
-            riskPoints = trader.riskPoints;
-        }
     }
 }
