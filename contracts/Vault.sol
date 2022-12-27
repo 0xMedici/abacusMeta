@@ -377,28 +377,27 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                     epochTickets[ticket / 10] |= (temp << ((ticket % 10)*25));
                 }
                 ticketsPurchased[poolEpoch] = epochTickets;
-                uint256 tempComp = compressedEpochVals[poolEpoch];
-                uint256 prevPosition;
+                uint256 tempComp = compressedEpochVals[poolEpoch / 2];
+                uint256 prevPosition = (poolEpoch % 2 != 0) ? 128 : 0;
                 (, comAmounts,) = positionManager.getPositionTokenInfo(_nonce);
-                prevPosition += 35;
                 tempComp = 
-                    tempComp & ~((2**(prevPosition + 51) - 1) - (2**prevPosition - 1)) 
+                    tempComp & ~((2**(prevPosition + 42) - 1) - (2**prevPosition - 1)) 
                         | (
                             (
-                                ((compressedEpochVals[poolEpoch] >> 35) & (2**51 -1)) 
+                                ((compressedEpochVals[poolEpoch / 2] >> prevPosition) & (2**42 -1))
                                 - positionManager.getUserRiskPoints(_nonce, poolEpoch)
                             ) << prevPosition
                         );
-                prevPosition += 135;
+                prevPosition += 43;
                 tempComp = 
                     tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) 
                         | (
                             (
-                                ((compressedEpochVals[poolEpoch] >> 170) & (2**84 -1)) 
+                                ((compressedEpochVals[poolEpoch / 2] >> prevPosition) & (2**84 -1)) 
                                 - comAmounts
                             ) << prevPosition
                         );
-                compressedEpochVals[poolEpoch] = tempComp;
+                compressedEpochVals[poolEpoch/2] = tempComp;
             }
         }
         token.transfer(controller.multisig(), lost);
@@ -673,27 +672,26 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 epochTickets[ticket / 10] |= (temp << ((ticket % 10)*25));
                 amount += ticketAmounts[i];
             }
-            uint256 tempComp = compressedEpochVals[j];
-            uint256 prevPosition;
-            prevPosition += 35;
+            uint256 tempComp = compressedEpochVals[j/2];
+            uint256 prevPosition = (j % 2 != 0) ? 128 : 0;
             require(
                 (
-                    ((compressedEpochVals[j] >> 35) & (2**51 -1)) 
+                    ((compressedEpochVals[j/2] >> (prevPosition)) & (2**42 -1)) 
                     + ((j == startEpoch ? riskPoints & (2**128 - 1) : riskPoints >> 128))
-                ) < (2**51 -1)
+                ) < (2**42 -1)
             );
             tempComp = 
-                tempComp & ~((2**(prevPosition + 51) - 1) - (2**prevPosition - 1)) 
+                tempComp & ~((2**(prevPosition + 43) - 1) - (2**prevPosition - 1)) 
                     | (
                         (
-                            ((compressedEpochVals[j] >> 35) & (2**51 -1)) 
+                            ((compressedEpochVals[j/2] >> (prevPosition)) & (2**42 -1)) 
                             + ((j == startEpoch ? riskPoints & (2**128 - 1) : riskPoints >> 128))
                         ) << prevPosition
                     );
-            prevPosition += 135;
+            prevPosition += 43;
             require(
                 (
-                    ((compressedEpochVals[j] >> 170) & (2**84 -1)) 
+                    ((compressedEpochVals[j/2] >> (prevPosition)) & (2**84 -1)) 
                     + amount * modTokenDecimal
                 ) < (2**84 -1)
             );
@@ -701,11 +699,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 tempComp & ~((2**(prevPosition + 84) - 1) - (2**prevPosition - 1)) 
                     | (
                         (
-                            ((compressedEpochVals[j] >> 170) & (2**84 -1)) 
+                            ((compressedEpochVals[j/2] >> (prevPosition)) & (2**84 -1)) 
                             + amount * modTokenDecimal
                         ) << prevPosition
                     );
-            compressedEpochVals[j] = tempComp;
+            compressedEpochVals[j/2] = tempComp;
             ticketsPurchased[j] = epochTickets;
             totalTokens = amount;
         }
@@ -717,18 +715,19 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     }
 
     function getTotalAvailableFunds(uint256 _epoch) external view returns(uint256) {
-        uint256 compVal = compressedEpochVals[_epoch];
-        return (compVal >> 170) & (2**84 -1);
+        uint256 position = ((_epoch % 2 != 0) ? 128 : 0) + 43;
+        return ((compressedEpochVals[_epoch/2] >> (position)) & (2**84 -1));
     }
 
     function getPayoutPerReservation(uint256 _epoch) external view returns(uint256) {
-        uint256 compVal = compressedEpochVals[_epoch];
-        return ((compVal >> 170) & (2**84 -1)) / amountNft;
+        uint256 position = ((_epoch % 2 != 0) ? 128 : 0) + 43;
+        return ((compressedEpochVals[_epoch/2] >> (position)) & (2**84 -1)) / amountNft;
     }
 
     function getRiskPoints(uint256 _epoch) external view returns(uint256) {
-        uint256 compVal = compressedEpochVals[_epoch];
-        return (compVal >> 35) & (2**51 -1);
+        uint256 compVal = compressedEpochVals[_epoch/2];
+        uint256 position = (_epoch % 2 != 0) ? 128 : 0;
+        return (compVal >> position) & (2**42 -1);
     }
 
     function getHeldTokenExistence(address _nft, uint256 _id) external view returns(bool) {

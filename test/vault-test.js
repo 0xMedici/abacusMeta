@@ -491,6 +491,55 @@ describe("Spot pool", function () {
         await maPool.closeNft(mockNft.address, 1);
     });
 
+    it("closeNft() - buyback()", async function () {
+        let nftIds = new Array();
+        let nftAddresses = new Array();
+        for(let i = 0; i < 6; i++) {
+            await mockNft.mintNew();
+            nftIds[i] = i + 1;
+            nftAddresses[i] = mockNft.address;
+        }
+        await factory.initiateMultiAssetVault(
+            "HelloWorld"
+        );
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
+        let maPool = await Vault.attach(vaultAddress);
+        await maPool.includeNft(
+            nftAddresses, 
+            nftIds
+        );
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        let costPerToken = 1e15;
+        let totalCost = costPerToken * 300 * 3;
+        await mockToken.approve(maPool.address, totalCost.toString());
+        await maPool.purchase(
+            deployer.address,
+            ['0', '1', '2'],
+            ['100', '100', '100'],
+            0,
+            2,
+        );
+        await mockNft.approve(maPool.address, 1);
+        await maPool.closeNft(mockNft.address, 1);
+        await mockToken.approve(auction.address, (5e18).toString());
+        await auction.newBid(1, (5e18).toString());
+        await mockToken.approve(auction.address, (5e18).toString());
+        expect(auction.buyBack(1)).to.reverted;
+        expect(auction.claimNft(1)).to.reverted;
+        await mockToken.approve(auction.address, (555e16).toString());
+        await auction.buyBack(1);
+        await auction.claimNft(1);
+        expect(await mockNft.ownerOf(1)).to.equal(deployer.address);
+        await maPool.adjustTicketInfo(0, 1);
+        await maPool.sell(
+            0
+        );
+    });
+
     it("closeNft() - multiple nfts, same collection", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
@@ -665,37 +714,31 @@ describe("Spot pool", function () {
         await auction.newBid(1, (5e16).toString());
         await network.provider.send("evm_increaseTime", [43201]);
         await auction.endAuction(1);
-        // TODO Check pool values
         await maPool.closeNft(mockNft.address, 2);
         await mockToken.approve(auction.address, (5e16).toString());
         await auction.newBid(2, (5e16).toString());
         await network.provider.send("evm_increaseTime", [43201]);
         await auction.endAuction(2);
-        // TODO Check pool values
         await maPool.closeNft(mockNft.address, 3);
         await mockToken.approve(auction.address, (5e16).toString());
         await auction.newBid(3, (5e16).toString());
         await network.provider.send("evm_increaseTime", [43201]);
         await auction.endAuction(3);
-        // TODO Check pool values
         await maPool.closeNft(mockNft.address, 4);
         await mockToken.approve(auction.address, (5e16).toString());
         await auction.newBid(4, (5e16).toString());
         await network.provider.send("evm_increaseTime", [43201]);
         await auction.endAuction(4);
-        // TODO Check pool values
         await maPool.closeNft(mockNft.address, 5);
         await mockToken.approve(auction.address, (5e16).toString());
         await auction.newBid(5, (5e16).toString());
         await network.provider.send("evm_increaseTime", [43201]);
         await auction.endAuction(5);
-        // TODO Check pool values
         await maPool.closeNft(mockNft.address, 6);
         await mockToken.approve(auction.address, (5e16).toString());
         await auction.newBid(6, (5e16).toString());
         await network.provider.send("evm_increaseTime", [43201]);
         await auction.endAuction(6);
-        // TODO Check pool values
     });
 
     it("closeNft() - single NFT multiple times", async function () {

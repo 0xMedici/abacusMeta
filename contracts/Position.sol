@@ -288,10 +288,11 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
             adjustmentsMade[_nonce] < vault.adjustmentsRequired()
             , " AU"
         );
+        bool auctionComplete;
         uint256 auctionEndTime;
-        (,,,,,,auctionEndTime,,) = auction.auctions(_auctionNonce);
+        (auctionComplete,,,,,,auctionEndTime,,) = auction.auctions(_auctionNonce);
         require(
-            block.timestamp > auctionEndTime
+            auctionComplete
             && auctionEndTime != 0
             , " AO"
         );
