@@ -30,7 +30,7 @@ contract TrancheCalculator {
     function setMetrics(
         uint256[] calldata ops
     ) external {
-        require(ops.length < 28);
+        require(ops.length < 28, "Too many ops");
         // require(controller.accreditedAddresses(msg.sender));
         computation[msg.sender] = this.getComputationBitString(ops);
     }

@@ -7,19 +7,15 @@ async function main() {
     Factory = await ethers.getContractFactory("Factory");
     factory = await Factory.attach(ADDRESSES[1]);
     console.log("Factory connected.", factory.address);
-    Lend = await ethers.getContractFactory("Lend");
-    lend = await Lend.attach(ADDRESSES[2]);
-    console.log("Lender conntecteed.", lend.address);
     Vault = await ethers.getContractFactory("Vault");
-    Closure = await ethers.getContractFactory("Closure");
-
+    Auction = await ethers.getContractFactory("Auction");
+    auction = await Auction.attach(ADDRESSES[6]);
+    MockToken = await ethers.getContractFactory("MockToken");
+    token = await MockToken.attach(ADDRESSES[4]);
     let vaultAddress = await factory.getPoolAddress(ADDRESSES[3]);
     vault = await Vault.attach(vaultAddress);
-    let closureAddress = await vault.closePoolContract();
-    closure = await Closure.attach(closureAddress);
-    await closure.endAuction(
-        '', //NFT address
-        '', //NFT ID
+    await auction.endAuction(
+        '1', // Closure nonce
     );
 }
 

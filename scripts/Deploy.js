@@ -15,45 +15,58 @@ async function main() {
     factory = await Factory.deploy(controller.address);
     console.log("Factory:", factory.address);
 
+    Auction = await ethers.getContractFactory("Auction");
+    auction = await Auction.deploy(controller.address);
+    console.log("Auction:", auction.address);
+
     Lend = await ethers.getContractFactory("Lend");
     lend = await Lend.deploy(controller.address);
     console.log("Lender:", lend.address);
 
     MockToken = await ethers.getContractFactory("MockToken");
-    mockToken = await MockToken.attach('0xa6D60724834Adc7A0D511C459A4Dcb499Aa16520');
+    mockToken = await MockToken.deploy();
     console.log("Token:", mockToken.address);
 
     VaultHelper = await ethers.getContractFactory("VaultHelper");
     helper = await VaultHelper.deploy();
     console.log("Helper:", helper.address);
 
-    // MockNft = await ethers.getContractFactory("MockNft");
-    // mockNft = await MockNft.deploy();
-    // console.log("NFT:", mockNft.address);
+    Sub = await ethers.getContractFactory("Sub");
+    sub = await Sub.deploy(controller.address);
+    console.log("Sub:", sub.address);
 
-    // for(let i = 0; i < 6; i++) {
-    //   await mockNft.mintNew();
-    // }
-    // console.log("NFT minted");
+    TrancheCalculator = await ethers.getContractFactory("TrancheCalculator");
+    trancheCalc = await TrancheCalculator.deploy(controller.address);
+    console.log("Tranche calculator:", trancheCalc.address);
+
+    RiskCalculator = await ethers.getContractFactory("RiskPointCalculator");
+    riskCalc = await RiskCalculator.deploy(controller.address);
+    console.log("Risk calculator:", riskCalc.address);
 
     const setBeta = await controller.setBeta(3);
-    await setBeta.wait();
+    setBeta.wait();
     console.log("Beta set to stage 3!");
     const setFactory = await controller.setFactory(factory.address);
-    await setFactory.wait();
+    setFactory.wait();
     console.log("Factory address configured!");
     const setLender = await controller.setLender(lend.address);
-    await setLender.wait();
+    setLender.wait();
     console.log("Lender address configured!");
     const wlAddress = await controller.addWlUser([deployer.address]);
-    await wlAddress.wait();
+    wlAddress.wait();
+    const setCalc = await controller.setCalculator(trancheCalc.address);
+    setCalc.wait();
+    const setRisk = await controller.setRiskCalculator(riskCalc.address);
+    setRisk.wait();
+    const setAuction = await controller.setAuction(auction.address);
+    setAuction.wait();
     const mint = await mockToken.mint();
-    await mint.wait();
+    mint.wait();
     const mintAgain = await mockToken.mint(); 
-    await mintAgain.wait();
+    mintAgain.wait();
     console.log("Token minted!");
-    const transfer = await mockToken.transfer('0xE6dC2c1a17b093F4f236Fe8545aCb9D5Ad94334a', '1000000000000000000000');
-    await transfer.wait();
+    // const transfer = await mockToken.transfer('0xE6dC2c1a17b093F4f236Fe8545aCb9D5Ad94334a', (500000000000000e6).toString());
+    // await transfer.wait();
 
     console.log("DONE");
 }

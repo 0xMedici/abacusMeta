@@ -58,6 +58,7 @@ contract Auction is ReentrancyGuard {
     }
 
     /* ======== EVENTS ======== */
+    event AuctionStarted(address _pool, address _token, uint256 _closureNonce);
     event NewBid(address _pool, address _token, uint256 _closureNonce, address _bidder, uint256 _bid);
     event Buyback(address _pool, address _token, uint256 _closureNonce, address _buyer, uint256 _amount);
     event AuctionEnded(address _pool, address _token, uint256 _closureNonce, address _winner, uint256 _highestBid);
@@ -68,10 +69,6 @@ contract Auction is ReentrancyGuard {
         controller = AbacusController(_controller);
         nonce = 1;
     }
-
-    /* ======== FALLBACK FUNCTIONS ======== */
-    receive() external payable {}
-    fallback() external payable {}
 
     /* ======== AUCTION ======== */
     /// SEE IClosure.sol FOR COMMENTS
@@ -84,6 +81,7 @@ contract Auction is ReentrancyGuard {
         auctions[nonce].pool = msg.sender;
         liveAuctions[msg.sender]++;
         nonce++;
+        emit AuctionStarted(msg.sender, address(Vault(msg.sender).token()), nonce - 1);
     }
 
     /// SEE IClosure.sol FOR COMMENTS
@@ -94,7 +92,7 @@ contract Auction is ReentrancyGuard {
             auction.nftVal != 0
             && auction.auctionEndTime == 0
         ) {
-            auction.auctionEndTime = block.timestamp + 10 minutes;
+            auction.auctionEndTime = block.timestamp + Vault(auction.pool).auctionLength();
         }
         require(_amount > 10**token.decimals() / 10000, "Min bid must be greater than 0.0001 tokens");
         require(_amount > 101 * auction.highestBid / 100, "Invalid bid");
@@ -130,6 +128,9 @@ contract Auction is ReentrancyGuard {
             "Auction complete - EA"
         );
         uint256 cost = auction.highestBid > auction.nftVal ? 11 * auction.highestBid / 10 : 11 * auction.nftVal / 10;
+        if(auction.highestBid != 0) {
+            require(vault.token().transfer(address(controller.factory()), auction.highestBid), "Bid return failed");    
+        }
         (controller.factory()).updatePendingReturns(
             auction.highestBidder, 
             address(vault.token()), 

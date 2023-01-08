@@ -63,6 +63,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     uint256 creatorFee;
     uint256 reservations;
 
+    uint256 public auctionLength;
+
     uint256 public spotsRemoved;
 
     uint256 public modTokenDecimal;
@@ -154,7 +156,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         );
         require(
             msg.sender == creator
-            , " NC"
+            , "NC"
+        );
+        require(
+            _collection.length > 0
+            , "NNI"
         );
         uint256 length = _collection.length;
         for(uint256 i = 0; i < length; i++) {
@@ -212,7 +218,8 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _epochLength,
         address _token,
         uint256 _creatorFee,
-        uint256 _liquidationRule
+        uint256 _liquidationRule,
+        uint256 _auctionLength
     ) external {
         require(stage == Stage.SET_METRICS);
         require(
@@ -251,6 +258,10 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(
             ERC20(_token).decimals() > 3
         );
+        require(
+            _auctionLength > 1 hours
+        );
+        auctionLength = _auctionLength;
         epochLength = _epochLength;
         amountNft = _slots;
         interestRate = _rate;
@@ -278,7 +289,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     */
     function purchase(
         address _buyer,
-        uint256[] calldata tickets, 
+        uint256[] calldata tickets,
         uint256[] calldata amountPerTicket,
         uint32 startEpoch,
         uint32 finalEpoch
@@ -528,14 +539,13 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     function adjustTicketInfo(
         uint256 _nonce,
         uint256 _auctionNonce
-    ) external nonReentrant returns(bool) {
+    ) external nonReentrant returns(uint256 payout) {
         address owner;
         (owner,,) = positionManager.getPositionOverallInfo(_nonce);
         require(
             msg.sender == owner
             , " IC"
         );
-        uint256 payout;
         uint256 mPayout;
         (, payout, mPayout) = positionManager.adjustTicketInfo(
             _nonce,
@@ -550,7 +560,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
             _nonce,
             _auctionNonce
         );
-        return true;
     }
 
     /**

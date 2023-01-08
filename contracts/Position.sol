@@ -70,7 +70,6 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
     mapping(address => mapping(uint256 => uint256)) tokenMapping;
 
     /// @notice Tracking the adjustments made by each user for each open nonce
-    /// [address] -> user
     /// [uint256] -> nonce
     /// [uint256] -> amount of adjustments made
     mapping(uint256 => uint256) public adjustmentsMade;
@@ -80,15 +79,12 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
     mapping(uint256 => address) public allowanceTracker;
 
     /// @notice Track a traders profile for each nonce
-    /// [address] -> user
     /// [uint256] -> nonce
     mapping(uint256 => Buyer) public traderProfile;
 
     /// @notice Track adjustment status of closed NFTs
-    /// [address] -> User 
     /// [uint256] -> nonce
-    /// [address] -> NFT collection
-    /// [uint256] -> NFT ID
+    /// [uint256] -> auction nonce
     /// [bool] -> Status of adjustment
     mapping(uint256 => mapping(uint256 => bool)) public adjustCompleted;
     
@@ -181,6 +177,7 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint32 startEpoch,
         uint32 finalEpoch
     ) external nonReentrant returns(uint256 largestTicket, uint256 riskNorm) {
+        require(msg.sender == address(vault));
         uint256 riskStart;
         for(uint256 i = 0; i < tickets.length / 10 + 1; i++) {
             if(tickets.length % 10 == 0 && i == tickets.length / 10) break;
@@ -218,6 +215,7 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 finalEpoch,
         uint256 unlockEpoch
     ) {
+        require(msg.sender == address(vault));
         Buyer storage trader = traderProfile[_nonce];
         require(
             trader.unlockEpoch != 0

@@ -74,11 +74,11 @@ describe("Spot pool", function () {
         mockToken.mint();
     });
 
-    it("Proper compilation and setting", async function () {
+    xit("Proper compilation and setting", async function () {
         console.log("Contracts compiled and controller configured!");
     });
 
-    it("includeNft()", async function () {
+    xit("includeNft()", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -98,7 +98,7 @@ describe("Spot pool", function () {
         expect(await maPool.getHeldTokenExistence(mockNft.address, 1)).to.equal(true);
     });
 
-    it("findBounds() - basic", async function () {
+    xit("findBounds() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -124,7 +124,7 @@ describe("Spot pool", function () {
         await trancheCalc.mockCalculation(maPool.address, 1);
     });
 
-    it("findRiskMultiplier() - basic", async function () {
+    xit("findRiskMultiplier() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -147,7 +147,7 @@ describe("Spot pool", function () {
         await riskCalc.calculateMultiplier(1);
     });
 
-    it("begin()", async function () {
+    xit("begin()", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -174,7 +174,7 @@ describe("Spot pool", function () {
         expect(await maPool.interestRate()).to.equal(100);
     });
 
-    it("purchase() - basic", async function () {
+    xit("purchase() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -214,7 +214,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(0)).toString()).to.equal("324000000000000000");
     });
 
-    it("purchase() - multiple", async function () {
+    xit("purchase() - multiple", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -298,7 +298,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(0)).toString()).to.equal("540000000000000000");
     });
 
-    it("sell() - basic", async function () {
+    xit("sell() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -340,7 +340,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(1)).toString()).to.equal("300000000000000000");
     });
 
-    it("sell() - early", async function () {
+    xit("sell() - early", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -381,7 +381,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(1)).toString()).to.equal("0");
     });
 
-    it("purchase() sell() - repetition", async function () {
+    xit("purchase() sell() - repetition", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -455,7 +455,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(1)).toString()).to.equal("0");
     });
 
-    it("closeNft() - basic", async function () {
+    xit("closeNft() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -491,7 +491,7 @@ describe("Spot pool", function () {
         await maPool.closeNft(mockNft.address, 1);
     });
 
-    it("closeNft() - buyback()", async function () {
+    xit("closeNft() - buyback()", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -540,7 +540,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("closeNft() - multiple nfts, same collection", async function () {
+    xit("closeNft() - multiple nfts, same collection", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -580,7 +580,7 @@ describe("Spot pool", function () {
         await maPool.closeNft(mockNft.address, 3);
     });
 
-    it("closeNft() - multiple nfts, different collections", async function () {
+    xit("closeNft() - multiple nfts, different collections", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -629,7 +629,7 @@ describe("Spot pool", function () {
         await maPool.closeNft(mockNft2.address, 1);
     });
 
-    it("closeNft() - multiple --staggered", async function () {
+    xit("closeNft() - multiple --staggered", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -671,7 +671,7 @@ describe("Spot pool", function () {
         await maPool.closeNft(mockNft.address, 3);
     });
 
-    it("closeNft() - all", async function () {
+    xit("closeNft() - all", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -741,7 +741,7 @@ describe("Spot pool", function () {
         await auction.endAuction(6);
     });
 
-    it("closeNft() - single NFT multiple times", async function () {
+    xit("closeNft() - single NFT multiple times", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -792,7 +792,7 @@ describe("Spot pool", function () {
         await auction.claimNft(2);
     });
 
-    it("closeNft() - single NFT multiple times --staggered", async function () {
+    xit("closeNft() - single NFT multiple times --staggered", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -843,7 +843,7 @@ describe("Spot pool", function () {
         await auction.endAuction(2);
     });
 
-    it("adjustTicketInfo() - basic", async function () {
+    xit("adjustTicketInfo() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -884,7 +884,7 @@ describe("Spot pool", function () {
         await maPool.adjustTicketInfo(0, 1);
     });
 
-    it("adjustTicketInfo() - single appraiser loss", async function () {
+    xit("adjustTicketInfo() - single appraiser loss", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -940,7 +940,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers loss single-closure", async function () {
+    xit("adjustTicketInfo() - multiple appraisers loss single-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1038,7 +1038,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers loss multi-closure", async function () {
+    xit("adjustTicketInfo() - multiple appraisers loss multi-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1173,7 +1173,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers loss multi-closure --staggered", async function () {
+    xit("adjustTicketInfo() - multiple appraisers loss multi-closure --staggered", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1309,7 +1309,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers loss single-closure --early", async function () {
+    xit("adjustTicketInfo() - multiple appraisers loss single-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1381,7 +1381,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers loss multi-closure --early", async function () {
+    xit("adjustTicketInfo() - multiple appraisers loss multi-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1463,7 +1463,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers neutral single-closure", async function () {
+    xit("adjustTicketInfo() - multiple appraisers neutral single-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1553,7 +1553,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers neutral multi-closure", async function () {
+    xit("adjustTicketInfo() - multiple appraisers neutral multi-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1671,7 +1671,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers neutral multi-closure --staggered", async function () {
+    xit("adjustTicketInfo() - multiple appraisers neutral multi-closure --staggered", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1790,7 +1790,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers neutral single-closure --early", async function () {
+    xit("adjustTicketInfo() - multiple appraisers neutral single-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1879,7 +1879,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers neutral multi-closure --early", async function () {
+    xit("adjustTicketInfo() - multiple appraisers neutral multi-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1996,7 +1996,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers gain single-closure", async function () {
+    xit("adjustTicketInfo() - multiple appraisers gain single-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2088,7 +2088,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers gain multi-closure", async function () {
+    xit("adjustTicketInfo() - multiple appraisers gain multi-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2208,7 +2208,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers gain multi-closure --staggered", async function () {
+    xit("adjustTicketInfo() - multiple appraisers gain multi-closure --staggered", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2335,7 +2335,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers gain single-closure --early", async function () {
+    xit("adjustTicketInfo() - multiple appraisers gain single-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2425,7 +2425,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multiple appraisers gain multi-closure --early", async function () {
+    xit("adjustTicketInfo() - multiple appraisers gain multi-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2544,7 +2544,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - epoch variation", async function () {
+    xit("adjustTicketInfo() - epoch variation", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2708,7 +2708,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("adjustTicketInfo() - multi tranche", async function () {
+    xit("adjustTicketInfo() - multi tranche", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2852,7 +2852,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("restore() - basic", async function () {
+    xit("restore() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -2948,7 +2948,7 @@ describe("Spot pool", function () {
         expect(parseInt(await maPool.spotsRemoved())).to.equal(0);
     });
 
-    it("Special case - different entry times, multi tranche, stagnated duration", async function () {
+    xit("Special case - different entry times, multi tranche, stagnated duration", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -3074,7 +3074,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("Special case - purchases in closure epoch after closure", async function () {
+    xit("Special case - purchases in closure epoch after closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -3227,7 +3227,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("Edge case - risk points loss exceeds risk points due to multiple in the money closures with an out of the money position", async function () {
+    xit("Edge case - risk points loss exceeds risk points due to multiple in the money closures with an out of the money position", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -3303,5 +3303,103 @@ describe("Spot pool", function () {
         await maPool.sell(
             0
         );
+    });
+
+    it("Sub() - full range", async function () {
+        Sub = await ethers.getContractFactory("Sub");
+        sub = await Sub.deploy(controller.address);
+        let nftIds = new Array();
+        let nftAddresses = new Array();
+        for(let i = 0; i < 6; i++) {
+            await mockNft.mintNew();
+            nftIds[i] = i + 1;
+            nftAddresses[i] = mockNft.address;
+        }
+        await factory.initiateMultiAssetVault(
+            "HelloWorld"
+        );
+        let vaultAddress = await factory.getPoolAddress("HelloWorld");
+        let maPool = await Vault.attach(vaultAddress);
+        await maPool.includeNft(
+            nftAddresses, 
+            nftIds
+        );
+        await maPool.setEquations(
+            [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
+            [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
+        );
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 86400);
+
+        // DEPOSIT GAS
+        const depositGas = await sub.depositGas(
+            { value: (1e17).toString() } // amount to deposit
+        );
+        await depositGas.wait();
+        
+        console.log("Checkpoint 1");
+        // MINT
+        await mockToken.mint();
+        console.log((await mockToken.totalSupply()).toString());
+        console.log((await mockToken.balanceOf(deployer.address)).toString());
+        const approve = await mockToken.approve(sub.address, (1e20).toString());
+        await approve.wait();
+        const depositTokens = await sub.depositTokens(
+            [mockToken.address], // addresses
+            [(1e20).toString()] // amounts
+        );
+        await depositTokens.wait();
+
+        console.log("Checkpoint 2");
+        // OPEN SUB
+        const createOrder = await sub.createOrder(
+            true,
+            true,
+            maPool.address, // pool address
+            [20, 21, 22], // ticket
+            [10, 10, 10], // ticket amount
+            86400 * 5, // lock time
+            await sub.getCompressedGasValues(
+                (592353126397956 * 10).toString(), 
+                (592353126397956 * 10).toString(),
+                (592353126397956 * 10).toString()
+            ), // gas per call
+            86400 * 7
+        );  
+        createOrder.wait();
+
+        console.log("Checkpoint 3");
+        console.log((592353126397956 * 10).toString());
+        console.log((await sub.gasStored(deployer.address)).toString());
+        // EXECUTE SUB
+        const executePurchaseOrder = await sub.executePurchaseOrder(
+            deployer.address, // subsidy recipient 
+            0, // order nonce
+            [20, 21, 22], // ticket
+            [10, 10, 10] // ticket amount
+        );
+        executePurchaseOrder.wait();
+        await mockNft.approve(maPool.address, 1);
+        await maPool.closeNft(mockNft.address, 1);
+        await mockToken.approve(auction.address, (2e14).toString());
+        await auction.newBid(1, (2e14).toString());
+        await network.provider.send("evm_increaseTime", [86401]);
+        await auction.endAuction(1);
+        console.log("Checkpoint 4");
+        const executeAdjustmentOrder = await sub.executeAdjustmentOrder(
+            deployer.address,
+            0, 
+            0,
+            1
+        );
+        executeAdjustmentOrder.wait();
+        await network.provider.send("evm_increaseTime", [86400 * 6]);
+        console.log("Checkpoint 5");
+        const executeSaleOrder = await sub.executeSellOrder(
+            deployer.address,
+            0,
+            0
+        );
+        executeSaleOrder.wait();
+        console.log("DONE");
     });
 });

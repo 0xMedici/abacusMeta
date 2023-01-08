@@ -1,22 +1,25 @@
 //localhost 
 // let ADDRESSES = [
-//     '0xdb17f7d06987F0a8Ab90A046af0143e645F7CE53', // controller
-//     '0x5831ef7604b76a38F71E3Fe697482fd16FC7249c', // factory
-//     '0x22e3C859949122E676f7Eaa18653361504D05bd7', // lender
-//     'TestPool', // Spot pool name
+//     '0x5FbDB2315678afecb367f032d93F642f64180aa3', // controller
+//     '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512', // factory
+//     '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9', // lender
+//     'I C U P', // Spot pool name
+//     '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9', // token
+//     '0x0165878A594ca255338adfa4d48449f69242Eb8F', // sub
+//     '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0', // auction
 // ];
 
 let TIMEDIF = 0;
 
 // goerli
 let ADDRESSES = [
-    '0xBfdADa8e05EA047c4dA9bd933800152C6ADD41D7', // controller
-    '0xDb660171935A51C4632fB101e5de7cB539C2033F', // factory
-    '0x99c983A526d29D14307F7944F299e2f07A6fc925', // lender
+    '0xa5791147E51df0F2955B6BCea04C7bADD6BF7c6E', // controller
+    '0x177d98d7F3312485FdeFaB067B601C71cb30d7fb', // factory
+    '0x079f44221D0AA6D198356690ae76367f57d56Ca2', // lender
     'I C U P', // Spot pool name
-    {
-
-    }
+    '0x3397C0586FA100A9678f3135b8407a584E0899Ac', // token
+    '0x1EC40e3C7F6C2d9e27EC0BAe06218d59bEf8A311', // sub
+    '0x89F445a4b61e8b5543Dc303D71cEf618e6616fe5', // auction
 ];
 
 //mainnet

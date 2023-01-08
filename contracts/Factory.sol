@@ -62,23 +62,8 @@ contract Factory is ReentrancyGuard {
 
     /* ======== EVENT ======== */
     event VaultCreated(string name, address _creator, address _pool);
-    event VaultSigned(address _pool, address _signer, address[] nftAddress, uint256[] ids);
-    event NftInclusion(address _pool, uint256[] nfts);
-    event VaultBegun(address _pool, address _token, uint256 _collateralSlots, uint256 _interest, uint256 _epoch);
-    event NftRemoved(address _pool, address removedAddress, uint256 removedId);
     event PendingReturnsUpdated(address _user, address _token, uint256 _amount);
     event PendingReturnsClaimed(address _user, address _token, uint256 _amount);
-    event Purchase(address _pool, address _buyer, uint256[] tickets, uint256[] amountPerTicket, uint256 nonce, uint256 startEpoch, uint256 finalEpoch);
-    event SaleComplete(address _pool,  address _seller, uint256 nonce, uint256 ticketsSold, uint256 creditsPurchased);
-    event SpotReserved(address _pool, uint256 reservationId, uint256 startEpoch, uint256 endEpoch);
-    event NftClosed(address _pool, uint256 _adjustmentNonce, uint256 _closureNonce, address _collection, uint256 _id, address _caller, uint256 payout); 
-    event NewBid(address _pool, address _token, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _bidder, uint256 _bid);
-    event AuctionEnded(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _winner, uint256 _highestBid);
-    event NftClaimed(address _pool, uint256 _closureNonce, address _closePoolContract, address _collection, uint256 _id, address _winner);
-    event PrincipalCalculated(address _pool, address _closePoolContract, address _collection, uint256 _id, address _user, uint256 _nonce, uint256 _closureNonce);
-    event Payout(address _pool, address _closePoolContract, address _user, uint256 _payoutAmount);
-    event LPTransferAllowanceChanged(address _pool, address from, address to);
-    event LPTransferred(address _pool, address from, address to, uint256 nonce);
 
     /* ======== MODIFIER ======== */
     modifier onlyAccredited {
@@ -92,10 +77,6 @@ contract Factory is ReentrancyGuard {
         _positionManagerImplementation = address(new Position()); 
         controller = AbacusController(_controller);
     }
-
-    /* ======== FALLBACK FUNCTIONS ======== */
-    receive() external payable {}
-    fallback() external payable {}
 
     /* ======== POOL CREATION ======== */
     /// SEE IFactory.sol FOR COMMENTS

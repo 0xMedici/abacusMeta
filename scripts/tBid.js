@@ -8,29 +8,17 @@ async function main() {
     factory = await Factory.attach(ADDRESSES[1]);
     console.log("Factory connected.", factory.address);
     Vault = await ethers.getContractFactory("Vault");
-    Closure = await ethers.getContractFactory("Closure");
-    // USING DAI ADDRESS AS EXAMPLE REPLACE WITH REAL ONE WHEN USING
-    const tokenAddress = "dai.tokens.ethers.eth";
-    // USING DAI ABI AS EXAMPLE REPLACE WITH REAL ONE WHEN USING
-    const tokenABI = [
-      "function name() view returns (string)",
-      "function symbol() view returns (string)",
-      "function balanceOf(address) view returns (uint)",
-      "function transfer(address to, uint amount)",
-      "event Transfer(address indexed from, address indexed to, uint amount)"
-    ];
-    // CONNECT TO DAI CONTRACT OBJECT AS EXAMPLE, REPLACE WITH REAL ONE WHEN USING
-    const token = new ethers.Contract(daiAddress, daiAbi, provider)
+    Auction = await ethers.getContractFactory("Auction");
+    auction = await Auction.attach(ADDRESSES[6]);
+    MockToken = await ethers.getContractFactory("MockToken");
+    token = await MockToken.attach(ADDRESSES[4]);
     let vaultAddress = await factory.getPoolAddress(ADDRESSES[3]);
-    let bidAmount = 1;
+    let bidAmount = (1e18).toString();
     vault = await Vault.attach(vaultAddress);
-    let closureAddress = await vault.closePoolContract();
-    closure = await Closure.attach(closureAddress);
-    await token.approve(closure.address, bidAmount);
-    await closure.newBid(
-        '', //NFT address
-        '', //NFT id
-        bidAmount  //Amount to bid
+    await token.approve(auction.address, bidAmount);
+    await auction.newBid(
+        1, //NFT id
+        (1e18).toString()  //Amount to bid
     );
 }
 
