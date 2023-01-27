@@ -132,8 +132,8 @@ contract Auction is ReentrancyGuard {
             require(vault.token().transfer(address(controller.factory()), auction.highestBid), "Bid return failed");    
         }
         (controller.factory()).updatePendingReturns(
-            auction.highestBidder, 
-            address(vault.token()), 
+            address(vault.token()),
+            auction.highestBidder,  
             auction.highestBid
         );
         auction.highestBid = cost;

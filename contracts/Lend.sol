@@ -119,13 +119,16 @@ contract Lend is ReentrancyGuard {
         uint256 poolEpoch = (block.timestamp - vault.startTime()) / vault.epochLength();
         require(poolEpoch + 1 != openLoan.interestEpoch, "Interest already paid");
         uint256 interestEpoch_ = openLoan.interestEpoch;
-        uint256 epochsMissed = poolEpoch + 1 - interestEpoch_;
+        uint256 interestPenalty = 1;
+        if(poolEpoch + 1 > interestEpoch_) {
+            interestPenalty = 2;
+        }
         for(uint256 i; i < _epoch.length; i++) {
             uint256 epoch = _epoch[i];
             require(poolEpoch > epoch, "Must wait till epoch concludes");
             require(epoch == interestEpoch_, "Already paid interest");
             totalInterest += vault.interestRate() * vault.getPayoutPerReservation(epoch) / 10_000 
-                        * vault.epochLength() / (52 weeks) * ((epochsMissed >= 2) ? 3 * epochsMissed / 2 : 1);
+                        * vault.epochLength() / (52 weeks) * interestPenalty;
             interestEpoch_++;
         }
         openLoan.interestEpoch = interestEpoch_;

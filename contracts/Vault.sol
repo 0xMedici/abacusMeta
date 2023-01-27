@@ -574,7 +574,7 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 poolEpoch = (block.timestamp - startTime) / epochLength;
         uint256 payout = (50 + creatorFee) * _amount / 1000;
         token.transfer(controller.multisig(), 50 * _amount / 1000);
-        token.transfer(address(factory), creatorFee * payout / 1000);
+        token.transfer(address(factory), creatorFee * _amount / 1000);
         factory.updatePendingReturns(
             address(token),
             creator,
