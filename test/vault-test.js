@@ -74,11 +74,11 @@ describe("Spot pool", function () {
         mockToken.mint();
     });
 
-    xit("Proper compilation and setting", async function () {
+    it("Proper compilation and setting", async function () {
         console.log("Contracts compiled and controller configured!");
     });
 
-    xit("includeNft()", async function () {
+    it("includeNft()", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -98,7 +98,7 @@ describe("Spot pool", function () {
         expect(await maPool.getHeldTokenExistence(mockNft.address, 1)).to.equal(true);
     });
 
-    xit("findBounds() - basic", async function () {
+    it("findBounds() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -120,11 +120,11 @@ describe("Spot pool", function () {
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         )
         expect(await maPool.getHeldTokenExistence(mockNft.address, 1)).to.equal(true);
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         await trancheCalc.mockCalculation(maPool.address, 1);
     });
 
-    xit("findRiskMultiplier() - basic", async function () {
+    it("findRiskMultiplier() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -147,7 +147,7 @@ describe("Spot pool", function () {
         await riskCalc.calculateMultiplier(1);
     });
 
-    xit("begin()", async function () {
+    it("begin()", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -168,13 +168,13 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         expect(await maPool.epochLength()).to.equal(86400);
         expect(await maPool.amountNft()).to.equal(3);
         expect(await maPool.interestRate()).to.equal(100);
     });
 
-    xit("purchase() - basic", async function () {
+    it("purchase() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -195,7 +195,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 750;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -214,7 +214,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(0)).toString()).to.equal("324000000000000000");
     });
 
-    xit("purchase() - multiple", async function () {
+    it("purchase() - multiple", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -235,7 +235,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 750;
@@ -298,7 +298,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(0)).toString()).to.equal("540000000000000000");
     });
 
-    xit("sell() - basic", async function () {
+    it("sell() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -319,7 +319,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -340,7 +340,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(1)).toString()).to.equal("300000000000000000");
     });
 
-    xit("sell() - early", async function () {
+    it("sell() - early", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -361,7 +361,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -381,7 +381,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(1)).toString()).to.equal("0");
     });
 
-    xit("purchase() sell() - repetition", async function () {
+    it("purchase() sell() - repetition", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -401,7 +401,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -455,7 +455,7 @@ describe("Spot pool", function () {
         expect((await maPool.getTotalAvailableFunds(1)).toString()).to.equal("0");
     });
 
-    xit("closeNft() - basic", async function () {
+    it("closeNft() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -476,7 +476,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -491,7 +491,7 @@ describe("Spot pool", function () {
         await maPool.closeNft(mockNft.address, 1);
     });
 
-    xit("closeNft() - buyback()", async function () {
+    it("closeNft() - buyback()", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -512,7 +512,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -540,7 +540,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("closeNft() - multiple nfts, same collection", async function () {
+    it("closeNft() - multiple nfts, same collection", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -561,7 +561,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -580,7 +580,7 @@ describe("Spot pool", function () {
         await maPool.closeNft(mockNft.address, 3);
     });
 
-    xit("closeNft() - multiple nfts, different collections", async function () {
+    it("closeNft() - multiple nfts, different collections", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -612,7 +612,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -629,7 +629,7 @@ describe("Spot pool", function () {
         await maPool.closeNft(mockNft2.address, 1);
     });
 
-    xit("closeNft() - multiple --staggered", async function () {
+    it("closeNft() - multiple --staggered", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -650,7 +650,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -671,7 +671,7 @@ describe("Spot pool", function () {
         await maPool.closeNft(mockNft.address, 3);
     });
 
-    xit("closeNft() - all", async function () {
+    it("closeNft() - all", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -692,7 +692,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(6, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(6, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 6;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -741,7 +741,7 @@ describe("Spot pool", function () {
         await auction.endAuction(6);
     });
 
-    xit("closeNft() - single NFT multiple times", async function () {
+    it("closeNft() - single NFT multiple times", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -765,7 +765,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -792,7 +792,7 @@ describe("Spot pool", function () {
         await auction.claimNft(2);
     });
 
-    xit("closeNft() - single NFT multiple times --staggered", async function () {
+    it("closeNft() - single NFT multiple times --staggered", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -815,7 +815,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -843,7 +843,7 @@ describe("Spot pool", function () {
         await auction.endAuction(2);
     });
 
-    xit("adjustTicketInfo() - basic", async function () {
+    it("adjustTicketInfo() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -864,7 +864,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
         await mockToken.approve(maPool.address, totalCost.toString());
@@ -884,7 +884,7 @@ describe("Spot pool", function () {
         await maPool.adjustTicketInfo(0, 1);
     });
 
-    xit("adjustTicketInfo() - single appraiser loss", async function () {
+    it("adjustTicketInfo() - single appraiser loss", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -905,7 +905,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 13]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100 * 3;
@@ -940,7 +940,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers loss single-closure", async function () {
+    it("adjustTicketInfo() - multiple appraisers loss single-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -963,7 +963,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1038,7 +1038,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers loss multi-closure", async function () {
+    it("adjustTicketInfo() - multiple appraisers loss multi-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1061,7 +1061,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1173,7 +1173,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers loss multi-closure --staggered", async function () {
+    it("adjustTicketInfo() - multiple appraisers loss multi-closure --staggered", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1196,7 +1196,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1309,7 +1309,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers loss single-closure --early", async function () {
+    it("adjustTicketInfo() - multiple appraisers loss single-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1332,7 +1332,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1381,7 +1381,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers loss multi-closure --early", async function () {
+    it("adjustTicketInfo() - multiple appraisers loss multi-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1404,7 +1404,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1463,7 +1463,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers neutral single-closure", async function () {
+    it("adjustTicketInfo() - multiple appraisers neutral single-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1486,7 +1486,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1553,7 +1553,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers neutral multi-closure", async function () {
+    it("adjustTicketInfo() - multiple appraisers neutral multi-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1576,7 +1576,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1671,7 +1671,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers neutral multi-closure --staggered", async function () {
+    it("adjustTicketInfo() - multiple appraisers neutral multi-closure --staggered", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1694,7 +1694,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1790,7 +1790,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers neutral single-closure --early", async function () {
+    it("adjustTicketInfo() - multiple appraisers neutral single-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1813,7 +1813,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1879,7 +1879,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers neutral multi-closure --early", async function () {
+    it("adjustTicketInfo() - multiple appraisers neutral multi-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -1902,7 +1902,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -1996,7 +1996,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers gain single-closure", async function () {
+    it("adjustTicketInfo() - multiple appraisers gain single-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2021,7 +2021,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -2088,7 +2088,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers gain multi-closure", async function () {
+    it("adjustTicketInfo() - multiple appraisers gain multi-closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2114,7 +2114,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -2208,7 +2208,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers gain multi-closure --staggered", async function () {
+    it("adjustTicketInfo() - multiple appraisers gain multi-closure --staggered", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2234,7 +2234,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -2335,7 +2335,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers gain single-closure --early", async function () {
+    it("adjustTicketInfo() - multiple appraisers gain single-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2359,7 +2359,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -2425,7 +2425,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multiple appraisers gain multi-closure --early", async function () {
+    it("adjustTicketInfo() - multiple appraisers gain multi-closure --early", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2451,7 +2451,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -2544,7 +2544,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - epoch variation", async function () {
+    it("adjustTicketInfo() - epoch variation", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2568,7 +2568,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 100;
@@ -2708,7 +2708,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("adjustTicketInfo() - multi tranche", async function () {
+    it("adjustTicketInfo() - multi tranche", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2732,7 +2732,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 400;
@@ -2852,7 +2852,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("restore() - basic", async function () {
+    it("restore() - basic", async function () {
         let nftIds = new Array();
         let nftAddresses = new Array();
         for(let i = 0; i < 6; i++) {
@@ -2873,7 +2873,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 300 * 3;
@@ -2948,7 +2948,7 @@ describe("Spot pool", function () {
         expect(parseInt(await maPool.spotsRemoved())).to.equal(0);
     });
 
-    xit("Special case - different entry times, multi tranche, stagnated duration", async function () {
+    it("Special case - different entry times, multi tranche, stagnated duration", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -2971,7 +2971,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 400;
@@ -3074,7 +3074,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("Special case - purchases in closure epoch after closure", async function () {
+    it("Special case - purchases in closure epoch after closure", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -3097,7 +3097,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 400;
@@ -3227,7 +3227,7 @@ describe("Spot pool", function () {
         );
     });
 
-    xit("Edge case - risk points loss exceeds risk points due to multiple in the money closures with an out of the money position", async function () {
+    it("Edge case - risk points loss exceeds risk points due to multiple in the money closures with an out of the money position", async function () {
         await mockToken.connect(user1).mint();
         await mockToken.connect(user2).mint();
         let nftIds = new Array();
@@ -3250,7 +3250,7 @@ describe("Spot pool", function () {
             [13, 5, 0, 0, 7, 9, 20, 4, 9, 0, 1, 110, 8, 8],
             [22, 3, 0, 12, 4, 0, 9, 10, 1, 10, 8, 3, 19]
         );
-        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10);
+        await maPool.begin(3, 100, 86400, mockToken.address, 100, 10, 3700);
         manager = await Position.attach((await maPool.positionManager()).toString());
         let costPerToken = 1e15;
         let totalCost = costPerToken * 400;
@@ -3305,7 +3305,7 @@ describe("Spot pool", function () {
         );
     });
 
-    it("Sub() - full range", async function () {
+    xit("Sub() - full range", async function () {
         Sub = await ethers.getContractFactory("Sub");
         sub = await Sub.deploy(controller.address);
         let nftIds = new Array();

@@ -160,8 +160,8 @@ contract Lend is ReentrancyGuard {
             delete loans[nft][id];
             delete loanDeployed[nft][id];
             IERC721(nft).transferFrom(address(this), borrower, id);
+            require(IERC721(nft).ownerOf(id) == borrower, "Transfer failed");
         }
-        require(IERC721(nft).ownerOf(id) == borrower, "Transfer failed");
         emit EthRepayed(msg.sender, pool, nft, id, _amount);
     }
 
