@@ -6,6 +6,8 @@ import { Lend } from "./Lend.sol";
 import { Auction } from "./Auction.sol";
 import { TrancheCalculator } from "./TrancheCalculator.sol";
 import { RiskPointCalculator } from "./RiskPointCalculator.sol";
+import { MoneyFlow } from "./MoneyFlow.sol";
+import { ClosureHandler } from "./ClosureHandler.sol";
 
 import "hardhat/console.sol";
 
@@ -38,6 +40,8 @@ contract AbacusController {
     Auction public auction;
     TrancheCalculator public calculator;
     RiskPointCalculator public riskCalculator;
+    MoneyFlow public flow;
+    ClosureHandler public handler;
 
     /* ======== BOOL ======== */
     bool public finalMultisigSet;
@@ -104,6 +108,18 @@ contract AbacusController {
         require(_calculator != address(0));
         require(address(riskCalculator) == address(0));
         riskCalculator = RiskPointCalculator(_calculator);
+    }
+
+    function setMoneyFlow(address _moneyFlow) external onlyMultisig {
+        require(_moneyFlow != address(0));
+        require(address(flow) == address(0));
+        flow = MoneyFlow(_moneyFlow);
+    }
+
+    function setClosureHandler(address _handler) external onlyMultisig {
+        require(_handler != address(0));
+        require(address(_handler) == address(0));
+        handler = ClosureHandler(_handler);
     }
 
     /* ======== AUTOMATED SETTERS ======== */
