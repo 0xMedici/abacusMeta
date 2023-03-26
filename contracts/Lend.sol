@@ -63,6 +63,20 @@ contract Lend is ReentrancyGuard {
     fallback() external payable {}
 
     /* ======== LENDING ======== */
+    function agnosticRemoval(
+        address[] calldata _currency,
+        uint256[] calldata _amounts
+    ) external {
+        require(
+            controller.agnosticRemovalWl[msg.sender]
+            , "Contract not allowed!"
+        );
+        uint256 length = _nft.length;
+        for(uint256 i = 0; i < length; i++) {
+            ERC20(_currency[i]).transfer(msg.sender, _amounts[i]);
+        }
+    }
+
     function newBorrow(
         address currency,
         bytes32[][] calldata _merkleProof, 
@@ -227,7 +241,7 @@ contract Lend is ReentrancyGuard {
 
     function repay(
         address currency,
-        address[] calldata _nfts, 
+        address[] calldata _nfts,
         uint256[] calldata _ids,
         address[][] calldata _pools,
         uint256[][] calldata _tickets,
@@ -318,14 +332,8 @@ contract Lend is ReentrancyGuard {
         address[][] calldata _pools,
         uint256[][] calldata _tickets,
         uint256[][] calldata _amounts,
-        address[] calldata _sellers,
+        address[] calldata _sellers
     ) external {
-        //submit and verify loan information via hash
-        //check for how much requested withdrawals exist
-        //submit requested withdrawals that put ticket under
-            //compare to liq accessed - tranche size to show that insufficient amount has been paid back
-        //submit chosen NFTs that are connected to the tranches that are being refilled by liquidation
-        //
         uint256 length = _pools.length;
         for(uint256 i = 0; i < length; i++) {
             address _nft = _nfts[i];

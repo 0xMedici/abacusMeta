@@ -52,11 +52,12 @@ contract AbacusController {
     /* ======== MAPPING ======== */
     mapping(address => bool) public accreditedAddresses;
     mapping(address => bool) public userWhitelist;
-    mapping(address => address) public registry;
+    mapping(address => bool) public agnosticRemovalWl;
 
     /* ======== EVENTS ======== */
     event WLUserAdded(address[] _user);
     event WLUserRemoved(address[] _user);
+    event WLAgnosticRemoval(address[] _addresses);
     event BetaStageApproved(uint256 stage);
 
     /* ======== MODIFIERS ======== */
@@ -132,6 +133,7 @@ contract AbacusController {
     function addWlUser(address[] calldata users) external onlyMultisig {
         uint256 length = users.length;
         for(uint256 i = 0; i < length; i++) {
+            require(users[i] != address(0));
             userWhitelist[users[i]] = true;
         }
         emit WLUserAdded(users);
@@ -145,18 +147,20 @@ contract AbacusController {
         emit WLUserRemoved(users);
     }
 
+    function wlAgnosticRemoval(address[] calldata _addresses) external onlyMultisig {
+        uint256 length = _addresses.length;
+        for(uint256 i = 0; i < length; i++) {
+            require(_addresses[i] != address(0));
+            agnosticRemovalWl[_addresses[i]] = true;
+        }
+        emit WLAgnosticRemoval(_addresses);
+    }
+
     function setBeta(uint256 _stage) external onlyMultisig {
         require(_stage > beta);
         beta = _stage;
         emit BetaStageApproved(_stage);
     }
 
-    /* ======== PROXY REGISTRY ======== */
-    function setProxy(address _proxy) external {
-        registry[msg.sender] = _proxy;
-    }
-
-    function clearProxy() external {
-        delete registry[msg.sender];
-    }
+    function setRemoval
 }

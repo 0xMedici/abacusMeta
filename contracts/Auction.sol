@@ -57,10 +57,9 @@ contract Auction is ReentrancyGuard {
 
     /* ======== EVENTS ======== */
     event AuctionStarted(address _token, uint256 _closureNonce);
-    event NewBid(address _pool, address _token, uint256 _closureNonce, address _bidder, uint256 _bid);
-    event Buyback(address _pool, address _token, uint256 _closureNonce, address _buyer, uint256 _amount);
+    event NewBid(address _token, uint256 _closureNonce, address _bidder, uint256 _bid);
     event AuctionEnded(address _currency, address _token, uint256 _closureNonce, address _winner, uint256 _highestBid);
-    event NftClaimed(address _pool, uint256 _closureNonce, address _winner);
+    event NftClaimed(uint256 _closureNonce, address _winner);
 
     /* ======== CONSTRUCTOR ======== */
     constructor(address _controller) {
@@ -69,6 +68,12 @@ contract Auction is ReentrancyGuard {
     }
 
     /* ======== AUCTION ======== */
+    function updateRiskEquation(
+        uint256[] ops
+    ) external {
+        //TODO: create on risk calculator
+    }
+
     /// SEE IClosure.sol FOR COMMENTS
     function startAuction(address _currency, address _nft, uint256 _id, uint256 _nftVal) external {
         require(controller.accreditedAddresses(msg.sender));
@@ -83,25 +88,30 @@ contract Auction is ReentrancyGuard {
     }
 
     function newGracePeriodBid(
+        uint256[] calldata _compPools,
         uint256[] calldata _auctionNonces,
-        uint256[][] calldata _tickets
+        uint256[] calldata _tickets
     ) external nonReentrant {
         uint256 totalPurchaseCost;
+        uint256 prevIndex;
         for(uint256 i = 0; i < _auctionNonces.length; i++) {
-            uint256 auctionNonce = _auctionNonces[i];
-            CurrentAuction memory auction = auctions[auctionNonce];
-            ERC20 token = ERC20(Vault(payable(auction.pool)).token());
+            uint256 endIndex = _compPools[i] & (2**96 - 1);
+            totalPurchaseCost = _createBid(
+                _compPools[i] >> 96,
+                _auctionNonces[prevIndex:endIndex],
+                _tickets[prevIndex:endIndex]
+            );
             _updateProtocol(
                 msg.sender,
-                auctionNonce,
+                _auctionNonces,
+                _compPools,
                 _tickets[i]
             );
-            totalPurchaseCost += auction.nftVal;
+            require(
+                ERC20(currency).transferFrom(msg.sender, address(controller.flow()), totalPurchaseCost)
+                , "Purchase transfer failed"
+            );
         }
-        require(
-            vault.token().transferFrom(msg.sender, address(controller.flow()), totalPurchaseCost)
-            , "Purchase transfer failed"
-        );
     }
 
     /// SEE IClosure.sol FOR COMMENTS
@@ -115,7 +125,7 @@ contract Auction is ReentrancyGuard {
             uint256 _amount = _amounts[i];
             uint256 _nonce = _auctionNonces[i];
             CurrentAuction storage auction = auctions[_nonce];
-            ERC20 token = ERC20(Vault(payable(auction.pool)).token());
+            ERC20 token = ERC20(auction.currency);
             require(
                 auction.highestGraceBid == 0
                 , "Auctioned ended during grace"
@@ -159,7 +169,6 @@ contract Auction is ReentrancyGuard {
             auction.highestBid = _amount;
             auction.highestBidder = msg.sender;
             emit NewBid(
-                auctions[_nonce].pool,
                 address(token),
                 _nonce,
                 msg.sender,
@@ -176,18 +185,14 @@ contract Auction is ReentrancyGuard {
             uint256 _nonce = _nonces[i];
             CurrentAuction storage auction = auctions[_nonce];
             Vault vault = Vault(payable(auction.pool));
-            ERC20 token = ERC20(vault.token());
             require(auction.auctionEndTime != 0, "Invalid auction");
             require(
                 block.timestamp > auction.auctionEndTime
                 && !auction.auctionComplete,
                 "Auction ongoing - EA"
             );
-            vault.updateSaleValue(_nonce, auction.highestBid);
             auction.auctionComplete = true;
             emit AuctionEnded(
-                auctions[_nonce].pool,
-                address(token),
                 _nonce,
                 auction.highestBidder,
                 auction.highestBid
@@ -218,48 +223,72 @@ contract Auction is ReentrancyGuard {
         }
     }
 
+    function _createBid(
+        address _pool,
+        uint256[] calldata _auctionNonces,
+        uint256[] calldata _tickets
+    ) internal returns(uint256 totalPurchaseCost) {
+        for(uint256 i = 0; i < _auctionNonces.length; i++) {
+            CurrentAuction storage auction = auctions[_auctionNonces[i]];
+            require(auction.currency == address(Vault(_pool).token()));
+            totalPurchaseCost += auction.nftVal;
+        }
+    }
+
     function _updateProtocol(
         address _user,  
-        uint256 _nonce,
+        uint256[] calldata _auctionNonce,
+        uint256[] calldata _compPools,
         uint256[] calldata _tickets
-    ) internal returns(uint256 totalReturnAmount, uint256 totalPurchaseCost) {
-        CurrentAuction storage auction = auction[_nonce];
-        uint256 netRiskPoints;
-        for(uint256 i = 0; i < _tickets.length; i++) {
-            uint256 _amount = Vault(auction.pool).position().getTicketsOwned(_user, _tickets[i]);
-            netRiskPoints += controller.riskCalc().calculateMultiplier(_tickets[i]) * _amount;
-        }
-        require(
-            block.timestamp < auction.gracePeriodEndTime
-            , "Grace period auction has concluded!"
-        );
-        require(
-            netRiskPoints > auction.highestBidGrace
-            , "Must have more risk points than existing bidder!"
-        );
-        if(auction.highestBidder != address(0)) {
-            controller.flow().updatePendingReturns(
-                auction.highestBidder, 
-                address(token),
-                auction.nftVal
+    ) internal {
+        uint256 prevIndex = 0;
+        for(uint256 j = 0; j < _compPools.length; j++) {
+            CurrentAuction storage auction = auction[_auctionNonce[i]];
+            uint256 netRiskPoints;
+            Vault vault = Vault(_compPools[i] >> 96);
+            require(
+                vault.payoutInfo(_auctionNonce[i]) != 0
+                , "Pool not involved"
             );
-            totalReturnAmount += auction.nftVal;
+            uint256 endIndex = _compPools[i] & (2**96 - 1);
+            for(uint256 i = prevIndex; i < endIndex; i++) {
+                uint256 _amount = vault.position().getTicketsOwned(_user, _tickets[i]);
+                uint256 _upperBound = controller.calculator().mockCalculation(pool, _tickets[i]);
+                //TODO: create global risk function 
+                //TODO: risk calculation = take _upperBoundRisk * _amount
+                netRiskPoints += controller.riskCalc().calculateMultiplier(_upperBound) * _amount;
+            }
+            prevIndex = endIndex;
+            require(
+                block.timestamp < auction.gracePeriodEndTime
+                , "Grace period auction has concluded!"
+            );
+            require(
+                netRiskPoints > auction.highestBidGrace
+                , "Must have more risk points than existing bidder!"
+            );
+            if(auction.highestBidder != address(0)) {
+                controller.flow().updatePendingReturns(
+                    auction.highestBidder, 
+                    auction.currency,
+                    auction.nftVal
+                );
+            }
+            auction.highestBid = auction.nftVal;
+            auction.auctionEndTime = auction.gracePeriodEndTime;
+            auction.highestBidder = _user;
+            auction.highestBidGrace = netRiskPoints;
         }
-        totalPurchaseCost += auction.nftVal;
-        auction.auctionEndTime = auction.gracePeriodEndTime;
-        auction.highestBid = auction.nftVal;
-        auction.highestBidder = _user;
-        auction.highestBidGrace = netRiskPoints;
-        emit NewGracePeriodBid(
-            address(vault), 
-            address(token), 
-            _nonce, 
-            address(this), 
-            _nft, 
-            _id, 
-            msg.sender, 
-            netRiskPoints
-        );
+        // emit NewGracePeriodBid(
+        //     address(vault), 
+        //     address(token),
+        //     _nonce, 
+        //     address(this),
+        //     _nft, 
+        //     _id, 
+        //     msg.sender, 
+        //     netRiskPoints
+        // );
     }
 
     function getAuctionSaleValue(uint256 _nonce) external view returns(uint256) {

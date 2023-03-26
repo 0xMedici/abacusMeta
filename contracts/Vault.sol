@@ -64,21 +64,14 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
     string name;
 
     /* ======== BYTES32 ======== */
-
     bytes32 public root;
 
     /* ======== UINT ======== */
-    uint256 public lockPremium;
-
     uint256 public creatorFee;
 
     uint256 public closureFee;
 
     uint256 public collectionAmount;
-
-    uint256 public auctionLength;
-
-    uint256 public gracePeriodLength;
 
     uint256 public modTokenDecimal;
 
@@ -86,9 +79,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     /// @notice Interest rate that the pool charges for usage of liquidity
     uint256 public interestRate;
-
-    /// @notice Pool creation time
-    uint256 public startTime;
 
     /// @notice Total amount of adjustments required (every time an NFT is 
     /// closed this value increments)
@@ -107,26 +97,16 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
 
     /* ======== MAPPINGS ======== */
     mapping(address => bool) addressExists;
-    mapping(uint256 => uint256) payoutInfo;
-    mapping(uint256 => uint256) auctionSaleValue;
+
+    mapping(uint256 => uint256) public payoutInfo;
 
     mapping(uint256 => uint256) public adjustmentNonceTracker;
     
     mapping(uint256 => uint256) public ticketValuePerPoint;
 
-    /// @notice Payout size for each reservation during an epoch
-    /// [uint256] -> epoch
-    /// [uint256] -> payout size
-    mapping(uint256 => uint256) public epochEarnings;
-
     mapping(uint256 => uint256) public trancheAdjustmentsMade;
 
     mapping(uint256 => uint256) public trancheVPR;
-    
-    /// @notice Tracks the amount of liquidity that has been accessed on behalf of an NFT
-    /// [address] -> NFT collection address
-    /// [uint256] -> NFT ID
-    mapping(address => mapping(uint256 => uint256)) public liqAccessed;
     
     /* ======== EVENTS ======== */
     event NftInclusion(address[] nfts, uint256[] ids);
@@ -224,20 +204,12 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256 _rate,
         address _token,
         uint256 _creatorFee,
-        uint256 _closureFee,
-        uint256 _lockPremium,
-        uint256 _liquidationWindow,
-        uint256 _auctionLength,
-        uint256 _gracePeriodLength
+        uint256 _closureFee
     ) external {
         require(stage == Stage.SET_METRICS);
         require(
             msg.sender == creator
             , "NC"
-        );
-        require(
-            startTime == 0
-            , "AS"
         );
         require(
             _rate > 10
@@ -258,20 +230,11 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         require(
             ERC20(_token).decimals() > 3
         );
-        require(
-            _auctionLength > 1 hours
-            , "ALTL"
-        );
-        lockPremium = _lockPremium;
-        auctionLength = _auctionLength;
-        gracePeriodLength = _gracePeriodLength;
         interestRate = _rate;
-        startTime = block.timestamp;
         token = ERC20(_token);
         modTokenDecimal = 10**ERC20(_token).decimals() / 1000;
         creatorFee = _creatorFee;
         closureFee = _closureFee;
-        liquidationWindow = _liquidationWindow;
         positionManager.setVaultInfo();
         stage = Stage.STARTED;
         // emit VaultBegun(address(token), _slots, _rate, _epochLength);
@@ -400,21 +363,6 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         payoutInfo[_auctionNonce] = ppr;
     }
 
-    /** 
-        Error chart:
-            IC - invalid caller
-    */
-    function updateSaleValue(
-        uint256 _nonce,
-        uint256 _saleValue
-    ) external payable nonReentrant {
-        require(
-            msg.sender == address(auction)
-        );
-        auctionSaleValue[_nonce] = _saleValue;
-        adjustmentsRequiredComplete++;
-    }
-
     /* ======== ACCOUNT CLOSURE ======== */
     /**
     Error chart: 
@@ -427,8 +375,19 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256[] calldata _tickets
     ) public nonReentrant {
         for(uint256 i = 0; i < _tickets.length; i++) {
-            if(trancheAdjustmentsMade[_tickets[i]] < adjustmentsRequiredComplete + 1) {
-                _adjustTranche(_tickets[i]);
+            if(trancheAdjustmentsMade[_tickets[i]] < adjustmentsRequiredPre + 1) {
+                uint256 ticketAmount = this.getPerpTicketInfo(_ticket);
+                uint256 existingValueInTicket = ticketAmount * ticketValuePerPoint[_ticket];
+                _adjustTranche(
+                    _tickets[i],
+                    ticketAmount,
+                    existingValueInTicket
+                );
+                _adjustTrancheClosures(
+                    _ticket[i],
+                    ticketAmount,
+                    existingValueInTicket
+                );
             }
         }
     }
@@ -486,18 +445,24 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
         totalTokens += totalTicketAmount;
     }
 
-    function _adjustTranche(
-        uint256 _ticket
+    function _adjustTrancheClosures(
+        uint256 _ticket,
+        uint256 ticketAmount,
+        uint256 existingValueInTicket
     ) internal {
         //TODO: add loss harvesting for over counted losses
-        uint256 ticketAmount = this.getPerpTicketInfo(_ticket);
-        uint256 existingValueInTicket = ticketAmount * ticketValuePerPoint[_ticket];
         uint256 adjustmentLevel = trancheAdjustmentsMade[_ticket];
-        uint256 adjustmentsRequired_ = adjustmentsRequired;
+        uint256 adjustmentsRequired_ = adjustmentsRequiredPre;
+        bool reverted;
         for(uint256 i = adjustmentLevel; i < adjustmentsRequired_; i++) {
             uint256 _auctionNonce = adjustmentNonceTracker[i];
             uint256 payout = payoutInfo[_auctionNonce];
-            uint256 saleValue = auctionSaleValue[_auctionNonce];
+            uint256 saleValue = auction.getAuctionSaleValue(_auctionNonce);
+            if(saleValue == 0) {
+                reverted = true;
+                existingValueInTicket = ticketAmount * ticketValuePerPoint[_ticket];
+                break;
+            }
             if(payout > saleValue) {
                 if(trancheCalc.calculateBound(_ticket + 1) * modTokenDecimal > saleValue) {
                     if(
@@ -511,9 +476,23 @@ contract Vault is ReentrancyGuard, ReentrancyGuard2, Initializable {
                 }
             }
         }
+        ///TODO: COMPRESS THESE 3
+        if(!reverted) {
+            adjustmentsRequiredComplete = adjustmentsRequired_;
+            trancheAdjustmentsMade[_ticket] = adjustmentsRequired_;    
+        }
+        ticketValuePerPoint[_ticket] = (existingValueInTicket) / ticketAmount;
+        trancheVPR[_ticket] = profitsPerRisk;
+    }
+
+    function _adjustTranche(
+        uint256 _ticket,
+        uint256 ticketAmount,
+        uint256 existingValueInTicket
+    ) internal {
+        //TODO: add loss harvesting for over counted losses
         existingValueInTicket += (profitsPerRisk - trancheVPR[_ticket]) * this.getRiskPointsSum(_ticket, ticketAmount);
         ///TODO: COMPRESS THESE 3
-        trancheAdjustmentsMade[_ticket] = adjustmentsRequired_;
         ticketValuePerPoint[_ticket] = (existingValueInTicket) / ticketAmount;
         trancheVPR[_ticket] = profitsPerRisk;
     }

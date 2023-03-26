@@ -135,6 +135,7 @@ contract Position is ReentrancyGuard, ReentrancyGuard2, Initializable {
         uint256[] calldata tickets, 
         uint256[] calldata amountPerTicket
     ) external nonReentrant returns(uint256 largestTicket, uint256 riskPoints) {
+        //TODO: switch to hash based ticket storage
         require(
             msg.sender == address(vault)
             , "Fraudulent creator"
